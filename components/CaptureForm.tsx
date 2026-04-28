@@ -1,7 +1,77 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+
+const PROCESSING_STEPS = [
+  "Fetching the source",
+  "Extracting clean text",
+  "Reflecting in your voice",
+  "Drafting three flashcards",
+  "Tagging concepts",
+];
+
+const STEP_MS = 1500;
+
+function ProcessingIndicator() {
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  useEffect(() => {
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const idx = Math.min(
+        PROCESSING_STEPS.length - 1,
+        Math.floor((now - start) / STEP_MS),
+      );
+      setActiveIdx(idx);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  return (
+    <ol
+      data-testid="capture-processing"
+      className="flex flex-col gap-1.5 text-sm"
+      aria-live="polite"
+    >
+      {PROCESSING_STEPS.map((s, i) => {
+        const done = i < activeIdx;
+        const active = i === activeIdx;
+        return (
+          <li
+            key={s}
+            className="flex items-center gap-2.5 transition-opacity"
+            style={{ opacity: i > activeIdx ? 0.4 : 1 }}
+          >
+            <span
+              className="flex size-4 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold"
+              style={{
+                background: done
+                  ? "color-mix(in srgb, var(--accent) 22%, transparent)"
+                  : active
+                    ? "color-mix(in srgb, var(--accent) 38%, transparent)"
+                    : "color-mix(in srgb, var(--muted) 18%, transparent)",
+                color: done || active ? "var(--accent)" : "var(--muted)",
+              }}
+            >
+              {done ? "✓" : active ? "•" : i + 1}
+            </span>
+            <span
+              style={{
+                color: done || active ? "var(--foreground)" : "var(--muted)",
+              }}
+            >
+              {s}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 export function CaptureForm() {
   const [input, setInput] = useState("");
@@ -78,10 +148,14 @@ export function CaptureForm() {
           {error}
         </p>
       )}
-      <div className="flex justify-between items-center">
-        <p className="text-xs text-[color:var(--muted)]">
-          Processing takes a few seconds. You&apos;ll be redirected to the captured item.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        {isPending ? (
+          <ProcessingIndicator />
+        ) : (
+          <p className="text-xs text-[color:var(--muted)]">
+            Processing takes a few seconds. You&apos;ll be redirected to the captured item.
+          </p>
+        )}
         <button
           type="submit"
           disabled={isPending || input.trim().length === 0}
