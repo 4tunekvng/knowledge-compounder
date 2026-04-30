@@ -48,6 +48,17 @@ export function SourceListItem({ source, whyICared, conceptsJson, cardCount }: P
             {c.name}
           </span>
         ))}
+        {concepts.length > 5 && (
+          <span
+            className="text-xs text-[color:var(--muted)]"
+            title={concepts
+              .slice(5)
+              .map((c) => c.name)
+              .join(", ")}
+          >
+            +{concepts.length - 5} more
+          </span>
+        )}
         {cardCount > 0 && (
           <span className="text-xs text-[color:var(--muted)] ml-auto">
             {cardCount} {cardCount === 1 ? "card" : "cards"}
