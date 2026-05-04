@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
+import { countDueCards } from "@/lib/services/queries";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,11 +27,21 @@ const NAV = [
   { href: "/themes", label: "Themes" },
 ];
 
+// Layout is a server component; we can fetch the SQLite count synchronously.
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let dueCount = 0;
+  try {
+    dueCount = countDueCards();
+  } catch {
+    // DB may not be ready (first boot, in tests) — silently degrade.
+  }
+
   return (
     <html
       lang="en"
@@ -46,15 +57,28 @@ export default function RootLayout({
             >
               Knowledge <span className="italic text-[color:var(--accent)]">Compounder</span>
             </Link>
-            <nav className="flex gap-6 text-sm">
+            <nav className="flex gap-6 text-sm items-baseline">
               {NAV.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="text-[color:var(--foreground)] no-underline hover:text-[color:var(--accent)]"
+                  className="text-[color:var(--foreground)] no-underline hover:text-[color:var(--accent)] inline-flex items-center gap-1.5"
                   data-testid={`nav-${item.label.toLowerCase()}`}
                 >
                   {item.label}
+                  {item.label === "Review" && dueCount > 0 && (
+                    <span
+                      className="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold"
+                      style={{
+                        background: "var(--accent)",
+                        color: "var(--background)",
+                      }}
+                      data-testid="review-due-badge"
+                      aria-label={`${dueCount} cards due for review`}
+                    >
+                      {dueCount > 99 ? "99+" : dueCount}
+                    </span>
+                  )}
                 </Link>
               ))}
             </nav>

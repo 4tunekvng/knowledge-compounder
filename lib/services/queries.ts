@@ -162,6 +162,15 @@ export function listDueCards(now = new Date(), limit = 50): DueCard[] {
   }));
 }
 
+/**
+ * Cheap count of cards whose dueAt has passed. Used to drive the Review
+ * nav badge — no need to materialize the full row set.
+ */
+export function countDueCards(now = new Date()): number {
+  const db = getDb();
+  return db.select().from(cards).where(lte(cards.dueAt, now)).all().length;
+}
+
 export function listThemes(): Theme[] {
   const db = getDb();
   return db.select().from(themes).orderBy(desc(themes.createdAt)).all();
