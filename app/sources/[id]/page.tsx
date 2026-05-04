@@ -5,6 +5,7 @@ import {
   parseTakeaways,
   parseConcepts,
 } from "@/lib/services/queries";
+import { RetrySourceButton } from "@/components/RetrySourceButton";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,7 @@ export default async function SourcePage({ params }: Params) {
         >
           <p className="font-medium mb-1">Processing failed</p>
           <p>{source.errorMessage ?? "Unknown error."}</p>
+          <RetrySourceButton sourceId={source.id} />
         </div>
       ) : source.status === "pending" ? (
         <div className="border border-amber-300 bg-amber-50 rounded-md p-4 text-sm text-amber-800">

@@ -102,3 +102,76 @@ export async function ingest({ raw }: IngestInput): Promise<IngestResult> {
     return { sourceId, status: "failed", error: message };
   }
 }
+
+/**
+ * Retry the AI-processing step for an existing source — used by the
+ * Retry button on a failed source page. Re-uses the already-extracted
+ * rawContent + title so we don't re-fetch the URL.
+ */
+export async function retrySource(sourceId: number): Promise<IngestResult> {
+  const db = getDb();
+  const row = db
+    .select({
+      title: sources.title,
+      rawContent: sources.rawContent,
+      status: sources.status,
+    })
+    .from(sources)
+    .where(eq(sources.id, sourceId))
+    .get();
+
+  if (!row) throw new Error("Source not found.");
+
+  // Reset the source to pending and clear any prior processings/cards.
+  db.transaction((tx) => {
+    tx.update(sources)
+      .set({ status: "pending", errorMessage: null, processedAt: null })
+      .where(eq(sources.id, sourceId))
+      .run();
+    tx.delete(processings).where(eq(processings.sourceId, sourceId)).run();
+    tx.delete(cards).where(eq(cards.sourceId, sourceId)).run();
+  });
+
+  try {
+    const result = await processSource({
+      title: row.title,
+      text: row.rawContent,
+    });
+    const vector = await embed(`${row.title}\n\n${row.rawContent}`);
+
+    db.transaction((tx) => {
+      tx.insert(processings)
+        .values({
+          sourceId,
+          whyICared: result.why_i_cared,
+          keyTakeaways: JSON.stringify(result.key_takeaways),
+          concepts: JSON.stringify(result.concepts),
+          embedding: embeddingToBlob(vector),
+        })
+        .run();
+      for (const card of result.cards) {
+        tx.insert(cards)
+          .values({
+            sourceId,
+            cardType: card.type,
+            front: card.front,
+            back: card.back,
+          })
+          .run();
+      }
+      tx.update(sources)
+        .set({ status: "processed", processedAt: new Date() })
+        .where(eq(sources.id, sourceId))
+        .run();
+    });
+
+    return { sourceId, status: "processed" };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    db.update(sources)
+      .set({ status: "failed", errorMessage: message })
+      .where(eq(sources.id, sourceId))
+      .run();
+    return { sourceId, status: "failed", error: message };
+  }
+}
