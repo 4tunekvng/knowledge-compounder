@@ -4,14 +4,12 @@ export const ConceptSchema = z.object({
   name: z.string().min(1).max(80),
   weight: z.number().min(0).max(1),
 });
-export type Concept = z.infer<typeof ConceptSchema>;
 
 export const CardSchema = z.object({
   type: z.enum(["definition", "mechanism", "application"]),
   front: z.string().min(3).max(280),
   back: z.string().min(3).max(800),
 });
-export type GeneratedCard = z.infer<typeof CardSchema>;
 
 export const ProcessingResultSchema = z.object({
   why_i_cared: z
@@ -56,7 +54,6 @@ export const ThemeSchema = z.object({
     .min(2)
     .describe("IDs of sources that contribute to this theme. At least two."),
 });
-export type GeneratedTheme = z.infer<typeof ThemeSchema>;
 
 export const ThemesResultSchema = z.object({
   themes: z.array(ThemeSchema).min(1).max(5),
@@ -71,7 +68,6 @@ export const CitationSchema = z.object({
     .max(600)
     .describe("Verbatim or near-verbatim quote from the source supporting the claim."),
 });
-export type Citation = z.infer<typeof CitationSchema>;
 
 export const EssayResultSchema = z.object({
   title: z.string().min(5).max(140),
