@@ -88,12 +88,7 @@ export const essays = sqliteTable("essays", {
 });
 
 export type Source = typeof sources.$inferSelect;
-export type NewSource = typeof sources.$inferInsert;
 export type Processing = typeof processings.$inferSelect;
-export type NewProcessing = typeof processings.$inferInsert;
 export type Card = typeof cards.$inferSelect;
-export type NewCard = typeof cards.$inferInsert;
 export type Theme = typeof themes.$inferSelect;
-export type NewTheme = typeof themes.$inferInsert;
 export type Essay = typeof essays.$inferSelect;
-export type NewEssay = typeof essays.$inferInsert;

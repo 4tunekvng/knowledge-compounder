@@ -45,11 +45,6 @@ export async function embed(text: string): Promise<Float32Array> {
   return remote ?? lexicalEmbedding(text);
 }
 
-export async function embedQuery(text: string): Promise<Float32Array> {
-  const remote = await callVoyage(text, "query");
-  return remote ?? lexicalEmbedding(text);
-}
-
 // Hashed bag-of-words into a fixed-length vector. Crude but order-invariant,
 // language-agnostic, and consistent across calls. Cosine similarity over these
 // vectors gives a usable "share many of the same notable words" signal that

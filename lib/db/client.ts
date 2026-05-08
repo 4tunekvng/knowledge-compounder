@@ -108,7 +108,3 @@ export function getDb() {
   return globalThis.__kc_db__;
 }
 
-export function getRawDb() {
-  getDb();
-  return globalThis.__kc_sqlite__!;
-}
