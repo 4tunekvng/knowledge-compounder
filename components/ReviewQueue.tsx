@@ -16,12 +16,12 @@ interface Props {
   cards: ReviewCard[];
 }
 
+// FSRS-5 ratings: 1=Again 2=Hard 3=Good 4=Easy
 const GRADE_BUTTONS: { grade: number; label: string; description: string; color: string }[] = [
-  { grade: 0, label: "Blank", description: "Couldn't recall at all", color: "bg-red-700" },
-  { grade: 2, label: "Hard", description: "Wrong, but felt close", color: "bg-orange-600" },
-  { grade: 3, label: "OK", description: "Right with effort", color: "bg-amber-600" },
-  { grade: 4, label: "Good", description: "Right with hesitation", color: "bg-emerald-600" },
-  { grade: 5, label: "Easy", description: "Perfect recall", color: "bg-emerald-800" },
+  { grade: 1, label: "Again", description: "Couldn't recall", color: "bg-red-700" },
+  { grade: 2, label: "Hard", description: "Recalled with difficulty", color: "bg-orange-600" },
+  { grade: 3, label: "Good", description: "Recalled with hesitation", color: "bg-emerald-600" },
+  { grade: 4, label: "Easy", description: "Perfect recall", color: "bg-emerald-800" },
 ];
 
 export function ReviewQueue({ cards }: Props) {

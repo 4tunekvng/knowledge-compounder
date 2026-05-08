@@ -56,7 +56,26 @@ function ensureSchema(sqlite: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS cards_due_idx ON cards(due_at);
     CREATE INDEX IF NOT EXISTS cards_source_idx ON cards(source_id);
+  `);
 
+  // FSRS-5 migration: add new columns to existing databases.
+  // ALTER TABLE ADD COLUMN fails silently-ish if the column already exists, so
+  // we catch the "duplicate column name" error and continue.
+  for (const ddl of [
+    "ALTER TABLE cards ADD COLUMN difficulty REAL NOT NULL DEFAULT 5.0",
+    "ALTER TABLE cards ADD COLUMN fsrs_state INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE cards ADD COLUMN lapses INTEGER NOT NULL DEFAULT 0",
+  ]) {
+    try { sqlite.exec(ddl); } catch { /* column already exists */ }
+  }
+  // Migrate SM-2 cards that have been reviewed: treat them as Review state so
+  // FSRS doesn't re-learn them from scratch. Use the old interval as stability.
+  sqlite.exec(`
+    UPDATE cards SET fsrs_state = 2, ease = MAX(1.0, interval_days)
+    WHERE repetitions > 0 AND fsrs_state = 0 AND interval_days > 0
+  `);
+
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS themes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       label TEXT NOT NULL,

@@ -47,10 +47,14 @@ export const cards = sqliteTable("cards", {
     .notNull(),
   front: text("front").notNull(),
   back: text("back").notNull(),
-  // SM-2 state
-  ease: real("ease").notNull().default(2.5),
-  intervalDays: real("interval_days").notNull().default(0),
-  repetitions: integer("repetitions").notNull().default(0),
+  // FSRS-5 memory model state.
+  // SQL column names preserved for schema compatibility; JS names express FSRS semantics.
+  stability: real("ease").notNull().default(0),         // S: days until R drops to 90 %
+  scheduledDays: real("interval_days").notNull().default(0), // planned interval in days
+  reps: integer("repetitions").notNull().default(0),    // successful review count
+  difficulty: real("difficulty").notNull().default(5.0), // D: card difficulty [1, 10]
+  fsrsState: integer("fsrs_state").notNull().default(0), // 0=New 1=Learning 2=Review 3=Relearning
+  lapses: integer("lapses").notNull().default(0),
   dueAt: integer("due_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),

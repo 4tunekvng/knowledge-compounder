@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { gradeCard } from "@/lib/services/review";
-import type { Grade } from "@/lib/sm2";
+import type { Rating } from "@/lib/sm2";
 
 export const runtime = "nodejs";
 
@@ -12,27 +12,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
   const cardId = Number(body.cardId);
-  const gradeValue = Number(body.grade);
+  const ratingValue = Number(body.grade);
   if (!Number.isInteger(cardId) || cardId <= 0) {
     return NextResponse.json({ error: "Invalid cardId." }, { status: 400 });
   }
-  if (
-    !Number.isInteger(gradeValue) ||
-    gradeValue < 0 ||
-    gradeValue > 5
-  ) {
+  // FSRS ratings: 1=Again 2=Hard 3=Good 4=Easy
+  if (!Number.isInteger(ratingValue) || ratingValue < 1 || ratingValue > 4) {
     return NextResponse.json(
-      { error: "Grade must be an integer between 0 and 5." },
+      { error: "Grade must be an integer between 1 and 4 (Again/Hard/Good/Easy)." },
       { status: 400 },
     );
   }
 
   try {
-    const next = gradeCard(cardId, gradeValue as Grade);
+    const next = gradeCard(cardId, ratingValue as Rating);
     return NextResponse.json({
-      ease: next.ease,
-      intervalDays: next.intervalDays,
-      repetitions: next.repetitions,
+      stability: next.stability,
+      difficulty: next.difficulty,
+      scheduledDays: next.scheduledDays,
+      reps: next.reps,
+      lapses: next.lapses,
+      state: next.state,
       dueAt: next.dueAt.toISOString(),
     });
   } catch (err) {

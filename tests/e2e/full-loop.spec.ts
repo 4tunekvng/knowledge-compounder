@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 // The dev server is started by playwright.config.ts with USE_FAKE_AI=1 and a
 // dedicated DATABASE_PATH, so these tests run against the real Next.js app
-// end-to-end (extraction, DB writes, SM-2, embeddings) — only the Anthropic
+// end-to-end (extraction, DB writes, FSRS-5, embeddings) — only the Anthropic
 // calls are stubbed by the deterministic fake module.
 //
 // Tests run serially in one worker so they share the same fresh DB.
@@ -68,11 +68,11 @@ test.describe("Knowledge Compounder full loop", () => {
     await expect(page.getByTestId("review-card")).toBeVisible();
     await expect(page.getByTestId("card-front")).toBeVisible();
 
-    // Grade all 3 cards as Good (4) — back of card revealed first each time.
+    // Grade all 3 cards as Good (FSRS rating 3) — back of card revealed first each time.
     for (let i = 0; i < 3; i++) {
       await page.getByTestId("reveal-button").click();
       await expect(page.getByTestId("card-back")).toBeVisible();
-      await page.getByTestId("grade-4").click();
+      await page.getByTestId("grade-3").click();
     }
 
     await expect(page.getByTestId("review-done")).toBeVisible();
