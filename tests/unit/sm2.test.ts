@@ -196,4 +196,27 @@ describe("FSRS-5 memory model invariants", () => {
     const expectedDue = NOW.getTime() + result.scheduledDays * 86_400_000;
     expect(result.dueAt.getTime()).toBe(expectedDue);
   });
+
+  it("nextDifficulty mean-reverts toward D_0 of the given rating, not always D_0(Easy)", () => {
+    // D_0(Again) ≈ 7.21, D_0(Easy) ≈ 3.29. For a card at d=5.0, 'Again' should
+    // pull difficulty UP (toward 7.21) while 'Easy' should pull it DOWN (toward 3.29).
+    // The bug used D_0(Easy) for all ratings, making 'Again' also pull difficulty down.
+    const reviewCard: CardState = {
+      stability: 10,
+      difficulty: 5.0,
+      scheduledDays: 10,
+      reps: 3,
+      lapses: 0,
+      state: State.Review,
+      lastReviewedAt: new Date(NOW.getTime() - 10 * 86_400_000),
+    };
+    const afterAgain = schedule(reviewCard, Rating.Again, NOW);
+    expect(afterAgain.difficulty).toBeGreaterThan(5.0);
+
+    const afterHard = schedule(reviewCard, Rating.Hard, NOW);
+    expect(afterHard.difficulty).toBeGreaterThan(5.0);
+
+    const afterEasy = schedule(reviewCard, Rating.Easy, NOW);
+    expect(afterEasy.difficulty).toBeLessThan(5.0);
+  });
 });

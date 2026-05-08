@@ -83,10 +83,11 @@ function initialDifficulty(rating: Rating): number {
   return clamp(W[4] - Math.exp(W[5] * (rating - 1)) + 1, 1, 10);
 }
 
-// D' = W[6] × D_0(Easy) + (1 − W[6]) × (D − W[7] × (G−3))
+// D' = W[6] × D_0(G) + (1 − W[6]) × (D − W[7] × (G−3))
+// Mean-reversion target is D_0 of the *current* rating, not always D_0(Easy).
 function nextDifficulty(d: number, rating: Rating): number {
-  const d0Easy = initialDifficulty(Rating.Easy);
-  return clamp(W[6] * d0Easy + (1 - W[6]) * (d - W[7] * (rating - 3)), 1, 10);
+  const d0 = initialDifficulty(rating);
+  return clamp(W[6] * d0 + (1 - W[6]) * (d - W[7] * (rating - 3)), 1, 10);
 }
 
 // S_r (stability after successful review in Review state)
