@@ -1,7 +1,9 @@
-// FSRS-5 Spaced Repetition Algorithm.
+// FSRS-6 Spaced Repetition Algorithm.
 //
-// Replaces the prior SM-2 implementation. FSRS-5 was trained on 700M+ community
-// reviews and produces 20–30 % fewer reviews than SM-2 at matched 90 % retention.
+// Upgraded from FSRS-5. FSRS-6 (released late 2025, trained on 700M+ reviews)
+// adds two new parameters: w[19] (same-day stability power factor) and w[20]
+// (per-user optimizable forgetting curve shape), reducing reviews ~20-30%
+// vs SM-2 at matched 90% retention.
 // Reference: https://github.com/open-spaced-repetition/free-spaced-repetition-scheduler
 //
 // State machine:
@@ -26,22 +28,24 @@ export const State = {
   Relearning: 3 as State,
 } as const;
 
-// Default FSRS-5 weights, trained on the open-spaced-repetition community dataset.
+// Default FSRS-6 weights, trained on the open-spaced-repetition community dataset.
 // These may be personalised per-user in a future version via the optimizer.
 const W = [
-  0.4072, 1.1829, 3.1262, 15.4722, // w0-w3: initial stability per rating
-  7.2102, 0.5316,                   // w4-w5: initial difficulty formula
-  1.0651, 0.0589,                   // w6-w7: difficulty update
-  1.5330, 0.1544, 1.0040,           // w8-w10: stability after recall
-  1.9764, 0.1115, 0.2901, 2.2700,   // w11-w14: stability after lapse
-  0.2407, 2.9466,                   // w15-w16: hard/easy modifiers
-  0.5034, 0.6567,                   // w17-w18: short-term stability
+  0.212,  1.2931, 2.3065, 8.2956, // w0-w3: initial stability per rating
+  6.4133, 0.8334,                  // w4-w5: initial difficulty formula
+  3.0194, 0.001,                   // w6-w7: difficulty update
+  1.8722, 0.1666, 0.796,           // w8-w10: stability after recall
+  1.4835, 0.0614, 0.2629, 1.6483,  // w11-w14: stability after lapse
+  0.6014, 1.8729,                  // w15-w16: hard/easy modifiers
+  0.5425, 0.0912,                  // w17-w18: short-term stability base
+  0.0658,                          // w19: same-day stability power (new in FSRS-6)
+  0.1542,                          // w20: forgetting curve decay (new in FSRS-6)
 ] as const;
 
 // Power-law forgetting curve: R(t, S) = (1 + FACTOR * t/S)^DECAY
-// where DECAY = −0.5 and FACTOR = 19/81 ≈ 0.2346.
-const DECAY = -0.5;
-const FACTOR = 19 / 81;
+// FSRS-6: DECAY = -w[20] (was fixed -0.5); FACTOR derived so R(S, S) = 0.9.
+const DECAY = -W[20];
+const FACTOR = Math.pow(0.9, 1.0 / DECAY) - 1;
 
 export interface CardState {
   // Stored in the "ease" SQL column for backward-compatible schema.
@@ -116,8 +120,10 @@ function stabilityAfterLapse(d: number, s: number, r: number): number {
 }
 
 // S_s (short-term stability update for Learning/Relearning same-session reviews)
+// FSRS-6 adds Math.pow(s, -W[19]): cards with high stability get a smaller boost
+// from same-day re-reviews, matching empirical memory dynamics.
 function shortTermStability(s: number, rating: Rating): number {
-  return Math.max(0.1, s * Math.exp(W[17] * (rating - 3 + W[18])));
+  return Math.max(0.1, s * Math.exp(W[17] * (rating - 3 + W[18])) * Math.pow(s, -W[19]));
 }
 
 function clamp(v: number, lo: number, hi: number): number {

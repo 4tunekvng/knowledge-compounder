@@ -24,7 +24,7 @@ function minutes(n: number) {
   return n * 60_000;
 }
 
-describe("FSRS-5 schedule — New card", () => {
+describe("FSRS-6 schedule — New card", () => {
   it("Again on a New card → Relearning, due in 5 minutes, reps reset", () => {
     const result = schedule(newCard(), Rating.Again, NOW);
     expect(result.state).toBe(State.Relearning);
@@ -42,21 +42,21 @@ describe("FSRS-5 schedule — New card", () => {
     expect(result.dueAt.getTime()).toBeGreaterThan(NOW.getTime() + days(0));
   });
 
-  it("Good on a New card → Review, due in ~3 days (stability ≈ W[2]=3.13)", () => {
+  it("Good on a New card → Review, due in ~2 days (stability ≈ W[2]=2.31)", () => {
     const result = schedule(newCard(), Rating.Good, NOW);
     expect(result.state).toBe(State.Review);
     expect(result.reps).toBe(1);
-    expect(result.scheduledDays).toBeGreaterThanOrEqual(3);
-    expect(result.scheduledDays).toBeLessThanOrEqual(4);
+    expect(result.scheduledDays).toBeGreaterThanOrEqual(2);
+    expect(result.scheduledDays).toBeLessThanOrEqual(3);
     expect(result.dueAt.getTime()).toBe(NOW.getTime() + days(result.scheduledDays));
   });
 
-  it("Easy on a New card → Review, due in ~15 days (stability ≈ W[3]=15.47)", () => {
+  it("Easy on a New card → Review, due in ~8 days (stability ≈ W[3]=8.30)", () => {
     const result = schedule(newCard(), Rating.Easy, NOW);
     expect(result.state).toBe(State.Review);
     expect(result.reps).toBe(1);
-    expect(result.scheduledDays).toBeGreaterThanOrEqual(15);
-    expect(result.scheduledDays).toBeLessThanOrEqual(16);
+    expect(result.scheduledDays).toBeGreaterThanOrEqual(8);
+    expect(result.scheduledDays).toBeLessThanOrEqual(9);
   });
 
   it("initial difficulty reflects the rating (harder rating → higher difficulty)", () => {
@@ -66,7 +66,7 @@ describe("FSRS-5 schedule — New card", () => {
   });
 });
 
-describe("FSRS-5 schedule — Review card (recall)", () => {
+describe("FSRS-6 schedule — Review card (recall)", () => {
   function reviewCard(overrides: Partial<CardState> = {}): CardState {
     return newCard({
       stability: 10,
@@ -116,7 +116,7 @@ describe("FSRS-5 schedule — Review card (recall)", () => {
   });
 });
 
-describe("FSRS-5 schedule — Relearning card", () => {
+describe("FSRS-6 schedule — Relearning card", () => {
   function relearningCard(overrides: Partial<CardState> = {}): CardState {
     return newCard({
       stability: 2,
@@ -156,7 +156,7 @@ describe("FSRS-5 schedule — Relearning card", () => {
   });
 });
 
-describe("FSRS-5 memory model invariants", () => {
+describe("FSRS-6 memory model invariants", () => {
   it("stability is always > 0 after any schedule call", () => {
     const card = newCard();
     for (const rating of [Rating.Again, Rating.Hard, Rating.Good, Rating.Easy] as const) {
@@ -198,8 +198,8 @@ describe("FSRS-5 memory model invariants", () => {
   });
 
   it("nextDifficulty mean-reverts toward D_0 of the given rating, not always D_0(Easy)", () => {
-    // D_0(Again) ≈ 7.21, D_0(Easy) ≈ 3.29. For a card at d=5.0, 'Again' should
-    // pull difficulty UP (toward 7.21) while 'Easy' should pull it DOWN (toward 3.29).
+    // D_0(Again) ≈ 6.41, D_0(Easy) ≈ 1 (clamped). For a card at d=5.0, 'Again' should
+    // pull difficulty UP (toward 6.41) while 'Easy' should pull it DOWN (toward 1).
     // The bug used D_0(Easy) for all ratings, making 'Again' also pull difficulty down.
     const reviewCard: CardState = {
       stability: 10,
