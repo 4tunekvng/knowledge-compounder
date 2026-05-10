@@ -14,7 +14,7 @@
     "db:reset": "rm -f knowledge.db knowledge.test.db"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.91.1",
+    "@anthropic-ai/sdk": "^0.95.1",
     "@mozilla/readability": "^0.6.0",
     "better-sqlite3": "^12.9.0",
     "drizzle-orm": "^0.45.2",
