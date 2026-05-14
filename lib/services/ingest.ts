@@ -51,6 +51,9 @@ export async function ingest({ raw }: IngestInput): Promise<IngestResult> {
     .returning({ id: sources.id })
     .all();
 
+  if (inserted.length === 0) {
+    throw new Error("INSERT into sources returned no rows — database may be read-only or schema mismatch.");
+  }
   const sourceId = inserted[0].id;
 
   try {
