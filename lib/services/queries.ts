@@ -168,7 +168,12 @@ export function listDueCards(now = new Date(), limit = 50): DueCard[] {
  */
 export function countDueCards(now = new Date()): number {
   const db = getDb();
-  return db.select().from(cards).where(lte(cards.dueAt, now)).all().length;
+  const row = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(cards)
+    .where(lte(cards.dueAt, now))
+    .get();
+  return Number(row?.count ?? 0);
 }
 
 export function listThemes(): Theme[] {
