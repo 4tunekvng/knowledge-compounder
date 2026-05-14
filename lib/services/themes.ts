@@ -32,8 +32,8 @@ export async function generateThemes() {
   const db = getDb();
   // Replace prior themes — themes are derived from current corpus, not history.
   db.delete(themes).run();
-  const inserted = validated.map((t) =>
-    db
+  const inserted = validated.map((t) => {
+    const rows = db
       .insert(themes)
       .values({
         label: t.label,
@@ -41,8 +41,10 @@ export async function generateThemes() {
         sourceIds: JSON.stringify(t.source_ids),
       })
       .returning()
-      .all()[0],
-  );
+      .all();
+    if (!rows[0]) throw new Error(`INSERT for theme "${t.label}" returned no rows`);
+    return rows[0];
+  });
 
   return inserted;
 }
@@ -96,5 +98,6 @@ export async function draftEssayForTheme(themeId: number) {
     .returning()
     .all();
 
+  if (!inserted[0]) throw new Error("INSERT for essay returned no rows");
   return inserted[0];
 }
