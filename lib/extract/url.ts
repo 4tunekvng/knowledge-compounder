@@ -57,13 +57,38 @@ export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
     throw new Error(`Fetching private/internal addresses is not allowed: ${parsed.hostname}`);
   }
   const response = await fetch(url, {
-    redirect: "follow",
+    redirect: "manual",
     headers: {
       "User-Agent":
         "Mozilla/5.0 (compatible; KnowledgeCompounder/0.1; +https://example.com)",
       Accept: "text/html,application/xhtml+xml",
     },
   });
+  // Follow redirects manually to block SSRF via open-redirect to private hosts.
+  if (response.status >= 300 && response.status < 400) {
+    const location = response.headers.get("location");
+    if (!location) throw new Error(`Redirect from ${url} had no Location header`);
+    let redirectUrl: URL;
+    try {
+      redirectUrl = new URL(location, url);
+    } catch {
+      throw new Error(`Redirect to invalid URL: ${location}`);
+    }
+    if (isPrivateHost(redirectUrl.hostname)) {
+      throw new Error(`Redirect to private/internal address blocked: ${redirectUrl.hostname}`);
+    }
+    const followed = await fetch(redirectUrl.toString(), {
+      redirect: "follow",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (compatible; KnowledgeCompounder/0.1; +https://example.com)",
+        Accept: "text/html,application/xhtml+xml",
+      },
+    });
+    if (!followed.ok) throw new Error(`Failed to fetch ${redirectUrl} (${followed.status})`);
+    const html = await followed.text();
+    return extractFromHtml(html, redirectUrl.toString());
+  }
   if (!response.ok) {
     throw new Error(`Failed to fetch ${url} (${response.status})`);
   }
