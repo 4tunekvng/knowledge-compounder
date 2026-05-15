@@ -13,6 +13,11 @@ function buildDb(sqlite: Database.Database) {
 }
 
 function ensureSchema(sqlite: Database.Database) {
+  // Set pragmas FIRST — before any DDL — so FK constraints are enforced from
+  // the very first CREATE TABLE and WAL mode is active during schema setup.
+  sqlite.pragma("journal_mode = WAL");
+  sqlite.pragma("foreign_keys = ON");
+
   // Single migration: create tables if they don't exist. We use raw SQL here
   // (rather than drizzle-kit migrations) to keep the dev loop frictionless —
   // there's no separate migration step and the file lives next to the schema.
@@ -93,8 +98,6 @@ function ensureSchema(sqlite: Database.Database) {
       created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
     );
   `);
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
 }
 
 export function getDb() {
