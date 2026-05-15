@@ -27,11 +27,15 @@ export function extractFromHtml(html: string, url?: string): ExtractedDoc {
 /**
  * Block requests to private / link-local / loopback addresses to prevent SSRF.
  * Covers: 127.x, 10.x, 172.16-31.x, 192.168.x, 169.254.x (AWS metadata),
- * IPv6 loopback (::1), and plain "localhost".
+ * IPv6 loopback (::1), IPv4-mapped IPv6 (::ffff:…), other IPv6, and "localhost".
  */
 function isPrivateHost(hostname: string): boolean {
   const h = hostname.toLowerCase().replace(/^\[|\]$/g, ""); // strip IPv6 brackets
   if (h === "localhost" || h === "::1") return true;
+  // IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1) — recurse on the embedded IPv4 address.
+  if (h.startsWith("::ffff:")) return isPrivateHost(h.slice(7));
+  // Block all remaining IPv6 addresses (fc00::/7 ULA, fe80:: link-local, etc.)
+  if (h.includes(":")) return true;
   // IPv4 patterns
   const parts = h.split(".").map(Number);
   if (parts.length === 4 && parts.every((n) => !isNaN(n) && n >= 0 && n <= 255)) {
@@ -99,13 +103,17 @@ export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
         throw new Error(`Redirect to private/internal address blocked: ${finalUrl.hostname}`);
       }
       const finalResp = await fetch(finalUrl.toString(), {
-        redirect: "follow",
+        redirect: "manual",
         headers: {
           "User-Agent":
             "Mozilla/5.0 (compatible; KnowledgeCompounder/0.1; +https://example.com)",
           Accept: "text/html,application/xhtml+xml",
         },
       });
+      // Block further redirect chains beyond the third hop to prevent SSRF via deep chains.
+      if (finalResp.status >= 300 && finalResp.status < 400) {
+        throw new Error(`Too many redirects fetching ${url}`);
+      }
       if (!finalResp.ok) throw new Error(`Failed to fetch ${finalUrl} (${finalResp.status})`);
       const finalHtml = await finalResp.text();
       return extractFromHtml(finalHtml, finalUrl.toString());
