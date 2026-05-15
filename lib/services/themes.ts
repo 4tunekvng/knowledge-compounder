@@ -30,20 +30,23 @@ export async function generateThemes() {
   }
 
   const db = getDb();
-  // Replace prior themes — themes are derived from current corpus, not history.
-  db.delete(themes).run();
-  const inserted = validated.map((t) => {
-    const rows = db
-      .insert(themes)
-      .values({
-        label: t.label,
-        summary: t.summary,
-        sourceIds: JSON.stringify(t.source_ids),
-      })
-      .returning()
-      .all();
-    if (!rows[0]) throw new Error(`INSERT for theme "${t.label}" returned no rows`);
-    return rows[0];
+  // Replace prior themes atomically — delete + re-insert in one transaction so a
+  // failed insert never leaves the theme table permanently empty.
+  const inserted = db.transaction((tx) => {
+    tx.delete(themes).run();
+    return validated.map((t) => {
+      const rows = tx
+        .insert(themes)
+        .values({
+          label: t.label,
+          summary: t.summary,
+          sourceIds: JSON.stringify(t.source_ids),
+        })
+        .returning()
+        .all();
+      if (!rows[0]) throw new Error(`INSERT for theme "${t.label}" returned no rows`);
+      return rows[0];
+    });
   });
 
   return inserted;

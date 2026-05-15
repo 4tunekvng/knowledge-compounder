@@ -158,7 +158,7 @@ function scheduleNew(card: CardState, rating: Rating, now: Date): ScheduleResult
       difficulty: d,
       scheduledDays: 0,
       reps: 0,
-      lapses: card.lapses + 1,
+      lapses: card.lapses,
       state: State.Relearning,
       dueAt: new Date(now.getTime() + 5 * MINUTES),
     };
@@ -194,7 +194,7 @@ function scheduleReview(
       stability: s,
       difficulty: d,
       scheduledDays: 0,
-      reps: 0,
+      reps: card.reps,
       lapses: card.lapses + 1,
       state: State.Relearning,
       dueAt: new Date(now.getTime() + 10 * MINUTES),
@@ -223,8 +223,8 @@ function scheduleRelearning(card: CardState, rating: Rating, now: Date): Schedul
       stability: s,
       difficulty: d,
       scheduledDays: 0,
-      reps: 0,
-      lapses: card.lapses + 1,
+      reps: card.reps,
+      lapses: card.lapses,
       state: State.Relearning,
       dueAt: new Date(now.getTime() + 5 * MINUTES),
     };

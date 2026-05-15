@@ -48,11 +48,11 @@ export function listSources(limit = 50): SourceListItem[] {
 
   return rows.map((row) => ({
     source: row.source,
-    processing: row.whyICared
+    processing: row.whyICared && row.keyTakeaways && row.concepts
       ? {
           whyICared: row.whyICared,
-          keyTakeaways: row.keyTakeaways!,
-          concepts: row.concepts!,
+          keyTakeaways: row.keyTakeaways,
+          concepts: row.concepts,
         }
       : null,
     cardCount: Number(row.cardCount ?? 0),
