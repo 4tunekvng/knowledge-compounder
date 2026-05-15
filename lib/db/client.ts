@@ -71,7 +71,11 @@ function ensureSchema(sqlite: Database.Database) {
     "ALTER TABLE cards ADD COLUMN fsrs_state INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE cards ADD COLUMN lapses INTEGER NOT NULL DEFAULT 0",
   ]) {
-    try { sqlite.exec(ddl); } catch { /* column already exists */ }
+    try { sqlite.exec(ddl); } catch (err) {
+      // Only suppress "duplicate column" errors from re-running migrations;
+      // re-throw anything else (disk full, schema corruption, etc.).
+      if (!(err instanceof Error) || !err.message.includes("duplicate column name")) throw err;
+    }
   }
   // Migrate SM-2 cards that have been reviewed: treat them as Review state so
   // FSRS doesn't re-learn them from scratch. Use the old interval as stability.

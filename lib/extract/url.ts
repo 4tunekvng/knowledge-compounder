@@ -78,13 +78,38 @@ export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
       throw new Error(`Redirect to private/internal address blocked: ${redirectUrl.hostname}`);
     }
     const followed = await fetch(redirectUrl.toString(), {
-      redirect: "follow",
+      redirect: "manual",
       headers: {
         "User-Agent":
           "Mozilla/5.0 (compatible; KnowledgeCompounder/0.1; +https://example.com)",
         Accept: "text/html,application/xhtml+xml",
       },
     });
+    // Validate any second-hop redirect to prevent SSRF via chained open-redirects.
+    if (followed.status >= 300 && followed.status < 400) {
+      const location2 = followed.headers.get("location");
+      if (!location2) throw new Error(`Second redirect from ${redirectUrl} had no Location header`);
+      let finalUrl: URL;
+      try {
+        finalUrl = new URL(location2, redirectUrl);
+      } catch {
+        throw new Error(`Second redirect to invalid URL: ${location2}`);
+      }
+      if (isPrivateHost(finalUrl.hostname)) {
+        throw new Error(`Redirect to private/internal address blocked: ${finalUrl.hostname}`);
+      }
+      const finalResp = await fetch(finalUrl.toString(), {
+        redirect: "follow",
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (compatible; KnowledgeCompounder/0.1; +https://example.com)",
+          Accept: "text/html,application/xhtml+xml",
+        },
+      });
+      if (!finalResp.ok) throw new Error(`Failed to fetch ${finalUrl} (${finalResp.status})`);
+      const finalHtml = await finalResp.text();
+      return extractFromHtml(finalHtml, finalUrl.toString());
+    }
     if (!followed.ok) throw new Error(`Failed to fetch ${redirectUrl} (${followed.status})`);
     const html = await followed.text();
     return extractFromHtml(html, redirectUrl.toString());
