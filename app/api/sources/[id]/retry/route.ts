@@ -17,6 +17,7 @@ export async function POST(
     return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message === "Source not found." ? 404 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }
