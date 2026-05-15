@@ -24,7 +24,38 @@ export function extractFromHtml(html: string, url?: string): ExtractedDoc {
   };
 }
 
+/**
+ * Block requests to private / link-local / loopback addresses to prevent SSRF.
+ * Covers: 127.x, 10.x, 172.16-31.x, 192.168.x, 169.254.x (AWS metadata),
+ * IPv6 loopback (::1), and plain "localhost".
+ */
+function isPrivateHost(hostname: string): boolean {
+  const h = hostname.toLowerCase().replace(/^\[|\]$/g, ""); // strip IPv6 brackets
+  if (h === "localhost" || h === "::1") return true;
+  // IPv4 patterns
+  const parts = h.split(".").map(Number);
+  if (parts.length === 4 && parts.every((n) => !isNaN(n) && n >= 0 && n <= 255)) {
+    const [a, b] = parts;
+    if (a === 127) return true;         // 127.0.0.0/8 loopback
+    if (a === 10) return true;          // 10.0.0.0/8 private
+    if (a === 192 && b === 168) return true; // 192.168.0.0/16 private
+    if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12 private
+    if (a === 169 && b === 254) return true; // 169.254.0.0/16 link-local / metadata
+    if (a === 0) return true;           // 0.0.0.0/8
+  }
+  return false;
+}
+
 export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`Invalid URL: ${url}`);
+  }
+  if (isPrivateHost(parsed.hostname)) {
+    throw new Error(`Fetching private/internal addresses is not allowed: ${parsed.hostname}`);
+  }
   const response = await fetch(url, {
     redirect: "follow",
     headers: {
