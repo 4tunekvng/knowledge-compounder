@@ -1,5 +1,5 @@
 import "server-only";
-import { desc, eq, lte, sql } from "drizzle-orm";
+import { desc, eq, lte, ne, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import {
   cards,
@@ -108,6 +108,7 @@ function findRelated(
   if (!queryVec) return [];
 
   const db = getDb();
+  // Exclude the current source at SQL level so its data is never loaded.
   const others = db
     .select({
       source: sources,
@@ -115,10 +116,10 @@ function findRelated(
     })
     .from(processings)
     .innerJoin(sources, eq(sources.id, processings.sourceId))
+    .where(ne(processings.sourceId, excludeSourceId))
     .all();
 
   const scored = others
-    .filter((o) => o.source.id !== excludeSourceId)
     .map((o) => {
       const otherVec = blobToEmbedding(o.processing.embedding as Buffer);
       const score = otherVec ? cosineSimilarity(queryVec, otherVec) : 0;
