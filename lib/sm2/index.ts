@@ -158,7 +158,7 @@ function scheduleNew(card: CardState, rating: Rating, now: Date): ScheduleResult
       difficulty: d,
       scheduledDays: 0,
       reps: 0,
-      lapses: card.lapses,
+      lapses: card.lapses + 1,
       state: State.Relearning,
       dueAt: new Date(now.getTime() + 5 * MINUTES),
     };
