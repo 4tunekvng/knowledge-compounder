@@ -175,10 +175,14 @@ export async function retrySource(sourceId: number): Promise<IngestResult> {
     return { sourceId, status: "processed" };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    db.update(sources)
-      .set({ status: "failed", errorMessage: message })
-      .where(eq(sources.id, sourceId))
-      .run();
+    try {
+      db.update(sources)
+        .set({ status: "failed", errorMessage: message })
+        .where(eq(sources.id, sourceId))
+        .run();
+    } catch (updateErr) {
+      console.error(`Failed to mark source ${sourceId} as failed:`, updateErr);
+    }
     return { sourceId, status: "failed", error: message };
   }
 }
