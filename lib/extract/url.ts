@@ -70,6 +70,7 @@ export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
   });
   // Follow redirects manually to block SSRF via open-redirect to private hosts.
   if (response.status >= 300 && response.status < 400) {
+    await response.body?.cancel();
     const location = response.headers.get("location");
     if (!location) throw new Error(`Redirect from ${url} had no Location header`);
     let redirectUrl: URL;
@@ -91,6 +92,7 @@ export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
     });
     // Validate any second-hop redirect to prevent SSRF via chained open-redirects.
     if (followed.status >= 300 && followed.status < 400) {
+      await followed.body?.cancel();
       const location2 = followed.headers.get("location");
       if (!location2) throw new Error(`Second redirect from ${redirectUrl} had no Location header`);
       let finalUrl: URL;
