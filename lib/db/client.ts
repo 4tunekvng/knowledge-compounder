@@ -52,7 +52,7 @@ function ensureSchema(sqlite: Database.Database) {
       card_type TEXT NOT NULL,
       front TEXT NOT NULL,
       back TEXT NOT NULL,
-      ease REAL NOT NULL DEFAULT 2.5,
+      ease REAL NOT NULL DEFAULT 0,
       interval_days REAL NOT NULL DEFAULT 0,
       repetitions INTEGER NOT NULL DEFAULT 0,
       due_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
