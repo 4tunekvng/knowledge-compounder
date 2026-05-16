@@ -128,6 +128,11 @@ export async function retrySource(sourceId: number): Promise<IngestResult> {
     .get();
 
   if (!row) throw new Error("Source not found.");
+  if (row.status !== "failed") {
+    throw new Error(
+      `Source is not in a failed state (current status: ${row.status}). Only failed sources can be retried.`,
+    );
+  }
 
   // Reset the source to pending and clear any prior processings/cards.
   db.transaction((tx) => {
