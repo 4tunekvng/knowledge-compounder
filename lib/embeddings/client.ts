@@ -12,18 +12,26 @@ async function callVoyage(text: string, inputType: "document" | "query"): Promis
   const apiKey = process.env.VOYAGE_API_KEY;
   if (!apiKey) return null;
   try {
-    const response = await fetch(VOYAGE_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        input: [text.slice(0, 16_000)],
-        model: VOYAGE_MODEL,
-        input_type: inputType,
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+    let response: Response;
+    try {
+      response = await fetch(VOYAGE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          input: [text.slice(0, 16_000)],
+          model: VOYAGE_MODEL,
+          input_type: inputType,
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
     if (!response.ok) {
       console.warn(`Voyage embedding failed: ${response.status}`);
       return null;
