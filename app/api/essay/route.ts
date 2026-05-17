@@ -20,6 +20,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ essay });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error.";
+    if (message === "Theme not found.") {
+      return NextResponse.json({ error: message }, { status: 404 });
+    }
+    if (message.startsWith("Theme has fewer than")) {
+      return NextResponse.json({ error: message }, { status: 422 });
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
