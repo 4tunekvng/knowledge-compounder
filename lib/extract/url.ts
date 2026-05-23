@@ -1,5 +1,5 @@
 import { Readability } from "@mozilla/readability";
-import { JSDOM } from "jsdom";
+import { parseHTML } from "linkedom";
 
 export interface ExtractedDoc {
   title: string;
@@ -9,9 +9,11 @@ export interface ExtractedDoc {
 
 const MAX_CHARS = 60_000;
 
-export function extractFromHtml(html: string, url?: string): ExtractedDoc {
-  const dom = new JSDOM(html, { url: url ?? "https://example.invalid/" });
-  const reader = new Readability(dom.window.document);
+export function extractFromHtml(html: string, _url?: string): ExtractedDoc {
+  // linkedom is Workers-compatible (jsdom isn't — it depends on MessagePort).
+  // The Readability lib only needs `document`, not a full BOM.
+  const { document } = parseHTML(html);
+  const reader = new Readability(document as unknown as Document);
   const parsed = reader.parse();
   if (!parsed) {
     return fallback(html);

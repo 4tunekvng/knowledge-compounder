@@ -19,7 +19,7 @@ export default async function SourcePage({ params }: Params) {
   if (!Number.isInteger(id) || id <= 0) {
     notFound();
   }
-  const detail = getSourceDetail(id);
+  const detail = await getSourceDetail(id);
   if (!detail) {
     notFound();
   }

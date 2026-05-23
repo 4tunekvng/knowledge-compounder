@@ -3,8 +3,8 @@ import { listDueCards } from "@/lib/services/queries";
 
 export const dynamic = "force-dynamic";
 
-export default function ReviewPage() {
-  const due = listDueCards();
+export default async function ReviewPage() {
+  const due = await listDueCards();
   const cards = due.map(({ card, source }) => ({
     id: card.id,
     cardType: card.cardType,

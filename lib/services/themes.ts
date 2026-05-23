@@ -7,7 +7,7 @@ import { draftEssay as draftEssayAi } from "@/lib/ai/essay";
 import { getCorpusForThemes, getTheme, parseSourceIds } from "./queries";
 
 export async function generateThemes() {
-  const corpus = getCorpusForThemes();
+  const corpus = await getCorpusForThemes();
   if (corpus.length < 2) {
     throw new Error(
       "Need at least 2 processed sources to surface themes. Capture more material first.",
@@ -29,31 +29,32 @@ export async function generateThemes() {
     );
   }
 
-  const db = getDb();
-  // Replace prior themes atomically — delete + re-insert in one transaction so a
-  // failed insert never leaves the theme table permanently empty.
-  const inserted = db.transaction((tx) => {
-    tx.delete(themes).run();
-    return validated.map((t) => {
-      const rows = tx
-        .insert(themes)
-        .values({
-          label: t.label,
-          summary: t.summary,
-          sourceIds: JSON.stringify(t.source_ids),
-        })
-        .returning()
-        .all();
-      if (!rows[0]) throw new Error(`INSERT for theme "${t.label}" returned no rows`);
-      return rows[0];
-    });
-  });
+  const db = await getDb();
+  // D1 doesn't support multi-statement transactions, so we delete then insert
+  // sequentially. A failure between the delete and the first insert would
+  // leave the themes table empty until the next successful regeneration.
+  await db.delete(themes).run();
+
+  const inserted = [];
+  for (const t of validated) {
+    const rows = await db
+      .insert(themes)
+      .values({
+        label: t.label,
+        summary: t.summary,
+        sourceIds: JSON.stringify(t.source_ids),
+      })
+      .returning()
+      .all();
+    if (!rows[0]) throw new Error(`INSERT for theme "${t.label}" returned no rows`);
+    inserted.push(rows[0]);
+  }
 
   return inserted;
 }
 
 export async function draftEssayForTheme(themeId: number) {
-  const theme = getTheme(themeId);
+  const theme = await getTheme(themeId);
   if (!theme) {
     throw new Error("Theme not found.");
   }
@@ -62,8 +63,8 @@ export async function draftEssayForTheme(themeId: number) {
     throw new Error("Theme has fewer than 2 valid source ids.");
   }
 
-  const db = getDb();
-  const themeSources = db
+  const db = await getDb();
+  const themeSources = await db
     .select({
       source: sources,
       processing: processings,
@@ -90,7 +91,7 @@ export async function draftEssayForTheme(themeId: number) {
     })),
   });
 
-  const inserted = db
+  const inserted = await db
     .insert(essays)
     .values({
       themeId,

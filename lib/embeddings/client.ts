@@ -1,4 +1,5 @@
 import "server-only";
+import { getEnv } from "@/lib/db/client";
 
 const VOYAGE_MODEL = "voyage-3-lite";
 const VOYAGE_DIM = 512;
@@ -9,7 +10,8 @@ interface VoyageResponse {
 }
 
 async function callVoyage(text: string, inputType: "document" | "query"): Promise<Float32Array | null> {
-  const apiKey = process.env.VOYAGE_API_KEY;
+  const env = await getEnv();
+  const apiKey = env.VOYAGE_API_KEY ?? process.env.VOYAGE_API_KEY;
   if (!apiKey) return null;
   try {
     const controller = new AbortController();

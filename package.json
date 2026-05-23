@@ -11,7 +11,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "db:reset": "rm -f knowledge.db knowledge.test.db"
+    "db:reset": "rm -f knowledge.db knowledge.test.db",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:deploy": "opennextjs-cloudflare deploy",
+    "cf:upload": "opennextjs-cloudflare upload",
+    "cf:secret:base-url": "wrangler secret put ANTHROPIC_BASE_URL",
+    "cf:secret:key": "wrangler secret put ANTHROPIC_API_KEY",
+    "cf:tail": "wrangler tail"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",
@@ -19,12 +25,15 @@
     "better-sqlite3": "^12.9.0",
     "drizzle-orm": "^0.45.2",
     "jsdom": "^29.1.0",
+    "linkedom": "^0.18.12",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260523.1",
+    "@opennextjs/cloudflare": "^1.19.11",
     "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",
@@ -34,11 +43,13 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.1",
     "drizzle-kit": "^0.31.10",
+    "esbuild": "^0.28.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "happy-dom": "^20.9.0",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.5",
+    "wrangler": "^4.94.0"
   }
 }

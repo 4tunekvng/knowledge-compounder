@@ -21,7 +21,7 @@ export async function processSource(args: {
     return fakeProcessing(args.title, args.text);
   }
 
-  const client = getAnthropic();
+  const client = await getAnthropic();
   const userMessage = buildUserMessage(args.title, args.text);
 
   const response = await client.messages.parse({

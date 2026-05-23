@@ -23,7 +23,7 @@ export async function findThemes(
     return fakeThemes(sources);
   }
 
-  const client = getAnthropic();
+  const client = await getAnthropic();
   const userMessage = buildUserMessage(sources);
 
   const response = await client.messages.parse({

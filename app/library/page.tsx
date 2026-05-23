@@ -4,8 +4,8 @@ import { listSources } from "@/lib/services/queries";
 
 export const dynamic = "force-dynamic";
 
-export default function LibraryPage() {
-  const sources = listSources(200);
+export default async function LibraryPage() {
+  const sources = await listSources(200);
 
   return (
     <div className="flex flex-col gap-6">

@@ -1,0 +1,33 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "knowledge-compounder",
+	"main": ".open-next/worker.js",
+	"compatibility_date": "2025-04-01",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".open-next/assets"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"d1_databases": [
+		{
+			// Knowledge-compounder data lives in this D1 database. Bound as
+			// `env.DB` inside the worker (lib/db/client.ts reads env.DB).
+			// `remote: true` means even local dev hits the live D1 so data is
+			// consistent between wrangler dev and the deployed worker.
+			"binding": "DB",
+			"database_name": "knowledge-compounder",
+			"database_id": "4409f5de-575c-4a1b-a41d-10ff985bd62d",
+			"migrations_dir": "migrations",
+			"remote": true
+		}
+	],
+	"vars": {
+		"ANTHROPIC_MODEL": "claude-sonnet-4-6"
+	}
+}

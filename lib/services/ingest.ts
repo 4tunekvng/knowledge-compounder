@@ -25,7 +25,7 @@ export async function ingest({ raw }: IngestInput): Promise<IngestResult> {
   if (trimmed.length === 0) {
     throw new Error("Capture is empty.");
   }
-  const db = getDb();
+  const db = await getDb();
 
   const isUrl = looksLikeUrl(trimmed);
   let extracted;
@@ -38,7 +38,7 @@ export async function ingest({ raw }: IngestInput): Promise<IngestResult> {
     throw new Error(`Failed to extract content: ${message}`);
   }
 
-  const inserted = db
+  const inserted = await db
     .insert(sources)
     .values({
       kind: isUrl ? "url" : "text",
@@ -64,42 +64,47 @@ export async function ingest({ raw }: IngestInput): Promise<IngestResult> {
 
     const vector = await embed(`${extracted.title}\n\n${extracted.text}`);
 
-    db.transaction((tx) => {
-      tx.insert(processings)
+    // D1 doesn't support multi-statement transactions over the worker binding,
+    // so we run inserts sequentially. If a write fails midway, the catch
+    // block below marks the source as failed; the user can retry from the UI.
+    await db
+      .insert(processings)
+      .values({
+        sourceId,
+        whyICared: result.why_i_cared,
+        keyTakeaways: JSON.stringify(result.key_takeaways),
+        concepts: JSON.stringify(result.concepts),
+        embedding: embeddingToBlob(vector),
+      })
+      .run();
+
+    for (const card of result.cards) {
+      await db
+        .insert(cards)
         .values({
           sourceId,
-          whyICared: result.why_i_cared,
-          keyTakeaways: JSON.stringify(result.key_takeaways),
-          concepts: JSON.stringify(result.concepts),
-          embedding: embeddingToBlob(vector),
+          cardType: card.type,
+          front: card.front,
+          back: card.back,
         })
         .run();
+    }
 
-      for (const card of result.cards) {
-        tx.insert(cards)
-          .values({
-            sourceId,
-            cardType: card.type,
-            front: card.front,
-            back: card.back,
-          })
-          .run();
-      }
-
-      tx.update(sources)
-        .set({
-          status: "processed",
-          processedAt: new Date(),
-        })
-        .where(eq(sources.id, sourceId))
-        .run();
-    });
+    await db
+      .update(sources)
+      .set({
+        status: "processed",
+        processedAt: new Date(),
+      })
+      .where(eq(sources.id, sourceId))
+      .run();
 
     return { sourceId, status: "processed" };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     try {
-      db.update(sources)
+      await db
+        .update(sources)
         .set({ status: "failed", errorMessage: message })
         .where(eq(sources.id, sourceId))
         .run();
@@ -116,8 +121,8 @@ export async function ingest({ raw }: IngestInput): Promise<IngestResult> {
  * rawContent + title so we don't re-fetch the URL.
  */
 export async function retrySource(sourceId: number): Promise<IngestResult> {
-  const db = getDb();
-  const row = db
+  const db = await getDb();
+  const row = await db
     .select({
       title: sources.title,
       rawContent: sources.rawContent,
@@ -135,14 +140,15 @@ export async function retrySource(sourceId: number): Promise<IngestResult> {
   }
 
   // Reset the source to pending and clear any prior processings/cards.
-  db.transaction((tx) => {
-    tx.update(sources)
-      .set({ status: "pending", errorMessage: null, processedAt: null })
-      .where(eq(sources.id, sourceId))
-      .run();
-    tx.delete(processings).where(eq(processings.sourceId, sourceId)).run();
-    tx.delete(cards).where(eq(cards.sourceId, sourceId)).run();
-  });
+  // ON DELETE CASCADE on processings.source_id and cards.source_id would let
+  // us skip the explicit deletes, but being explicit keeps the intent clear.
+  await db
+    .update(sources)
+    .set({ status: "pending", errorMessage: null, processedAt: null })
+    .where(eq(sources.id, sourceId))
+    .run();
+  await db.delete(processings).where(eq(processings.sourceId, sourceId)).run();
+  await db.delete(cards).where(eq(cards.sourceId, sourceId)).run();
 
   try {
     const result = await processSource({
@@ -151,37 +157,41 @@ export async function retrySource(sourceId: number): Promise<IngestResult> {
     });
     const vector = await embed(`${row.title}\n\n${row.rawContent}`);
 
-    db.transaction((tx) => {
-      tx.insert(processings)
+    await db
+      .insert(processings)
+      .values({
+        sourceId,
+        whyICared: result.why_i_cared,
+        keyTakeaways: JSON.stringify(result.key_takeaways),
+        concepts: JSON.stringify(result.concepts),
+        embedding: embeddingToBlob(vector),
+      })
+      .run();
+
+    for (const card of result.cards) {
+      await db
+        .insert(cards)
         .values({
           sourceId,
-          whyICared: result.why_i_cared,
-          keyTakeaways: JSON.stringify(result.key_takeaways),
-          concepts: JSON.stringify(result.concepts),
-          embedding: embeddingToBlob(vector),
+          cardType: card.type,
+          front: card.front,
+          back: card.back,
         })
         .run();
-      for (const card of result.cards) {
-        tx.insert(cards)
-          .values({
-            sourceId,
-            cardType: card.type,
-            front: card.front,
-            back: card.back,
-          })
-          .run();
-      }
-      tx.update(sources)
-        .set({ status: "processed", processedAt: new Date() })
-        .where(eq(sources.id, sourceId))
-        .run();
-    });
+    }
+
+    await db
+      .update(sources)
+      .set({ status: "processed", processedAt: new Date() })
+      .where(eq(sources.id, sourceId))
+      .run();
 
     return { sourceId, status: "processed" };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     try {
-      db.update(sources)
+      await db
+        .update(sources)
         .set({ status: "failed", errorMessage: message })
         .where(eq(sources.id, sourceId))
         .run();

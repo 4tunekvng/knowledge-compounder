@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const next = gradeCard(cardId, ratingValue as Rating);
+    const next = await gradeCard(cardId, ratingValue as Rating);
     return NextResponse.json({
       stability: next.stability,
       difficulty: next.difficulty,

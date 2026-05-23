@@ -25,7 +25,7 @@ export async function draftEssay(args: {
     return fakeEssay(args.themeLabel, args.themeSummary, args.sources);
   }
 
-  const client = getAnthropic();
+  const client = await getAnthropic();
 
   const response = await client.messages.parse({
     model: MODELS.essay,

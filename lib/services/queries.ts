@@ -28,9 +28,9 @@ export interface SourceListItem {
   cardCount: number;
 }
 
-export function listSources(limit = 50): SourceListItem[] {
-  const db = getDb();
-  const rows = db
+export async function listSources(limit = 50): Promise<SourceListItem[]> {
+  const db = await getDb();
+  const rows = await db
     .select({
       source: sources,
       whyICared: processings.whyICared,
@@ -66,22 +66,22 @@ export interface SourceDetail {
   related: { source: Source; processing: Processing; score: number }[];
 }
 
-export function getSourceDetail(id: number): SourceDetail | null {
-  const db = getDb();
-  const source = db
+export async function getSourceDetail(id: number): Promise<SourceDetail | null> {
+  const db = await getDb();
+  const source = await db
     .select()
     .from(sources)
     .where(eq(sources.id, id))
     .get();
   if (!source) return null;
 
-  const processing = db
+  const processing = (await db
     .select()
     .from(processings)
     .where(eq(processings.sourceId, id))
-    .get() ?? null;
+    .get()) ?? null;
 
-  const sourceCards = db
+  const sourceCards = await db
     .select()
     .from(cards)
     .where(eq(cards.sourceId, id))
@@ -89,7 +89,7 @@ export function getSourceDetail(id: number): SourceDetail | null {
     .all();
 
   const related = processing?.embedding
-    ? findRelated(id, processing.embedding as Buffer)
+    ? await findRelated(id, processing.embedding as Uint8Array)
     : [];
 
   return {
@@ -100,16 +100,16 @@ export function getSourceDetail(id: number): SourceDetail | null {
   };
 }
 
-function findRelated(
+async function findRelated(
   excludeSourceId: number,
-  queryEmbedding: Buffer,
-): { source: Source; processing: Processing; score: number }[] {
+  queryEmbedding: Uint8Array,
+): Promise<{ source: Source; processing: Processing; score: number }[]> {
   const queryVec = blobToEmbedding(queryEmbedding);
   if (!queryVec) return [];
 
-  const db = getDb();
+  const db = await getDb();
   // Exclude the current source at SQL level so its data is never loaded.
-  const others = db
+  const others = await db
     .select({
       source: sources,
       processing: processings,
@@ -121,7 +121,7 @@ function findRelated(
 
   const scored = others
     .map((o) => {
-      const otherVec = blobToEmbedding(o.processing.embedding as Buffer);
+      const otherVec = blobToEmbedding(o.processing.embedding as Uint8Array);
       const score = otherVec ? cosineSimilarity(queryVec, otherVec) : 0;
       return {
         item: { source: o.source, processing: o.processing },
@@ -142,9 +142,9 @@ export interface DueCard {
   source: Pick<Source, "id" | "title">;
 }
 
-export function listDueCards(now = new Date(), limit = 50): DueCard[] {
-  const db = getDb();
-  const rows = db
+export async function listDueCards(now = new Date(), limit = 50): Promise<DueCard[]> {
+  const db = await getDb();
+  const rows = await db
     .select({
       card: cards,
       sourceId: sources.id,
@@ -167,9 +167,9 @@ export function listDueCards(now = new Date(), limit = 50): DueCard[] {
  * Cheap count of cards whose dueAt has passed. Used to drive the Review
  * nav badge — no need to materialize the full row set.
  */
-export function countDueCards(now = new Date()): number {
-  const db = getDb();
-  const row = db
+export async function countDueCards(now = new Date()): Promise<number> {
+  const db = await getDb();
+  const row = await db
     .select({ count: sql<number>`COUNT(*)` })
     .from(cards)
     .where(lte(cards.dueAt, now))
@@ -177,23 +177,23 @@ export function countDueCards(now = new Date()): number {
   return Number(row?.count ?? 0);
 }
 
-export function listThemes(): Theme[] {
-  const db = getDb();
+export async function listThemes(): Promise<Theme[]> {
+  const db = await getDb();
   return db.select().from(themes).orderBy(desc(themes.createdAt)).all();
 }
 
-export function getTheme(id: number): Theme | null {
-  const db = getDb();
-  return db.select().from(themes).where(eq(themes.id, id)).get() ?? null;
+export async function getTheme(id: number): Promise<Theme | null> {
+  const db = await getDb();
+  return (await db.select().from(themes).where(eq(themes.id, id)).get()) ?? null;
 }
 
-export function getEssay(id: number): Essay | null {
-  const db = getDb();
-  return db.select().from(essays).where(eq(essays.id, id)).get() ?? null;
+export async function getEssay(id: number): Promise<Essay | null> {
+  const db = await getDb();
+  return (await db.select().from(essays).where(eq(essays.id, id)).get()) ?? null;
 }
 
-export function listEssays(): Essay[] {
-  const db = getDb();
+export async function listEssays(): Promise<Essay[]> {
+  const db = await getDb();
   return db.select().from(essays).orderBy(desc(essays.createdAt)).all();
 }
 
@@ -205,9 +205,9 @@ export interface CorpusSourceForThemes {
   concepts: { name: string; weight: number }[];
 }
 
-export function getCorpusForThemes(): CorpusSourceForThemes[] {
-  const db = getDb();
-  const rows = db
+export async function getCorpusForThemes(): Promise<CorpusSourceForThemes[]> {
+  const db = await getDb();
+  const rows = await db
     .select({
       source: sources,
       processing: processings,

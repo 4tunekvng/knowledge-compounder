@@ -4,8 +4,8 @@ import { listSources } from "@/lib/services/queries";
 
 export const dynamic = "force-dynamic";
 
-export default function Home() {
-  const recent = listSources(5);
+export default async function Home() {
+  const recent = await listSources(5);
 
   return (
     <div className="flex flex-col gap-10">

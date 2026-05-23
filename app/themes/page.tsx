@@ -9,10 +9,10 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default function ThemesPage() {
-  const themes = listThemes();
-  const corpus = getCorpusForThemes();
-  const essays = listEssays();
+export default async function ThemesPage() {
+  const themes = await listThemes();
+  const corpus = await getCorpusForThemes();
+  const essays = await listEssays();
 
   const themeViews = themes.map((t) => ({
     id: t.id,

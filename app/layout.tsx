@@ -27,17 +27,17 @@ const NAV = [
   { href: "/themes", label: "Themes" },
 ];
 
-// Layout is a server component; we can fetch the SQLite count synchronously.
+// Layout is a server component; D1 access is async.
 export const dynamic = "force-dynamic";
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   let dueCount = 0;
   try {
-    dueCount = countDueCards();
+    dueCount = await countDueCards();
   } catch {
     // DB may not be ready (first boot, in tests) — silently degrade.
   }
