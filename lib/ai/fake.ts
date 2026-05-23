@@ -7,10 +7,20 @@ import type { EssayResult, ProcessingResult, ThemesResult } from "./schemas";
 export function fakeProcessing(title: string, text: string): ProcessingResult {
   const head = text.slice(0, 240).replace(/\s+/g, " ").trim();
   const wordCounts = countWords(text);
-  const concepts = wordCounts.slice(0, 4).map(([name], i) => ({
+  const rawConcepts = wordCounts.slice(0, 4).map(([name], i) => ({
     name,
     weight: Number((1 / (i + 1)).toFixed(2)),
   }));
+  // ProcessingResultSchema requires min(2) concepts; pad with title-derived
+  // fallbacks when the text yields fewer (e.g. very short or numeric inputs).
+  const concepts =
+    rawConcepts.length >= 2
+      ? rawConcepts
+      : [
+          { name: title.split(/\s+/)[0]?.toLowerCase() ?? "concept", weight: 1.0 },
+          { name: "material", weight: 0.5 },
+          ...rawConcepts,
+        ].slice(0, 4);
 
   return {
     why_i_cared: `I'm collecting reading on ${title.toLowerCase()}. The opening — "${head}" — frames the problem I keep circling back to, and the rest builds the case I want to internalize before writing about it.`,
