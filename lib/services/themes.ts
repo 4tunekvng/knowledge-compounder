@@ -30,10 +30,11 @@ export async function generateThemes() {
   }
 
   const db = await getDb();
-  // D1 doesn't support multi-statement transactions, so we delete then insert
-  // sequentially. A failure between the delete and the first insert would
-  // leave the themes table empty until the next successful regeneration.
-  await db.delete(themes).run();
+  // Insert new themes first so a mid-run failure leaves the existing themes
+  // intact rather than leaving an empty table. Delete old rows only after all
+  // inserts succeed (D1 doesn't support multi-statement transactions).
+  const oldRows = await db.select({ id: themes.id }).from(themes).all();
+  const oldIds = oldRows.map((r) => r.id);
 
   const inserted = [];
   for (const t of validated) {
@@ -48,6 +49,10 @@ export async function generateThemes() {
       .all();
     if (!rows[0]) throw new Error(`INSERT for theme "${t.label}" returned no rows`);
     inserted.push(rows[0]);
+  }
+
+  if (oldIds.length > 0) {
+    await db.delete(themes).where(inArray(themes.id, oldIds)).run();
   }
 
   return inserted;
