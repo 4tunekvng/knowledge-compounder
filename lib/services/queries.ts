@@ -122,7 +122,13 @@ async function findRelated(
   const scored = others
     .map((o) => {
       const otherVec = blobToEmbedding(o.processing.embedding as Uint8Array);
-      const score = otherVec ? cosineSimilarity(queryVec, otherVec) : 0;
+      // Skip vectors with mismatched dimensions (e.g. mixed Voyage / lexical
+      // embeddings stored after a model change). cosineSimilarity throws on
+      // length mismatch; we want a graceful 0 score instead.
+      const score =
+        otherVec && otherVec.length === queryVec.length
+          ? cosineSimilarity(queryVec, otherVec)
+          : 0;
       return {
         item: { source: o.source, processing: o.processing },
         score,
