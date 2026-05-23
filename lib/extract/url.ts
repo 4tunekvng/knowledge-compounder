@@ -13,6 +13,7 @@ const MAX_CHARS = 60_000;
 // 2 MB is enough for the largest HTML pages we'd reasonably process.
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024; // 2 MB
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function extractFromHtml(html: string, _url?: string): ExtractedDoc {
   // linkedom is Workers-compatible (jsdom isn't — it depends on MessagePort).
   // The Readability lib only needs `document`, not a full BOM.
