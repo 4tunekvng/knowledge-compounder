@@ -54,16 +54,13 @@ export function fakeThemes(
   sources: { id: number; title: string; concepts: { name: string }[] }[],
 ): ThemesResult {
   if (sources.length < 2) {
-    return {
-      themes: [
-        {
-          label: `Single-source theme: ${sources[0]?.title ?? "captured material"}`,
-          summary:
-            "Only one source is captured so far. Themes become more useful with several sources covering related ground.",
-          source_ids: sources.map((s) => s.id),
-        },
-      ],
-    };
+    // This branch should not be reached in practice — generateThemes() guards against
+    // calling findThemes/fakeThemes with fewer than 2 sources. Throwing is safer than
+    // returning an object that violates ThemeSchema (source_ids requires min(2)) or
+    // ThemesResultSchema (themes requires min(1)).
+    throw new Error(
+      "fakeThemes requires at least 2 sources (received " + sources.length + ")",
+    );
   }
 
   const allConcepts = new Map<string, number[]>();

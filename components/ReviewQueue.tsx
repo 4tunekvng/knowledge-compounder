@@ -16,7 +16,7 @@ interface Props {
   cards: ReviewCard[];
 }
 
-// FSRS-5 ratings: 1=Again 2=Hard 3=Good 4=Easy
+// FSRS-6 ratings: 1=Again 2=Hard 3=Good 4=Easy
 const GRADE_BUTTONS: { grade: number; label: string; description: string; color: string }[] = [
   { grade: 1, label: "Again", description: "Couldn't recall", color: "bg-red-700" },
   { grade: 2, label: "Hard", description: "Recalled with difficulty", color: "bg-orange-600" },

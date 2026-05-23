@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 // The dev server is started by playwright.config.ts with USE_FAKE_AI=1 and a
 // dedicated DATABASE_PATH, so these tests run against the real Next.js app
-// end-to-end (extraction, DB writes, FSRS-5, embeddings) — only the Anthropic
+// end-to-end (extraction, DB writes, FSRS-6, embeddings) — only the Anthropic
 // calls are stubbed by the deterministic fake module.
 //
 // Tests run serially in one worker so they share the same fresh DB.

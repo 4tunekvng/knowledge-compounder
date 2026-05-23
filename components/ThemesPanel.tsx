@@ -26,6 +26,7 @@ export function ThemesPanel({
 }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [isFinding, startFinding] = useTransition();
+  const [isDrafting, startDrafting] = useTransition();
   const [draftingId, setDraftingId] = useState<number | null>(null);
   const router = useRouter();
 
@@ -46,26 +47,28 @@ export function ThemesPanel({
     });
   }
 
-  async function draftEssay(themeId: number) {
+  function draftEssay(themeId: number) {
     setError(null);
     setDraftingId(themeId);
-    try {
-      const res = await fetch("/api/essay", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ themeId }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Failed to draft essay.");
-        return;
+    startDrafting(async () => {
+      try {
+        const res = await fetch("/api/essay", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ themeId }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error ?? "Failed to draft essay.");
+          return;
+        }
+        router.push(`/essays/${data.essay.id}`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Network error.");
+      } finally {
+        setDraftingId(null);
       }
-      router.push(`/essays/${data.essay.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error.");
-    } finally {
-      setDraftingId(null);
-    }
+    });
   }
 
   return (
@@ -111,7 +114,7 @@ export function ThemesPanel({
                 <h3 className="font-serif text-xl">{theme.label}</h3>
                 <button
                   onClick={() => draftEssay(theme.id)}
-                  disabled={draftingId === theme.id}
+                  disabled={isDrafting || draftingId !== null}
                   data-testid={`draft-essay-${theme.id}`}
                   className="rounded-md bg-[color:var(--foreground)] text-[color:var(--background)] px-3 py-1.5 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-80"
                 >

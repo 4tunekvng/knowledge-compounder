@@ -47,7 +47,7 @@ export const cards = sqliteTable("cards", {
     .notNull(),
   front: text("front").notNull(),
   back: text("back").notNull(),
-  // FSRS-5 memory model state.
+  // FSRS-6 memory model state.
   // SQL column names preserved for schema compatibility; JS names express FSRS semantics.
   stability: real("ease").notNull().default(0),         // S: days until R drops to 90 %
   scheduledDays: real("interval_days").notNull().default(0), // planned interval in days
