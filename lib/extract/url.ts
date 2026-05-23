@@ -8,6 +8,10 @@ export interface ExtractedDoc {
 }
 
 const MAX_CHARS = 60_000;
+// Hard limit on how many bytes we will read from a remote URL before aborting.
+// Prevents a slow or large response from exhausting Cloudflare Worker memory.
+// 2 MB is enough for the largest HTML pages we'd reasonably process.
+const MAX_RESPONSE_BYTES = 2 * 1024 * 1024; // 2 MB
 
 export function extractFromHtml(html: string, _url?: string): ExtractedDoc {
   // linkedom is Workers-compatible (jsdom isn't — it depends on MessagePort).
@@ -50,6 +54,60 @@ function isPrivateHost(hostname: string): boolean {
     if (a === 0) return true;           // 0.0.0.0/8
   }
   return false;
+}
+
+/**
+ * Read the body of a Response up to MAX_RESPONSE_BYTES. Throws if the server
+ * reports a non-HTML content-type (skips wasted work on PDFs, images, etc.)
+ * or if the body exceeds the byte limit (prevents OOM on huge pages).
+ */
+async function readHtmlBody(response: Response, sourceUrl: string): Promise<string> {
+  const contentType = response.headers.get("content-type") ?? "";
+  const isHtmlLike = contentType.includes("text/html") || contentType.includes("application/xhtml");
+  // Accept an empty/absent content-type — some servers omit it for HTML.
+  // Reject clearly non-HTML types (PDF, images, JS, JSON, etc.) early.
+  if (contentType && !isHtmlLike) {
+    throw new Error(`URL returned non-HTML content-type (${contentType.split(";")[0].trim()}): ${sourceUrl}`);
+  }
+
+  // Check Content-Length before streaming so we can bail before reading anything.
+  const clHeader = response.headers.get("content-length");
+  if (clHeader) {
+    const contentLength = parseInt(clHeader, 10);
+    if (!isNaN(contentLength) && contentLength > MAX_RESPONSE_BYTES) {
+      await response.body?.cancel();
+      throw new Error(`Response body too large (${contentLength} bytes, limit ${MAX_RESPONSE_BYTES}): ${sourceUrl}`);
+    }
+  }
+
+  // Stream the body and abort once we hit the byte limit.
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_RESPONSE_BYTES) {
+        await reader.cancel();
+        // We have partial HTML — truncate and let Readability do its best.
+        chunks.push(value.slice(0, value.byteLength - (totalBytes - MAX_RESPONSE_BYTES)));
+        break;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const combined = new Uint8Array(chunks.reduce((sum, c) => sum + c.byteLength, 0));
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(combined);
 }
 
 export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
@@ -119,17 +177,17 @@ export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
         throw new Error(`Too many redirects fetching ${url}`);
       }
       if (!finalResp.ok) throw new Error(`Failed to fetch ${finalUrl} (${finalResp.status})`);
-      const finalHtml = await finalResp.text();
+      const finalHtml = await readHtmlBody(finalResp, finalUrl.toString());
       return extractFromHtml(finalHtml, finalUrl.toString());
     }
     if (!followed.ok) throw new Error(`Failed to fetch ${redirectUrl} (${followed.status})`);
-    const html = await followed.text();
+    const html = await readHtmlBody(followed, redirectUrl.toString());
     return extractFromHtml(html, redirectUrl.toString());
   }
   if (!response.ok) {
     throw new Error(`Failed to fetch ${url} (${response.status})`);
   }
-  const html = await response.text();
+  const html = await readHtmlBody(response, url);
   const extracted = extractFromHtml(html, url);
   return extracted;
 }
