@@ -52,6 +52,9 @@ export async function generateThemes() {
   }
 
   if (oldIds.length > 0) {
+    // Delete orphaned essays first (FK would set themeId to null via onDelete: "set null",
+    // leaving essays with no theme that accumulate unboundedly over regeneration cycles).
+    await db.delete(essays).where(inArray(essays.themeId, oldIds)).run();
     await db.delete(themes).where(inArray(themes.id, oldIds)).run();
   }
 
