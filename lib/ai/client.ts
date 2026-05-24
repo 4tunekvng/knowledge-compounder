@@ -28,5 +28,5 @@ export const MODELS = {
   process: "claude-sonnet-4-6" as const,
   themes: "claude-sonnet-4-6" as const,
   // Essay drafting is the wow moment — pay for the best model.
-  essay: "claude-opus-4-7" as const,
+  essay: "claude-opus-4-5" as const,
 };
