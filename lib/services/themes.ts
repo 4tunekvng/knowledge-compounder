@@ -1,5 +1,5 @@
 import "server-only";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, isNull, or } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { sources, themes, essays, processings } from "@/lib/db/schema";
 import { findThemes } from "@/lib/ai/themes";
@@ -52,9 +52,16 @@ export async function generateThemes() {
   }
 
   if (oldIds.length > 0) {
-    // Delete orphaned essays first (FK would set themeId to null via onDelete: "set null",
-    // leaving essays with no theme that accumulate unboundedly over regeneration cycles).
-    await db.delete(essays).where(inArray(essays.themeId, oldIds)).run();
+    // Delete orphaned essays first. Two cases must be covered:
+    // 1. Essays whose themeId is one of the old IDs (about to be deleted).
+    // 2. Essays whose themeId is already NULL — these were orphaned by a
+    //    previous regeneration cycle that set themeId=null via the FK's
+    //    onDelete:"set null" before we could delete them here.
+    // inArray alone misses case 2 because SQL IN(...) never matches NULL.
+    await db
+      .delete(essays)
+      .where(or(inArray(essays.themeId, oldIds), isNull(essays.themeId)))
+      .run();
     await db.delete(themes).where(inArray(themes.id, oldIds)).run();
   }
 
