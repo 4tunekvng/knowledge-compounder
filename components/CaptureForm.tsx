@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 const PROCESSING_STEPS = [
@@ -79,7 +79,7 @@ export function CaptureForm() {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  async function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
 
