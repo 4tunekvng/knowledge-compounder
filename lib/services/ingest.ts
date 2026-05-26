@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { cards, processings, sources } from "@/lib/db/schema";
 import { processSource } from "@/lib/ai/process";
@@ -133,20 +133,30 @@ export async function retrySource(sourceId: number): Promise<IngestResult> {
     .get();
 
   if (!row) throw new Error("Source not found.");
-  if (row.status !== "failed") {
-    throw new Error(
-      `Source is not in a failed state (current status: ${row.status}). Only failed sources can be retried.`,
-    );
-  }
 
-  // Reset the source to pending and clear any prior processings/cards.
-  // ON DELETE CASCADE on processings.source_id and cards.source_id would let
-  // us skip the explicit deletes, but being explicit keeps the intent clear.
-  await db
+  // Atomically flip status from "failed" → "pending". By adding status="failed"
+  // to the WHERE clause we guard against a concurrent retry that already won
+  // the race — if changes===0 the row either doesn't exist or is no longer
+  // in a failed state, so we surface the same error the explicit check would have.
+  const resetResult = await db
     .update(sources)
     .set({ status: "pending", errorMessage: null, processedAt: null })
-    .where(eq(sources.id, sourceId))
+    .where(and(eq(sources.id, sourceId), eq(sources.status, "failed")))
     .run();
+
+  if ((resetResult as { meta?: { changes?: number } }).meta?.changes === 0) {
+    // Re-read to give a precise error message (source may have been retried
+    // concurrently, or was never in a failed state).
+    const current = await db
+      .select({ status: sources.status })
+      .from(sources)
+      .where(eq(sources.id, sourceId))
+      .get();
+    if (!current) throw new Error("Source not found.");
+    throw new Error(
+      `Source is not in a failed state (current status: ${current.status}). Only failed sources can be retried.`,
+    );
+  }
   await db.delete(processings).where(eq(processings.sourceId, sourceId)).run();
   await db.delete(cards).where(eq(cards.sourceId, sourceId)).run();
 
