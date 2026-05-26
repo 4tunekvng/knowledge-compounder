@@ -140,6 +140,9 @@ export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
     } catch {
       throw new Error(`Redirect to invalid URL: ${location}`);
     }
+    if (redirectUrl.protocol !== "http:" && redirectUrl.protocol !== "https:") {
+      throw new Error(`Redirect to non-HTTP(S) scheme blocked: ${redirectUrl.protocol}`);
+    }
     if (isPrivateHost(redirectUrl.hostname)) {
       throw new Error(`Redirect to private/internal address blocked: ${redirectUrl.hostname}`);
     }
@@ -161,6 +164,9 @@ export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
         finalUrl = new URL(location2, redirectUrl);
       } catch {
         throw new Error(`Second redirect to invalid URL: ${location2}`);
+      }
+      if (finalUrl.protocol !== "http:" && finalUrl.protocol !== "https:") {
+        throw new Error(`Redirect to non-HTTP(S) scheme blocked: ${finalUrl.protocol}`);
       }
       if (isPrivateHost(finalUrl.hostname)) {
         throw new Error(`Redirect to private/internal address blocked: ${finalUrl.hostname}`);
