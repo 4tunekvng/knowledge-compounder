@@ -37,7 +37,7 @@ export function extractFromHtml(html: string, _url?: string): ExtractedDoc {
  * IPv6 loopback (::1), IPv4-mapped IPv6 (::ffff:…), other IPv6, and "localhost".
  */
 function isPrivateHost(hostname: string): boolean {
-  const h = hostname.toLowerCase().replace(/^\[|\]$/g, ""); // strip IPv6 brackets
+  const h = hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, ""); // strip IPv6 brackets and trailing dot
   if (h === "localhost" || h === "::1") return true;
   // IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1) — recurse on the embedded IPv4 address.
   if (h.startsWith("::ffff:")) return isPrivateHost(h.slice(7));
@@ -123,6 +123,7 @@ export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
   }
   const response = await fetch(url, {
     redirect: "manual",
+    signal: AbortSignal.timeout(15_000),
     headers: {
       "User-Agent":
         "Mozilla/5.0 (compatible; KnowledgeCompounder/0.1; +https://example.com)",
@@ -148,6 +149,7 @@ export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
     }
     const followed = await fetch(redirectUrl.toString(), {
       redirect: "manual",
+      signal: AbortSignal.timeout(15_000),
       headers: {
         "User-Agent":
           "Mozilla/5.0 (compatible; KnowledgeCompounder/0.1; +https://example.com)",
@@ -173,6 +175,7 @@ export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
       }
       const finalResp = await fetch(finalUrl.toString(), {
         redirect: "manual",
+        signal: AbortSignal.timeout(15_000),
         headers: {
           "User-Agent":
             "Mozilla/5.0 (compatible; KnowledgeCompounder/0.1; +https://example.com)",
