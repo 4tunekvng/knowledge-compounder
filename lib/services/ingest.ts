@@ -157,10 +157,10 @@ export async function retrySource(sourceId: number): Promise<IngestResult> {
       `Source is not in a failed state (current status: ${current.status}). Only failed sources can be retried.`,
     );
   }
-  await db.delete(processings).where(eq(processings.sourceId, sourceId)).run();
-  await db.delete(cards).where(eq(cards.sourceId, sourceId)).run();
-
   try {
+    await db.delete(processings).where(eq(processings.sourceId, sourceId)).run();
+    await db.delete(cards).where(eq(cards.sourceId, sourceId)).run();
+
     const result = await processSource({
       title: row.title,
       text: row.rawContent,
