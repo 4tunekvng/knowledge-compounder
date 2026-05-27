@@ -98,12 +98,16 @@ function nextDifficulty(d: number, rating: Rating): number {
 function stabilityAfterRecall(d: number, s: number, r: number, rating: Rating): number {
   const hardPenalty = rating === Rating.Hard ? W[15] : 1;
   const easyBonus = rating === Rating.Easy ? W[16] : 1;
+  // Guard against s=0: s * pow(s, -W[9]) would produce 0 * Inf = NaN via IEEE 754.
+  // Review cards always have s > 0 after initial scheduling, but legacy/migrated DB
+  // rows with ease=0 could hit this path. Clamp to a safe minimum before the pow.
+  const safeS = Math.max(0.001, s);
   return Math.max(
     0.1,
-    s *
+    safeS *
       (Math.exp(W[8]) *
         (11 - d) *
-        Math.pow(s, -W[9]) *
+        Math.pow(safeS, -W[9]) *
         (Math.exp(W[10] * (1 - r)) - 1) *
         hardPenalty *
         easyBonus +
@@ -122,8 +126,12 @@ function stabilityAfterLapse(d: number, s: number, r: number): number {
 // S_s (short-term stability update for Learning/Relearning same-session reviews)
 // FSRS-6 adds Math.pow(s, -W[19]): cards with high stability get a smaller boost
 // from same-day re-reviews, matching empirical memory dynamics.
+//
+// Implementation note: the original form  s * pow(s, -W[19])  equals  pow(s, 1-W[19]).
+// The factored form avoids 0 * Inf = NaN (IEEE 754) when s=0, which can occur for
+// legacy DB rows with ease=0 in a Relearning state.
 function shortTermStability(s: number, rating: Rating): number {
-  return Math.max(0.1, s * Math.exp(W[17] * (rating - 3 + W[18])) * Math.pow(s, -W[19]));
+  return Math.max(0.1, Math.pow(s, 1 - W[19]) * Math.exp(W[17] * (rating - 3 + W[18])));
 }
 
 function clamp(v: number, lo: number, hi: number): number {

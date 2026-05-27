@@ -118,6 +118,9 @@ export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
   } catch {
     throw new Error(`Invalid URL: ${url}`);
   }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error(`Only http and https URLs are supported (got ${parsed.protocol}): ${url}`);
+  }
   if (isPrivateHost(parsed.hostname)) {
     throw new Error(`Fetching private/internal addresses is not allowed: ${parsed.hostname}`);
   }
