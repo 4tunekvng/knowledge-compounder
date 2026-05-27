@@ -43,6 +43,16 @@ function isPrivateHost(hostname: string): boolean {
   if (h.startsWith("::ffff:")) return isPrivateHost(h.slice(7));
   // Block all remaining IPv6 addresses (fc00::/7 ULA, fe80:: link-local, etc.)
   if (h.includes(":")) return true;
+  // Integer-encoded IPv4 (e.g. http://2130706433/ == 127.0.0.1).
+  // parseInt("0177", 10) = 177, so octal notation falls through to dotted check.
+  if (/^\d+$/.test(h)) {
+    const asInt = parseInt(h, 10);
+    if (asInt >= 0 && asInt <= 0xffffffff) {
+      return isPrivateHost(
+        `${(asInt >>> 24) & 0xff}.${(asInt >>> 16) & 0xff}.${(asInt >>> 8) & 0xff}.${asInt & 0xff}`
+      );
+    }
+  }
   // IPv4 patterns
   const parts = h.split(".").map(Number);
   if (parts.length === 4 && parts.every((n) => !isNaN(n) && n >= 0 && n <= 255)) {
