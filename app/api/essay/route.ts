@@ -26,6 +26,7 @@ export async function POST(request: Request) {
     if (message.startsWith("Theme has fewer than")) {
       return NextResponse.json({ error: message }, { status: 422 });
     }
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[essay] draftEssayForTheme failed:", err);
+    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }

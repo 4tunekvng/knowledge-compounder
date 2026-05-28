@@ -17,10 +17,13 @@ export async function POST(
     return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error.";
-    const status =
-      message === "Source not found." ? 404
-      : message.startsWith("Source is not in a failed state") ? 409
-      : 500;
-    return NextResponse.json({ error: message }, { status });
+    if (message === "Source not found.") {
+      return NextResponse.json({ error: message }, { status: 404 });
+    }
+    if (message.startsWith("Source is not in a failed state")) {
+      return NextResponse.json({ error: message }, { status: 409 });
+    }
+    console.error("[sources/retry] retrySource failed:", err);
+    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }

@@ -37,7 +37,10 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error.";
-    const status = message === "Card not found." ? 404 : 500;
-    return NextResponse.json({ error: message }, { status });
+    if (message === "Card not found.") {
+      return NextResponse.json({ error: message }, { status: 404 });
+    }
+    console.error("[review] gradeCard failed:", err);
+    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }

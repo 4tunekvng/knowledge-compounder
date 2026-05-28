@@ -17,6 +17,7 @@ export async function POST() {
     ) {
       return NextResponse.json({ error: message }, { status: 422 });
     }
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[themes] generateThemes failed:", err);
+    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }
