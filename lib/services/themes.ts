@@ -51,18 +51,25 @@ export async function generateThemes() {
     inserted.push(rows[0]);
   }
 
+  // Always delete orphaned essays first. Two cases must be covered:
+  // 1. Essays whose themeId is one of the old IDs (about to be deleted).
+  // 2. Essays whose themeId is already NULL — these were orphaned by a
+  //    previous regeneration cycle that set themeId=null via the FK's
+  //    onDelete:"set null" before we could delete them here.
+  // inArray alone misses case 2 because SQL IN(...) never matches NULL.
+  // Previously this block ran only when oldIds.length > 0, which meant
+  // null-themeId orphans were silently skipped on the very first run and
+  // any subsequent run where no prior themes existed.
   if (oldIds.length > 0) {
-    // Delete orphaned essays first. Two cases must be covered:
-    // 1. Essays whose themeId is one of the old IDs (about to be deleted).
-    // 2. Essays whose themeId is already NULL — these were orphaned by a
-    //    previous regeneration cycle that set themeId=null via the FK's
-    //    onDelete:"set null" before we could delete them here.
-    // inArray alone misses case 2 because SQL IN(...) never matches NULL.
     await db
       .delete(essays)
       .where(or(inArray(essays.themeId, oldIds), isNull(essays.themeId)))
       .run();
     await db.delete(themes).where(inArray(themes.id, oldIds)).run();
+  } else {
+    // No old themes to delete, but still clean up any null-themeId orphans
+    // that could accumulate from previous failed generation cycles.
+    await db.delete(essays).where(isNull(essays.themeId)).run();
   }
 
   return inserted;
