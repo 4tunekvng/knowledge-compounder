@@ -5,14 +5,17 @@ import type { Rating } from "@/lib/sm2";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  let body: { cardId?: number; grade?: number };
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
-  const cardId = Number(body.cardId);
-  const ratingValue = Number(body.grade);
+  const bodyObj = body !== null && typeof body === "object"
+    ? (body as Record<string, unknown>)
+    : {};
+  const cardId = Number(bodyObj.cardId);
+  const ratingValue = Number(bodyObj.grade);
   if (!Number.isInteger(cardId) || cardId <= 0) {
     return NextResponse.json({ error: "Invalid cardId." }, { status: 400 });
   }

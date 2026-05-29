@@ -4,13 +4,17 @@ import { draftEssayForTheme } from "@/lib/services/themes";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  let body: { themeId?: number };
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
-  const themeId = Number(body.themeId);
+  const themeId = Number(
+    body !== null && typeof body === "object"
+      ? (body as Record<string, unknown>).themeId
+      : undefined,
+  );
   if (!Number.isInteger(themeId) || themeId <= 0) {
     return NextResponse.json({ error: "Invalid themeId." }, { status: 400 });
   }

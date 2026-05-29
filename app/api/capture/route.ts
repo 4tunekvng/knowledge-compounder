@@ -4,13 +4,20 @@ import { ingest } from "@/lib/services/ingest";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  let body: { input?: string };
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
-  const input = (body.input ?? "").trim();
+  if (typeof body !== "object" || body === null) {
+    return NextResponse.json({ error: "Request body must be a JSON object." }, { status: 400 });
+  }
+  const raw = (body as Record<string, unknown>).input;
+  if (raw !== undefined && typeof raw !== "string") {
+    return NextResponse.json({ error: "input must be a string." }, { status: 400 });
+  }
+  const input = (typeof raw === "string" ? raw : "").trim();
   if (input.length === 0) {
     return NextResponse.json(
       { error: "Capture cannot be empty." },
