@@ -36,19 +36,25 @@ export async function POST(request: Request) {
     return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error.";
-    // Surface user-actionable messages (extraction/URL failures) but mask
-    // internal DB / infra errors to avoid leaking schema or path details.
-    const isUserActionable =
-      message.startsWith("Capture is empty") ||
+    // 422 — user-actionable URL/extraction failures: the input is valid JSON
+    // but the URL or content could not be processed.
+    const isUserActionable422 =
       message.startsWith("Failed to extract content") ||
       message.startsWith("Invalid URL") ||
       message.startsWith("Only http") ||
       message.startsWith("Fetching private") ||
       message.startsWith("URL returned non-HTML") ||
-      message.startsWith("Response body too large") ||
+      message.startsWith("Response body too large");
+    // 502 — the external URL was valid but the upstream server failed.
+    const isBadGateway =
       message.startsWith("Failed to fetch");
-    const safe = isUserActionable ? message : "Internal server error.";
+    if (isUserActionable422) {
+      return NextResponse.json({ error: message }, { status: 422 });
+    }
+    if (isBadGateway) {
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
     console.error("[capture] ingest failed:", err);
-    return NextResponse.json({ error: safe }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }
