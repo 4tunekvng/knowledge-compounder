@@ -6,6 +6,7 @@ import {
   parseConcepts,
 } from "@/lib/services/queries";
 import { RetrySourceButton } from "@/components/RetrySourceButton";
+import { GenerateCardsButton } from "@/components/GenerateCardsButton";
 
 export const dynamic = "force-dynamic";
 
@@ -102,30 +103,46 @@ export default async function SourcePage({ params }: Params) {
         </>
       )}
 
-      {cards.length > 0 && (
+      {source.status === "processed" && (
         <section data-testid="cards-section">
-          <h2 className="font-serif text-xl mb-3">Flashcards</h2>
-          <ul className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {cards.map((card) => (
-              <li
-                key={card.id}
-                className="border border-[color:var(--border)] bg-[color:var(--card)] rounded-md p-4"
-                data-testid={`card-${card.id}`}
-              >
-                <p className="text-[10px] uppercase tracking-wider text-[color:var(--accent)] mb-2">
-                  {card.cardType}
-                </p>
-                <p className="font-medium text-sm mb-2">{card.front}</p>
-                <p className="text-sm text-[color:var(--muted)] leading-relaxed">
-                  {card.back}
-                </p>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 text-sm text-[color:var(--muted)]">
-            Cards are queued for spaced review.{" "}
-            <Link href="/review">Review now →</Link>
-          </p>
+          <div className="flex items-center justify-between mb-3 gap-4">
+            <h2 className="font-serif text-xl">
+              Flashcards{" "}
+              <span className="text-[color:var(--muted)] text-base font-normal">
+                ({cards.length})
+              </span>
+            </h2>
+            <GenerateCardsButton sourceId={source.id} />
+          </div>
+          {cards.length > 0 ? (
+            <>
+              <ul className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {cards.map((card) => (
+                  <li
+                    key={card.id}
+                    className="border border-[color:var(--border)] bg-[color:var(--card)] rounded-md p-4"
+                    data-testid={`card-${card.id}`}
+                  >
+                    <p className="text-[10px] uppercase tracking-wider text-[color:var(--accent)] mb-2">
+                      {card.cardType}
+                    </p>
+                    <p className="font-medium text-sm mb-2">{card.front}</p>
+                    <p className="text-sm text-[color:var(--muted)] leading-relaxed">
+                      {card.back}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-sm text-[color:var(--muted)]">
+                Cards are queued for spaced review.{" "}
+                <Link href="/review">Review now →</Link>
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-[color:var(--muted)]">
+              No cards yet. Use <strong>Generate more cards</strong> to create some.
+            </p>
+          )}
         </section>
       )}
 

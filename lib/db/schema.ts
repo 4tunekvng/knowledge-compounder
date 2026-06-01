@@ -12,7 +12,7 @@ export const sources = sqliteTable(
   "sources",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
-    kind: text("kind", { enum: ["url", "text"] }).notNull(),
+    kind: text("kind", { enum: ["url", "text", "pdf"] }).notNull(),
     title: text("title").notNull(),
     url: text("url"),
     rawContent: text("raw_content").notNull(),
@@ -26,7 +26,7 @@ export const sources = sqliteTable(
     // (e.g. "readwise", "kindle", "zotero"). New columns are nullable / default
     // so existing rows migrate cleanly.
     sourceType: text("source_type", {
-      enum: ["url", "text", "readwise"],
+      enum: ["url", "text", "readwise", "pdf"],
     })
       .notNull()
       .default("url"),
@@ -130,9 +130,25 @@ export const essays = sqliteTable("essays", {
     .default(sql`(unixepoch() * 1000)`),
 });
 
+// Shareable study decks. A deck bundles the flashcards from a set of sources
+// and publishes them to a public, no-login student page at /d/<shareToken>
+// (the "send it to students" flow). shareToken is an unguessable random id so
+// the link can be shared without exposing the rest of the corpus.
+export const decks = sqliteTable("decks", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
+  description: text("description"),
+  shareToken: text("share_token").notNull().unique(),
+  sourceIds: text("source_ids").notNull(), // JSON array of source ids
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
 export type Source = typeof sources.$inferSelect;
 export type Processing = typeof processings.$inferSelect;
 export type Card = typeof cards.$inferSelect;
 export type Theme = typeof themes.$inferSelect;
 export type Essay = typeof essays.$inferSelect;
 export type IntegrationToken = typeof integrationTokens.$inferSelect;
+export type Deck = typeof decks.$inferSelect;

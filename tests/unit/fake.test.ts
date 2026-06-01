@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { fakeEssay, fakeProcessing, fakeThemes } from "@/lib/ai/fake";
+import { fakeEssay, fakeMoreCards, fakeProcessing, fakeThemes } from "@/lib/ai/fake";
 import {
+  AdditionalCardsResultSchema,
   EssayResultSchema,
   ProcessingResultSchema,
   ThemesResultSchema,
@@ -12,16 +13,26 @@ podcast, community — will win the next decade. Those who lean on proprietary d
 will be flattened by the next foundation-model release.`;
 
 describe("fake AI generators", () => {
-  it("fakeProcessing emits schema-valid output", () => {
+  it("fakeProcessing emits schema-valid output with a scaled card set", () => {
     const output = fakeProcessing("Distribution outlasts data", SAMPLE);
     const result = ProcessingResultSchema.safeParse(output);
     expect(result.success).toBe(true);
-    expect(output.cards).toHaveLength(3);
-    expect(output.cards.map((c) => c.type).sort()).toEqual([
-      "application",
-      "definition",
-      "mechanism",
-    ]);
+    // "More flashcards": at least 4, and all three card kinds represented.
+    expect(output.cards.length).toBeGreaterThanOrEqual(4);
+    const types = new Set(output.cards.map((c) => c.type));
+    expect(types).toContain("definition");
+    expect(types).toContain("mechanism");
+    expect(types).toContain("application");
+  });
+
+  it("fakeMoreCards returns schema-valid cards distinct from existing fronts", () => {
+    const existing = ["Define: distribution", "When would you apply the idea?"];
+    const output = fakeMoreCards("Distribution outlasts data", SAMPLE, existing);
+    const parsed = AdditionalCardsResultSchema.safeParse(output);
+    expect(parsed.success).toBe(true);
+    for (const card of output.cards) {
+      expect(existing).not.toContain(card.front);
+    }
   });
 
   it("fakeThemes finds overlapping concepts across sources", () => {

@@ -25,7 +25,22 @@ import * as schema from "./schema";
  * works identically against both drivers.
  */
 
-const instances = new Map<string, DrizzleD1Database<typeof schema>>();
+// Cache the connection on globalThis, NOT a module-level Map. Next dev bundles
+// route handlers and server components into separate module instances, so a
+// module-level cache would open a SEPARATE better-sqlite3 connection per
+// instance. With WAL, a reader on a different connection can miss a writer's
+// just-committed rows for a beat — which surfaced as a captured source 404-ing
+// on its own detail page. One process-wide connection removes the race entirely
+// (and also survives HMR without leaking connections).
+const globalForDb = globalThis as unknown as {
+  __kcLocalDbInstances?: Map<string, DrizzleD1Database<typeof schema>>;
+};
+const instances =
+  globalForDb.__kcLocalDbInstances ??
+  (globalForDb.__kcLocalDbInstances = new Map<
+    string,
+    DrizzleD1Database<typeof schema>
+  >());
 
 export function getLocalDb(dbPath: string): DrizzleD1Database<typeof schema> {
   const cached = instances.get(dbPath);

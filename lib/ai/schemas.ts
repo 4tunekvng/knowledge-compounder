@@ -26,9 +26,12 @@ export const ProcessingResultSchema = z.object({
     .describe("Two to five distinct takeaways, each as a single sentence."),
   cards: z
     .array(CardSchema)
-    .length(3)
+    .min(4)
+    .max(12)
     .describe(
-      "Exactly three Anki-style cards: one definition, one mechanism, one application.",
+      "Between 4 and 12 Anki-style cards, scaled to how much distinct, testable " +
+        "material the source contains. Mix definition / mechanism / application " +
+        "types; multiple of each is encouraged for a rich source.",
     ),
   concepts: z
     .array(ConceptSchema)
@@ -39,6 +42,19 @@ export const ProcessingResultSchema = z.object({
     ),
 });
 export type ProcessingResult = z.infer<typeof ProcessingResultSchema>;
+
+// Output of the "generate more cards" action on a source. New cards must be
+// distinct from the ones already attached to the source.
+export const AdditionalCardsResultSchema = z.object({
+  cards: z
+    .array(CardSchema)
+    .min(2)
+    .max(8)
+    .describe(
+      "Two to eight NEW Anki-style cards that do not duplicate the existing cards.",
+    ),
+});
+export type AdditionalCardsResult = z.infer<typeof AdditionalCardsResultSchema>;
 
 export const ThemeSchema = z.object({
   label: z.string().min(3).max(80),

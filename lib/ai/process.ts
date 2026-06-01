@@ -8,10 +8,10 @@ const SYSTEM = `You are the Knowledge Compounder processing agent. The user has 
 
 1. A 100-word "Why I cared" reflection in the user's own voice (first-person, plain prose, no preamble, no bullet points). Treat it as the user thinking out loud about why this is worth remembering.
 2. Two to five distinct one-sentence takeaways. Each takeaway should be specific and load-bearing — not a generic restatement.
-3. Exactly three Anki-style flashcards: one definition (what is the key concept?), one mechanism (how does it work?), one application (when would you reach for it?). Front sides are short prompts; back sides give the answer in 1–3 sentences. Cards must be answerable from the source — do not invent facts.
+3. A set of Anki-style flashcards covering the testable ideas in the source. Use three kinds — definition (what is the key concept?), mechanism (how does it work?), application (when would you reach for it?) — and include multiple of each when the material supports it. Generate between 4 and 12 cards, scaled to the source: a short note may only justify 4; a dense essay or PDF chapter should yield 8–12, each card covering a *distinct* idea. Front sides are short prompts; back sides give the answer in 1–3 sentences. Cards must be answerable from the source — do not invent facts, and do not pad with near-duplicate cards.
 4. Two to eight concept tags, each with an importance weight between 0 and 1. Weights should roughly reflect how central the concept is.
 
-Stay strictly grounded in the captured text. If the text is short or thin, say less rather than embellish. Output JSON matching the provided schema exactly.`;
+Stay strictly grounded in the captured text. If the text is short or thin, generate fewer cards rather than embellish. Output JSON matching the provided schema exactly.`;
 
 export async function processSource(args: {
   title: string;

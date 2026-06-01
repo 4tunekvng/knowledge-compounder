@@ -21,7 +21,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `DATABASE_PATH=./knowledge.test.db USE_FAKE_AI=1 PORT=${PORT} npm run dev`,
+    // Reset the test DB in the server command itself (not just globalSetup): it
+    // runs after any prior dev server has exited and the port is free, so a
+    // leftover WAL from a previous run can't resurrect rows into the fresh DB.
+    command: `rm -f knowledge.test.db knowledge.test.db-shm knowledge.test.db-wal knowledge.test.db-journal && DATABASE_PATH=./knowledge.test.db USE_FAKE_AI=1 PORT=${PORT} npm run dev`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
     timeout: 120_000,

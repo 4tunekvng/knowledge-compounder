@@ -14,8 +14,9 @@ export default async function Home() {
           Capture something you just read
         </h1>
         <p className="text-[color:var(--muted)] mb-6 max-w-2xl">
-          The agent will extract the content, write a 100-word reflection in your voice,
-          generate three flashcards, tag concepts, and add it to your corpus.
+          Paste a URL, drop in a PDF, or type notes. The agent extracts the content,
+          writes a 100-word reflection in your voice, generates a set of flashcards,
+          tags concepts, and adds it to your corpus.
         </p>
         <CaptureForm />
       </section>

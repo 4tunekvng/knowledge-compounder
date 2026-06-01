@@ -9,7 +9,12 @@ import {
   extractFromUrl,
   looksLikeUrl,
 } from "@/lib/extract/url";
+import { extractFromPdf } from "@/lib/extract/pdf";
 import { sanitizeForPrompt } from "./ingest-source";
+
+// 10 MB upload ceiling for PDFs — large enough for a book chapter or paper,
+// small enough to stay within Worker memory/time limits during extraction.
+export const MAX_PDF_BYTES = 10 * 1024 * 1024;
 
 export interface IngestInput {
   raw: string;
@@ -34,6 +39,67 @@ export interface ExternalIngestInput {
   text: string;
   url?: string;
   externalUpdatedAt?: Date;
+}
+
+/**
+ * Shared tail of every ingest path: run Claude processing, embed, persist the
+ * processing + cards, and flip the source to "processed". On any failure the
+ * source is marked "failed" with the error so the UI can show a Retry button.
+ * D1 has no multi-statement transactions over the binding, so writes run
+ * sequentially.
+ */
+async function processAndPersist(
+  db: Awaited<ReturnType<typeof getDb>>,
+  sourceId: number,
+  prompt: { title: string; text: string },
+): Promise<IngestResult> {
+  try {
+    const result = await processSource(prompt);
+    const vector = await embed(`${prompt.title}\n\n${prompt.text}`);
+
+    await db
+      .insert(processings)
+      .values({
+        sourceId,
+        whyICared: result.why_i_cared,
+        keyTakeaways: JSON.stringify(result.key_takeaways),
+        concepts: JSON.stringify(result.concepts),
+        embedding: embeddingToBlob(vector),
+      })
+      .run();
+
+    for (const card of result.cards) {
+      await db
+        .insert(cards)
+        .values({
+          sourceId,
+          cardType: card.type,
+          front: card.front,
+          back: card.back,
+        })
+        .run();
+    }
+
+    await db
+      .update(sources)
+      .set({ status: "processed", processedAt: new Date() })
+      .where(eq(sources.id, sourceId))
+      .run();
+
+    return { sourceId, status: "processed" };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    try {
+      await db
+        .update(sources)
+        .set({ status: "failed", errorMessage: message })
+        .where(eq(sources.id, sourceId))
+        .run();
+    } catch (updateErr) {
+      console.error(`Failed to mark source ${sourceId} as failed:`, updateErr);
+    }
+    return { sourceId, status: "failed", error: message };
+  }
 }
 
 export async function ingest({ raw }: IngestInput): Promise<IngestResult> {
@@ -72,63 +138,65 @@ export async function ingest({ raw }: IngestInput): Promise<IngestResult> {
   }
   const sourceId = inserted[0].id;
 
+  return processAndPersist(db, sourceId, {
+    title: extracted.title,
+    text: extracted.text,
+  });
+}
+
+export interface IngestPdfInput {
+  filename: string;
+  bytes: Uint8Array;
+}
+
+/**
+ * Ingest an uploaded PDF: extract its text with unpdf, store it as a `pdf`
+ * source, then run the same processing pipeline as every other capture.
+ * Extraction failures (empty/scanned PDFs) are thrown before any row is
+ * written, so they surface as a clean 422 rather than a stuck "pending" source.
+ */
+export async function ingestPdf({
+  filename,
+  bytes,
+}: IngestPdfInput): Promise<IngestResult> {
+  if (bytes.byteLength === 0) {
+    throw new Error("Failed to extract content: the PDF file was empty.");
+  }
+  const db = await getDb();
+
+  let extracted;
   try {
-    const result = await processSource({
-      title: extracted.title,
-      text: extracted.text,
-    });
-
-    const vector = await embed(`${extracted.title}\n\n${extracted.text}`);
-
-    // D1 doesn't support multi-statement transactions over the worker binding,
-    // so we run inserts sequentially. If a write fails midway, the catch
-    // block below marks the source as failed; the user can retry from the UI.
-    await db
-      .insert(processings)
-      .values({
-        sourceId,
-        whyICared: result.why_i_cared,
-        keyTakeaways: JSON.stringify(result.key_takeaways),
-        concepts: JSON.stringify(result.concepts),
-        embedding: embeddingToBlob(vector),
-      })
-      .run();
-
-    for (const card of result.cards) {
-      await db
-        .insert(cards)
-        .values({
-          sourceId,
-          cardType: card.type,
-          front: card.front,
-          back: card.back,
-        })
-        .run();
-    }
-
-    await db
-      .update(sources)
-      .set({
-        status: "processed",
-        processedAt: new Date(),
-      })
-      .where(eq(sources.id, sourceId))
-      .run();
-
-    return { sourceId, status: "processed" };
+    extracted = await extractFromPdf(bytes, filename);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    try {
-      await db
-        .update(sources)
-        .set({ status: "failed", errorMessage: message })
-        .where(eq(sources.id, sourceId))
-        .run();
-    } catch (updateErr) {
-      console.error(`Failed to mark source ${sourceId} as failed:`, updateErr);
-    }
-    return { sourceId, status: "failed", error: message };
+    throw new Error(`Failed to extract content: ${message}`);
   }
+
+  const inserted = await db
+    .insert(sources)
+    .values({
+      kind: "pdf",
+      title: extracted.title,
+      url: null,
+      rawContent: extracted.text,
+      excerpt: extracted.excerpt,
+      status: "pending",
+      sourceType: "pdf",
+    })
+    .returning({ id: sources.id })
+    .all();
+
+  if (inserted.length === 0) {
+    throw new Error(
+      "INSERT into sources returned no rows — database may be read-only or schema mismatch.",
+    );
+  }
+  const sourceId = inserted[0].id;
+
+  return processAndPersist(db, sourceId, {
+    title: extracted.title,
+    text: extracted.text,
+  });
 }
 
 /**

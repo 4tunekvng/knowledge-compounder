@@ -4,13 +4,14 @@ A focused v0 of the [Knowledge Compounder PRD](./PRD.md): capture reading materi
 
 ## What's in this v0
 
-- **Capture** — paste a URL (server extracts via Mozilla Readability) or raw text. Stored in SQLite.
-- **Process** — for every capture, Claude (Sonnet 4.6, adaptive thinking, structured outputs) generates a 100-word reflection in your voice, key takeaways, three Anki-style flashcards (definition / mechanism / application), and tagged concepts.
+- **Capture** — paste a URL (server extracts via Mozilla Readability), raw text, **or drop in a PDF** (text extracted server-side via [`unpdf`](https://github.com/unjs/unpdf), which runs in the Cloudflare Workers runtime). Stored in D1 (SQLite locally).
+- **Process** — for every capture, Claude (Sonnet 4.6, adaptive thinking, structured outputs) generates a 100-word reflection in your voice, key takeaways, a **scaled set of Anki-style flashcards** (definition / mechanism / application — 4–12 cards depending on how much the source supports), and tagged concepts. A **Generate more cards** button on any source adds further distinct cards on demand.
 - **Library** — browse all captures with their generated metadata.
-- **Review** — SM-2 spaced repetition queue. Five-grade response (Blank / Hard / OK / Good / Easy) reschedules each card.
+- **Review** — FSRS-6 spaced-repetition queue. Four-grade response (Again / Hard / Good / Easy) reschedules each card.
 - **Cross-links** — every capture is embedded (Voyage AI when configured, deterministic lexical fallback otherwise). Source pages show related captures by cosine similarity.
 - **Themes** — Claude reads across the processed corpus and surfaces patterns recurring in 2+ sources.
-- **Essay drafter** — pick a theme; Claude (Opus 4.7, adaptive thinking, `effort: xhigh`) writes a footnoted Markdown draft, marks the weakest claims for the user to push back on.
+- **Essay drafter** — pick a theme; Claude (Opus 4.8, adaptive thinking, `effort: xhigh`) writes a footnoted Markdown draft, marks the weakest claims for the user to push back on.
+- **Shareable study decks** — bundle the flashcards from any sources into a deck and share **one public link** (`/d/<token>`, no login). Students study the cards in the browser (flip / shuffle / browse), or download them as a **printable PDF study guide** (`pdf-lib`) or an **Anki-importable CSV**. This is the "add PDFs + more flashcards → send it to students" loop.
 
 ## Auto-ingest
 
@@ -33,7 +34,7 @@ Token storage is plaintext in the `integration_tokens` table — fine for single
 
 ## What's deliberately out of scope for v0
 
-Per the PRD this is week-1-through-9 work, distilled to the demonstrable loop. Skipped: Kindle/Zotero auto-ingest (the `IngestSource` interface is ready — implementations TBD), browser extension, voice-tone learning from prior writing, podcast/PDF ingestion, multi-user auth, public deploy.
+Per the PRD this is week-1-through-9 work, distilled to the demonstrable loop. Skipped: Kindle/Zotero auto-ingest (the `IngestSource` interface is ready — implementations TBD), browser extension, voice-tone learning from prior writing, podcast ingestion, multi-user auth. (PDF ingestion and shareable decks now ship.)
 
 ## Run
 
@@ -56,39 +57,50 @@ If `ANTHROPIC_API_KEY` is not set, capture/process will fail with a clear messag
 ## Test
 
 ```bash
-npm test          # vitest unit tests (32 tests)
-npm run test:e2e  # playwright end-to-end loop (8 tests)
+npm test          # vitest unit tests (64 tests)
+npm run test:e2e  # playwright end-to-end (10 tests)
 npm run typecheck # tsc --noEmit
 npm run lint      # eslint
-npm run build     # next build production smoke test
+npm run cf:build  # OpenNext → Cloudflare Workers build (production smoke test)
 ```
 
-The E2E suite spins up a real dev server with `USE_FAKE_AI=1` and a dedicated SQLite file, then walks the full capture → review → themes → essay loop in a real browser.
+The E2E suite spins up a real dev server with `USE_FAKE_AI=1` and a dedicated SQLite file, then walks the full loop in a real browser: capture (text + **PDF upload**, parsed by unpdf) → generate-more-cards → review → themes → essay → **create a shareable deck, study it, and export it to PDF + Anki**.
 
 ## Architecture
 
 ```
 app/                      Next.js App Router
-  page.tsx                Capture form + recent captures
+  page.tsx                Capture form (URL / text / PDF) + recent captures
   library/                List of all sources
-  sources/[id]/           Source detail with cards + cross-links
-  review/                 SM-2 review queue
+  sources/[id]/           Source detail with cards + cross-links + Generate-more-cards
+  review/                 FSRS-6 review queue
   themes/                 Themes panel + essays index
   essays/[id]/            Drafted essay viewer
+  decks/                  Create + manage shareable study decks
+  d/[token]/              PUBLIC student study page (no login)
+    pdf/                  GET: deck → printable PDF study guide (pdf-lib)
+    anki/                 GET: deck → Anki-importable CSV
   api/
-    capture/              POST: ingest a URL or text
+    capture/              POST: ingest a URL/text (JSON) or a PDF (multipart)
+    sources/[id]/cards/   POST: generate additional flashcards for a source
+    sources/[id]/retry/   POST: retry a failed source
     review/               POST: grade a card
     themes/               POST: regenerate themes from current corpus
     essay/                POST: draft an essay from a theme
-components/               Client components (CaptureForm, ReviewQueue, ThemesPanel, …)
+    decks/                POST: create a deck · DELETE /[id]: remove one
+    integrations/         Readwise token + sync endpoints
+components/               Client components (CaptureForm, ReviewQueue, DeckManager,
+                          StudyDeck, SiteHeader, GenerateCardsButton, …)
 lib/
-  ai/                     Anthropic SDK calls (process, themes, essay) + fake stubs
-  db/                     Drizzle schema + better-sqlite3 client
+  ai/                     Anthropic SDK calls (process, more-cards, themes, essay) + fake stubs
+  db/                     Drizzle schema + D1 (prod) / better-sqlite3 (dev) client
   embeddings/             Voyage REST client + lexical fallback + cosine similarity
-  extract/                URL → readable text via @mozilla/readability + jsdom
+  extract/                url.ts (Readability) + pdf.ts (unpdf, Workers-compatible)
   parsers.ts              Pure JSON parsers (DB stores arrays/objects as TEXT)
   services/
-    ingest.ts             Manual + external capture pipeline
+    ingest.ts             Manual + PDF + external capture pipeline
+    cards.ts              Generate-more-cards for an existing source
+    decks.ts              Create / list / fetch-by-token / delete decks
     ingest-source.ts      IngestSource interface + sanitizeForPrompt helper
     ingest-orchestrator.ts  Drives sync for one provider, dedupes via (source_type, external_id)
     integrations/         Per-provider IngestSource impls (readwise.ts; kindle/zotero TBD)
@@ -101,6 +113,19 @@ tests/
   unit/                   Vitest — pure functions only
   e2e/                    Playwright — real browser, real DB, fake AI
 ```
+
+## Deploy (Cloudflare Workers + D1)
+
+```bash
+npm run cf:build                                   # OpenNext build
+CLOUDFLARE_ACCOUNT_ID=<id> npx wrangler d1 migrations apply knowledge-compounder --remote
+CLOUDFLARE_ACCOUNT_ID=<id> npm run cf:deploy       # deploy the worker
+```
+
+Production runs on Cloudflare D1 (real backend — nothing is stored in the
+browser). Local dev / preview / e2e use a `DATABASE_PATH` SQLite file via the
+better-sqlite3 adapter (`lib/db/local.ts`), dynamically imported so the native
+module never enters the Workers bundle.
 
 ## Notes on AI usage
 

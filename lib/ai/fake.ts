@@ -1,4 +1,38 @@
-import type { EssayResult, ProcessingResult, ThemesResult } from "./schemas";
+import type {
+  AdditionalCardsResult,
+  EssayResult,
+  ProcessingResult,
+  ThemesResult,
+} from "./schemas";
+
+type FakeCard = ProcessingResult["cards"][number];
+
+// Build a scaled, deterministic set of cards from the extracted concepts:
+// one definition per concept plus a mechanism and an application card. Always
+// yields between 4 and 6 cards (ProcessingResultSchema requires 4–12), so the
+// "more flashcards" behaviour is visible even in the fake-AI E2E path.
+function buildFakeCards(
+  title: string,
+  head: string,
+  concepts: { name: string }[],
+): FakeCard[] {
+  const cards: FakeCard[] = concepts.slice(0, 4).map((c) => ({
+    type: "definition" as const,
+    front: `Define: ${c.name}`,
+    back: `${c.name} — a central concept introduced in "${title}". ${head}`,
+  }));
+  cards.push({
+    type: "mechanism",
+    front: `How does ${concepts[1]?.name ?? "the mechanism"} work in "${title}"?`,
+    back: `It works by ${concepts[2]?.name ?? "applying the framework"} to ${concepts[3]?.name ?? "the situation"}, producing the effect described in the source.`,
+  });
+  cards.push({
+    type: "application",
+    front: `When would you apply the idea from "${title}"?`,
+    back: `Whenever you face the situation that ${concepts[0]?.name ?? "the concept"} maps onto — particularly when ${concepts[1]?.name ?? "the supporting condition"} is present.`,
+  });
+  return cards;
+}
 
 // Deterministic stand-ins for the AI calls. Activated when USE_FAKE_AI=1 (set
 // by the Playwright config). Keeps E2E tests offline, cheap, and deterministic
@@ -29,25 +63,48 @@ export function fakeProcessing(title: string, text: string): ProcessingResult {
       `The argument depends on ${concepts[1]?.name ?? "a supporting mechanism"} more than the surface text suggests.`,
       `Most readers will miss the ${concepts[2]?.name ?? "subtle implication"} unless it is named explicitly.`,
     ],
-    cards: [
-      {
-        type: "definition",
-        front: `Define: ${concepts[0]?.name ?? title}`,
-        back: `${concepts[0]?.name ?? title} — the central concept introduced in "${title}". ${head}`,
-      },
-      {
-        type: "mechanism",
-        front: `How does ${concepts[1]?.name ?? "the mechanism"} work in "${title}"?`,
-        back: `It works by ${concepts[2]?.name ?? "applying the framework"} to ${concepts[3]?.name ?? "the situation"}, producing the effect described in the source.`,
-      },
-      {
-        type: "application",
-        front: `When would you apply the idea from "${title}"?`,
-        back: `Whenever you face the situation that ${concepts[0]?.name ?? "the concept"} maps onto — particularly when ${concepts[1]?.name ?? "the supporting condition"} is present.`,
-      },
-    ],
+    cards: buildFakeCards(title, head, concepts),
     concepts,
   };
+}
+
+// Deterministic stand-in for generateMoreCards(). Returns 3 new cards whose
+// fronts are guaranteed not to collide with the ones already on the source.
+export function fakeMoreCards(
+  title: string,
+  text: string,
+  existingFronts: string[],
+): AdditionalCardsResult {
+  const head = text.slice(0, 200).replace(/\s+/g, " ").trim();
+  const taken = new Set(existingFronts);
+  const seed = countWords(text)
+    .map(([w]) => w)
+    .filter((w) => w.length > 3);
+  const candidates: FakeCard[] = [
+    {
+      type: "definition",
+      front: `Define (deeper): ${seed[0] ?? title}`,
+      back: `A second-order reading of ${seed[0] ?? title} as developed in "${title}". ${head}`,
+    },
+    {
+      type: "mechanism",
+      front: `What breaks if ${seed[1] ?? "the core assumption"} fails in "${title}"?`,
+      back: `The argument leans on ${seed[1] ?? "that assumption"}; remove it and the conclusion about ${seed[2] ?? "the outcome"} no longer follows.`,
+    },
+    {
+      type: "application",
+      front: `Give a concrete example of applying "${title}".`,
+      back: `Apply it whenever ${seed[2] ?? "the relevant condition"} shows up — the source's reasoning transfers directly to that case.`,
+    },
+    {
+      type: "application",
+      front: `Where would the idea in "${title}" NOT apply?`,
+      back: `It stops holding once ${seed[3] ?? "the supporting condition"} is absent, which is the boundary the source implies.`,
+    },
+  ];
+  // Drop any whose front already exists; keep 2–8 (schema floor is 2).
+  const fresh = candidates.filter((c) => !taken.has(c.front));
+  return { cards: fresh.length >= 2 ? fresh : candidates };
 }
 
 export function fakeThemes(
