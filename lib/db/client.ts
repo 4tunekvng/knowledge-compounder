@@ -27,12 +27,22 @@ interface CloudflareEnv {
 }
 
 export async function getDb() {
+  // Local dev / preview / e2e: a DATABASE_PATH env var means we're running in
+  // plain Node (next dev), not the Workers runtime. Use the better-sqlite3
+  // adapter (dynamically imported so the native module never enters the worker
+  // bundle). Production leaves DATABASE_PATH unset and uses the D1 binding.
+  const localPath = process.env.DATABASE_PATH;
+  if (localPath) {
+    const { getLocalDb } = await import("./local");
+    return getLocalDb(localPath);
+  }
+
   const ctx = await getCloudflareContext({ async: true });
   const env = ctx.env as unknown as CloudflareEnv;
   if (!env.DB) {
     throw new Error(
-      "DB binding missing. Run `wrangler dev` (not `next dev`) for local development, " +
-      "and ensure wrangler.jsonc has a `d1_databases` entry named `DB`.",
+      "DB binding missing. Deploy to Cloudflare (D1 bound as `DB`), or set " +
+      "DATABASE_PATH for local development with `next dev`.",
     );
   }
   return drizzle(env.DB, { schema });
@@ -44,6 +54,11 @@ export async function getDb() {
  * not running in a Worker (e.g. unit tests, scripts).
  */
 export async function getEnv(): Promise<CloudflareEnv> {
+  // In local dev (DATABASE_PATH set) there is no Cloudflare context — read
+  // straight from process.env and skip the getCloudflareContext throw.
+  if (process.env.DATABASE_PATH) {
+    return process.env as unknown as CloudflareEnv;
+  }
   try {
     const ctx = await getCloudflareContext({ async: true });
     return ctx.env as unknown as CloudflareEnv;

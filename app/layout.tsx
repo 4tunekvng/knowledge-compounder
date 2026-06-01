@@ -26,6 +26,7 @@ const NAV = [
   { href: "/library", label: "Library" },
   { href: "/review", label: "Review" },
   { href: "/themes", label: "Themes" },
+  { href: "/integrations", label: "Integrations" },
 ];
 
 // Layout is a server component; D1 access is async.

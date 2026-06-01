@@ -12,9 +12,28 @@ A focused v0 of the [Knowledge Compounder PRD](./PRD.md): capture reading materi
 - **Themes** — Claude reads across the processed corpus and surfaces patterns recurring in 2+ sources.
 - **Essay drafter** — pick a theme; Claude (Opus 4.7, adaptive thinking, `effort: xhigh`) writes a footnoted Markdown draft, marks the weakest claims for the user to push back on.
 
+## Auto-ingest
+
+Connect your reading sources so highlights flow into the corpus automatically. Each new highlight gets the same Claude treatment as a manual capture: 100-word reflection, three flashcards, concept tags, cross-links.
+
+**Shipped: Readwise.** Generate a token at https://readwise.io/access_token, then in the app go to `/integrations`, paste the token, click **Save token**, then **Sync now**. The orchestrator pages the Readwise V2 export endpoint, dedupes against `(source_type, external_id)`, and stores `lastSyncedAt` so the next run is incremental.
+
+**Extending to more providers.** The integration lives behind an `IngestSource` interface (`lib/services/ingest-source.ts`):
+
+```ts
+interface IngestSource {
+  readonly provider: string;
+  fetchNew(token: string, sinceCursor?: Date): AsyncGenerator<NewCapture>;
+}
+```
+
+Implement that interface, register it in `lib/services/ingest-orchestrator.ts#getSource()`, add the provider to the `source_type` enum in `lib/db/schema.ts`, and you're done — the orchestrator, dedup, sync UI, and AI pipeline reuse for free. Kindle (send-to-Kindle email parsing) and Zotero (Web API) are the next two.
+
+Token storage is plaintext in the `integration_tokens` table — fine for single-user dev mode, **encrypt at rest before going multi-user**.
+
 ## What's deliberately out of scope for v0
 
-Per the PRD this is week-1-through-9 work, distilled to the demonstrable loop. Skipped: Kindle/Readwise/Zotero auto-ingest, browser extension, voice-tone learning from prior writing, podcast/PDF ingestion, multi-user auth, public deploy.
+Per the PRD this is week-1-through-9 work, distilled to the demonstrable loop. Skipped: Kindle/Zotero auto-ingest (the `IngestSource` interface is ready — implementations TBD), browser extension, voice-tone learning from prior writing, podcast/PDF ingestion, multi-user auth, public deploy.
 
 ## Run
 
@@ -68,8 +87,15 @@ lib/
   embeddings/             Voyage REST client + lexical fallback + cosine similarity
   extract/                URL → readable text via @mozilla/readability + jsdom
   parsers.ts              Pure JSON parsers (DB stores arrays/objects as TEXT)
-  services/               Orchestration: ingest, queries, themes, review
-  sm2/                    SuperMemo-2 spaced repetition algorithm
+  services/
+    ingest.ts             Manual + external capture pipeline
+    ingest-source.ts      IngestSource interface + sanitizeForPrompt helper
+    ingest-orchestrator.ts  Drives sync for one provider, dedupes via (source_type, external_id)
+    integrations/         Per-provider IngestSource impls (readwise.ts; kindle/zotero TBD)
+    queries.ts            Read-side: list/get for sources, cards, themes, essays
+    themes.ts             Theme clustering + essay drafting
+    review.ts             FSRS grading
+  sm2/                    Spaced repetition (FSRS-6 implementation; module name kept for compatibility)
   markdown.ts             Tiny dependency-free Markdown renderer
 tests/
   unit/                   Vitest — pure functions only
@@ -79,7 +105,7 @@ tests/
 ## Notes on AI usage
 
 - `claude-sonnet-4-6` for per-source processing and theme clustering — balanced cost.
-- `claude-opus-4-7` for essay drafting — the wow moment, paid for explicitly.
+- `claude-opus-4-8` for essay drafting — the wow moment, paid for explicitly.
 - All calls use **adaptive thinking** and **structured outputs** (`output_config.format` with Zod schemas via `messages.parse()`).
 - System prompts are stable text blocks with `cache_control: ephemeral` so the prefix caches across requests.
 - The `USE_FAKE_AI=1` flag swaps every AI call for a deterministic stub used by E2E tests — same shape, no network, no cost.

@@ -5,23 +5,66 @@ import {
   real,
   sqliteTable,
   text,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
-export const sources = sqliteTable("sources", {
+export const sources = sqliteTable(
+  "sources",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    kind: text("kind", { enum: ["url", "text"] }).notNull(),
+    title: text("title").notNull(),
+    url: text("url"),
+    rawContent: text("raw_content").notNull(),
+    excerpt: text("excerpt").notNull(),
+    status: text("status", { enum: ["pending", "processed", "failed"] })
+      .notNull()
+      .default("pending"),
+    errorMessage: text("error_message"),
+    // Auto-ingest provenance. "url" and "text" are the manual capture paths
+    // (matches `kind`); any other value is the external provider name
+    // (e.g. "readwise", "kindle", "zotero"). New columns are nullable / default
+    // so existing rows migrate cleanly.
+    sourceType: text("source_type", {
+      enum: ["url", "text", "readwise"],
+    })
+      .notNull()
+      .default("url"),
+    // Stable id from the external provider (e.g. Readwise highlight id).
+    // NULL for manual captures. Unique with sourceType to dedupe re-syncs.
+    externalId: text("external_id"),
+    // Provider-reported updated-at, used for incremental sync cursors.
+    externalUpdatedAt: integer("external_updated_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    processedAt: integer("processed_at", { mode: "timestamp_ms" }),
+  },
+  (table) => ({
+    // Prevents duplicate captures when re-syncing the same external item.
+    // Manual rows (sourceType=url/text) have externalId=NULL — SQLite UNIQUE
+    // permits multiple NULL externalIds, so manual captures aren't affected.
+    sourceTypeExternalIdIdx: uniqueIndex("sources_source_type_external_id_idx").on(
+      table.sourceType,
+      table.externalId,
+    ),
+  }),
+);
+
+// Per-provider auth + sync state. One row per integration. Plaintext token
+// is acceptable for v1 (single-user dev mode); encrypt at rest before going
+// multi-user.
+export const integrationTokens = sqliteTable("integration_tokens", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  kind: text("kind", { enum: ["url", "text"] }).notNull(),
-  title: text("title").notNull(),
-  url: text("url"),
-  rawContent: text("raw_content").notNull(),
-  excerpt: text("excerpt").notNull(),
-  status: text("status", { enum: ["pending", "processed", "failed"] })
-    .notNull()
-    .default("pending"),
-  errorMessage: text("error_message"),
+  provider: text("provider").notNull().unique(),
+  token: text("token").notNull(),
+  lastSyncedAt: integer("last_synced_at", { mode: "timestamp_ms" }),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
-  processedAt: integer("processed_at", { mode: "timestamp_ms" }),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
 });
 
 export const processings = sqliteTable("processings", {
@@ -92,3 +135,4 @@ export type Processing = typeof processings.$inferSelect;
 export type Card = typeof cards.$inferSelect;
 export type Theme = typeof themes.$inferSelect;
 export type Essay = typeof essays.$inferSelect;
+export type IntegrationToken = typeof integrationTokens.$inferSelect;
