@@ -21,6 +21,7 @@ import {
 } from "./ingest-source";
 import { ingestExternal, type ExternalIngestInput } from "./ingest";
 import { ReadwiseSource } from "./integrations/readwise";
+import { ZoteroSource } from "./integrations/zotero";
 
 export const MAX_PER_SYNC = 200;
 
@@ -38,6 +39,8 @@ function getSource(provider: string): IngestSource {
   switch (provider) {
     case "readwise":
       return new ReadwiseSource();
+    case "zotero":
+      return new ZoteroSource();
     default:
       throw new Error(`Unknown integration provider: ${provider}`);
   }

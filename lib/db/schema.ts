@@ -26,7 +26,7 @@ export const sources = sqliteTable(
     // (e.g. "readwise", "kindle", "zotero"). New columns are nullable / default
     // so existing rows migrate cleanly.
     sourceType: text("source_type", {
-      enum: ["url", "text", "readwise", "pdf"],
+      enum: ["url", "text", "readwise", "pdf", "zotero"],
     })
       .notNull()
       .default("url"),
