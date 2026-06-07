@@ -1,7 +1,7 @@
 import "server-only";
 import { getEnv } from "@/lib/db/client";
 
-const VOYAGE_MODEL = "voyage-3-lite";
+const VOYAGE_MODEL = "voyage-3.5-lite";
 const VOYAGE_DIM = 512;
 const VOYAGE_URL = "https://api.voyageai.com/v1/embeddings";
 
