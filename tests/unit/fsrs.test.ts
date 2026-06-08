@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { schedule, Rating, State, type CardState } from "@/lib/sm2";
+import { schedule, Rating, State, type CardState } from "@/lib/fsrs";
 
 const NOW = new Date("2026-04-27T12:00:00.000Z");
 

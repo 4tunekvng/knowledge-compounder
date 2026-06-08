@@ -2,7 +2,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { cards } from "@/lib/db/schema";
-import { schedule, type Rating, type State } from "@/lib/sm2";
+import { schedule, type Rating, type State } from "@/lib/fsrs";
 
 export async function gradeCard(cardId: number, rating: Rating) {
   const db = await getDb();

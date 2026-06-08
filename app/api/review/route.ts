@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { gradeCard } from "@/lib/services/review";
-import type { Rating } from "@/lib/sm2";
+import type { Rating } from "@/lib/fsrs";
 
 export const runtime = "nodejs";
 
