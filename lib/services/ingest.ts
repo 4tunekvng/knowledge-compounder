@@ -139,8 +139,8 @@ export async function ingest({ raw }: IngestInput): Promise<IngestResult> {
   const sourceId = inserted[0].id;
 
   return processAndPersist(db, sourceId, {
-    title: extracted.title,
-    text: extracted.text,
+    title: sanitizeForPrompt(extracted.title) || "Untitled",
+    text: sanitizeForPrompt(extracted.text),
   });
 }
 
@@ -194,8 +194,8 @@ export async function ingestPdf({
   const sourceId = inserted[0].id;
 
   return processAndPersist(db, sourceId, {
-    title: extracted.title,
-    text: extracted.text,
+    title: sanitizeForPrompt(extracted.title) || "Untitled",
+    text: sanitizeForPrompt(extracted.text),
   });
 }
 
@@ -363,8 +363,8 @@ export async function retrySource(sourceId: number): Promise<IngestResult> {
     await db.delete(cards).where(eq(cards.sourceId, sourceId)).run();
 
     const result = await processSource({
-      title: row.title,
-      text: row.rawContent,
+      title: sanitizeForPrompt(row.title) || "Untitled",
+      text: sanitizeForPrompt(row.rawContent),
     });
     const vector = await embed(`${row.title}\n\n${row.rawContent}`);
 
