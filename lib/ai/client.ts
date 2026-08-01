@@ -20,8 +20,8 @@ export function isFakeAi(): boolean {
 
 export const MODELS = {
   // Per-source processing + theme clustering — balanced cost/quality.
-  process: "claude-sonnet-4-6" as const,
-  themes: "claude-sonnet-4-6" as const,
+  process: "claude-sonnet-5" as const,
+  themes: "claude-sonnet-5" as const,
   // Essay drafting is the wow moment — pay for the best model.
   essay: "claude-opus-4-8" as const,
 };
