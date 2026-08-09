@@ -20,7 +20,7 @@
     "cf:tail": "wrangler tail"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.115.0",
+    "@anthropic-ai/sdk": "^0.116.0",
     "@mozilla/readability": "^0.6.0",
     "better-sqlite3": "^12.9.0",
     "drizzle-orm": "^0.45.2",
@@ -34,7 +34,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260621.1",
+    "@cloudflare/workers-types": "^5.20260809.1",
     "@opennextjs/cloudflare": "^1.19.11",
     "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
@@ -52,6 +52,6 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.9",
-    "wrangler": "^4.103.0"
+    "wrangler": "^4.120.0"
   }
 }
