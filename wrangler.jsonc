@@ -28,6 +28,6 @@
 		}
 	],
 	"vars": {
-		"ANTHROPIC_MODEL": "claude-sonnet-4-6"
+		"ANTHROPIC_MODEL": "claude-sonnet-5"
 	}
 }
