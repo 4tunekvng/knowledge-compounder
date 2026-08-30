@@ -20,7 +20,7 @@
     "cf:tail": "wrangler tail"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.120.0",
+    "@anthropic-ai/sdk": "^0.122.0",
     "@mozilla/readability": "^0.6.0",
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.2",
