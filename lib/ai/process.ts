@@ -26,7 +26,7 @@ export async function processSource(args: {
 
   const response = await client.messages.parse({
     model: MODELS.process,
-    max_tokens: 4_000,
+    max_tokens: 8192,
     thinking: { type: "adaptive" },
     output_config: {
       format: zodOutputFormat(ProcessingResultSchema),

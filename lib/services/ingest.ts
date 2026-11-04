@@ -33,7 +33,7 @@ export interface IngestResult {
  * + process.
  */
 export interface ExternalIngestInput {
-  sourceType: "readwise"; // extend the union as more providers ship
+  sourceType: "readwise" | "zotero";
   externalId: string;
   title: string;
   text: string;

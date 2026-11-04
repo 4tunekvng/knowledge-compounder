@@ -28,7 +28,7 @@ export async function findThemes(
 
   const response = await client.messages.parse({
     model: MODELS.themes,
-    max_tokens: 4_000,
+    max_tokens: 4096,
     thinking: { type: "adaptive" },
     output_config: {
       format: zodOutputFormat(ThemesResultSchema),
