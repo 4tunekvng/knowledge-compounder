@@ -53,6 +53,12 @@ export async function draftEssay(args: {
   return response.parsed_output;
 }
 
+/** Strip newlines and double-quotes so user-supplied strings can't inject
+ *  new instructions into the prompt by embedding literal newlines. */
+function sanitizeForPrompt(s: string): string {
+  return s.replace(/[\r\n"]/g, " ").trim();
+}
+
 function buildUserMessage(args: {
   themeLabel: string;
   themeSummary: string;
@@ -60,13 +66,13 @@ function buildUserMessage(args: {
 }): string {
   const lines = args.sources.map(
     (s) =>
-      `- Source ${s.id}: "${s.title}"\n    excerpt: "${s.excerpt}"\n    user note: ${s.whyICared}`,
+      `- Source ${s.id}: "${sanitizeForPrompt(s.title)}"\n    excerpt: "${sanitizeForPrompt(s.excerpt)}"\n    user note: ${sanitizeForPrompt(s.whyICared)}`,
   );
   return `# Theme to draft from
 
-Label: ${args.themeLabel}
+Label: ${sanitizeForPrompt(args.themeLabel)}
 
-Summary: ${args.themeSummary}
+Summary: ${sanitizeForPrompt(args.themeSummary)}
 
 # Source material (${args.sources.length} captured items)
 

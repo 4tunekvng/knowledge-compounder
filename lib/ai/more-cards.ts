@@ -51,21 +51,27 @@ export async function generateMoreCards(args: {
   return response.parsed_output;
 }
 
+/** Strip newlines and double-quotes so user-supplied strings can't inject
+ *  new instructions into the prompt by embedding literal newlines. */
+function sanitizeForPrompt(s: string): string {
+  return s.replace(/[\r\n"]/g, " ").trim();
+}
+
 function buildUserMessage(args: {
   title: string;
   text: string;
   existingFronts: string[];
 }): string {
   const existing = args.existingFronts.length
-    ? args.existingFronts.map((f) => `- ${f}`).join("\n")
+    ? args.existingFronts.map((f) => `- ${sanitizeForPrompt(f)}`).join("\n")
     : "(none yet)";
   return `# Source
 
-Title: ${args.title}
+Title: ${sanitizeForPrompt(args.title)}
 
 ---
 
-${args.text}
+${sanitizeForPrompt(args.text)}
 
 ---
 

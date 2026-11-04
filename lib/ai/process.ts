@@ -50,14 +50,20 @@ export async function processSource(args: {
   return response.parsed_output;
 }
 
+/** Strip newlines and double-quotes so user-supplied strings can't inject
+ *  new instructions into the prompt by embedding literal newlines. */
+function sanitizeForPrompt(s: string): string {
+  return s.replace(/[\r\n"]/g, " ").trim();
+}
+
 function buildUserMessage(title: string, text: string): string {
   return `# Captured material
 
-Title: ${title}
+Title: ${sanitizeForPrompt(title)}
 
 ---
 
-${text}
+${sanitizeForPrompt(text)}
 
 ---
 

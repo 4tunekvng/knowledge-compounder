@@ -52,12 +52,18 @@ export async function findThemes(
   return response.parsed_output;
 }
 
+/** Strip newlines and double-quotes so user-supplied strings can't inject
+ *  new instructions into the prompt by embedding literal newlines. */
+function sanitizeForPrompt(s: string): string {
+  return s.replace(/[\r\n"]/g, " ").trim();
+}
+
 function buildUserMessage(
   sources: { id: number; title: string; concepts: { name: string }[]; whyICared: string }[],
 ): string {
   const lines = sources.map((s) => {
-    const concepts = s.concepts.map((c) => c.name).join(", ");
-    return `- Source ${s.id}: "${s.title}"\n    concepts: ${concepts || "(none)"}\n    note: ${s.whyICared}`;
+    const concepts = s.concepts.map((c) => sanitizeForPrompt(c.name)).join(", ");
+    return `- Source ${s.id}: "${sanitizeForPrompt(s.title)}"\n    concepts: ${concepts || "(none)"}\n    note: ${sanitizeForPrompt(s.whyICared)}`;
   });
   return `# Captured corpus (${sources.length} sources)
 
