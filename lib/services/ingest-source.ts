@@ -10,6 +10,7 @@
  * page immediately and stops cleanly when the orchestrator hits a per-sync
  * cap or the user cancels.
  */
+export { sanitizeForPrompt } from "@/lib/sanitize";
 
 export interface NewCapture {
   /** Stable id from the provider. Used to dedupe re-syncs. */
@@ -50,13 +51,4 @@ export class InvalidTokenError extends Error {
   }
 }
 
-/**
- * Strip newlines and double-quotes from a caller-supplied string before
- * interpolating it into a Claude prompt. Defends against prompt-injection
- * where a malicious title/note/URL contains "\n\nIgnore previous
- * instructions…". Per Fortune's CLAUDE.md (global instructions), every
- * external string in an LLM prompt must pass through this.
- */
-export function sanitizeForPrompt(s: string): string {
-  return s.replace(/[\r\n"]/g, " ").trim();
-}
+

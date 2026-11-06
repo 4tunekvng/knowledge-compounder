@@ -3,6 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { getAnthropic, isFakeAi, MODELS } from "./client";
 import { fakeThemes } from "./fake";
 import { ThemesResultSchema, type ThemesResult } from "./schemas";
+import { sanitizeForPrompt } from "@/lib/sanitize";
 
 const SYSTEM = `You are the Knowledge Compounder themes agent. The user has captured a corpus of reading and you find emergent themes that cut across multiple sources.
 
@@ -52,11 +53,6 @@ export async function findThemes(
   return response.parsed_output;
 }
 
-/** Strip newlines and double-quotes so user-supplied strings can't inject
- *  new instructions into the prompt by embedding literal newlines. */
-function sanitizeForPrompt(s: string): string {
-  return s.replace(/[\r\n"]/g, " ").trim();
-}
 
 function buildUserMessage(
   sources: { id: number; title: string; concepts: { name: string }[]; whyICared: string }[],

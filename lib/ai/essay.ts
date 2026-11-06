@@ -3,6 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { getAnthropic, isFakeAi, MODELS } from "./client";
 import { fakeEssay } from "./fake";
 import { EssayResultSchema, type EssayResult } from "./schemas";
+import { sanitizeForPrompt } from "@/lib/sanitize";
 
 const SYSTEM = `You are the Knowledge Compounder essay drafter. You take a theme that emerged from a user's reading corpus and draft a publishable essay in their voice.
 
@@ -53,11 +54,6 @@ export async function draftEssay(args: {
   return response.parsed_output;
 }
 
-/** Strip newlines and double-quotes so user-supplied strings can't inject
- *  new instructions into the prompt by embedding literal newlines. */
-function sanitizeForPrompt(s: string): string {
-  return s.replace(/[\r\n"]/g, " ").trim();
-}
 
 function buildUserMessage(args: {
   themeLabel: string;
