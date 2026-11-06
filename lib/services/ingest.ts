@@ -362,11 +362,10 @@ export async function retrySource(sourceId: number): Promise<IngestResult> {
     await db.delete(processings).where(eq(processings.sourceId, sourceId)).run();
     await db.delete(cards).where(eq(cards.sourceId, sourceId)).run();
 
-    const result = await processSource({
-      title: sanitizeForPrompt(row.title) || "Untitled",
-      text: sanitizeForPrompt(row.rawContent),
-    });
-    const vector = await embed(`${row.title}\n\n${row.rawContent}`);
+    const safeTitle = sanitizeForPrompt(row.title) || "Untitled";
+    const safeText = sanitizeForPrompt(row.rawContent);
+    const result = await processSource({ title: safeTitle, text: safeText });
+    const vector = await embed(`${safeTitle}\n\n${safeText}`);
 
     await db
       .insert(processings)
