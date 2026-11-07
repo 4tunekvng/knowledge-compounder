@@ -345,7 +345,14 @@ export async function retrySource(sourceId: number): Promise<IngestResult> {
     .where(and(eq(sources.id, sourceId), eq(sources.status, "failed")))
     .run();
 
-  if ((resetResult as { meta?: { changes?: number } }).meta?.changes === 0) {
+  // D1 surfaces the row count under `meta.changes`; better-sqlite3 (local dev)
+  // surfaces it at the top level as `changes`. Check both so the guard works
+  // in both runtimes — an undefined `meta` made the original check always false
+  // in local dev, allowing re-processing of non-failed sources.
+  const changesCount =
+    (resetResult as { meta?: { changes?: number } }).meta?.changes ??
+    (resetResult as { changes?: number }).changes;
+  if (changesCount === 0) {
     // Re-read to give a precise error message (source may have been retried
     // concurrently, or was never in a failed state).
     const current = await db
