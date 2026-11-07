@@ -1,14 +1,14 @@
 import { z } from "zod";
 
 export const ConceptSchema = z.object({
-  name: z.string().min(1).max(80),
+  name: z.string().min(1).max(120),
   weight: z.number().min(0).max(1),
 });
 
 export const CardSchema = z.object({
   type: z.enum(["definition", "mechanism", "application"]),
-  front: z.string().min(3).max(280),
-  back: z.string().min(3).max(800),
+  front: z.string().min(3).max(400),
+  back: z.string().min(3).max(1200),
 });
 
 export const ProcessingResultSchema = z.object({
@@ -20,7 +20,7 @@ export const ProcessingResultSchema = z.object({
       "100-word first-person reflection on why this material is worth remembering, in the user's voice.",
     ),
   key_takeaways: z
-    .array(z.string().min(5).max(200))
+    .array(z.string().min(5).max(500))
     .min(2)
     .max(5)
     .describe("Two to five distinct takeaways, each as a single sentence."),
@@ -57,7 +57,7 @@ export const AdditionalCardsResultSchema = z.object({
 export type AdditionalCardsResult = z.infer<typeof AdditionalCardsResultSchema>;
 
 export const ThemeSchema = z.object({
-  label: z.string().min(3).max(80),
+  label: z.string().min(3).max(140),
   summary: z
     .string()
     .min(40)
