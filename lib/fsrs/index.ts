@@ -73,7 +73,8 @@ export interface ScheduleResult {
   dueAt: Date;
 }
 
-function retrievability(elapsedDays: number, stability: number): number {
+/** Probability of recall after `elapsedDays` given the card's `stability`. */
+export function retrievability(elapsedDays: number, stability: number): number {
   if (stability <= 0) return 0;
   return Math.pow(1 + FACTOR * (elapsedDays / stability), DECAY);
 }

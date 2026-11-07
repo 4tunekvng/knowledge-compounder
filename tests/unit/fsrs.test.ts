@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { schedule, Rating, State, type CardState } from "@/lib/fsrs";
+import { schedule, retrievability, Rating, State, type CardState } from "@/lib/fsrs";
 
 const NOW = new Date("2026-04-27T12:00:00.000Z");
 
@@ -218,5 +218,24 @@ describe("FSRS-6 memory model invariants", () => {
 
     const afterEasy = schedule(reviewCard, Rating.Easy, NOW);
     expect(afterEasy.difficulty).toBeLessThan(5.0);
+  });
+});
+
+describe("retrievability", () => {
+  it("returns 0.9 exactly when elapsed == stability", () => {
+    expect(retrievability(10, 10)).toBeCloseTo(0.9, 5);
+  });
+
+  it("returns 1.0 at elapsed = 0", () => {
+    expect(retrievability(0, 10)).toBeCloseTo(1.0, 5);
+  });
+
+  it("decays below 0.9 past the stability boundary", () => {
+    expect(retrievability(20, 10)).toBeLessThan(0.9);
+  });
+
+  it("returns 0 for non-positive stability", () => {
+    expect(retrievability(5, 0)).toBe(0);
+    expect(retrievability(5, -1)).toBe(0);
   });
 });
