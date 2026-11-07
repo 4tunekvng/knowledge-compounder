@@ -28,30 +28,34 @@ export async function draftEssay(args: {
 
   const client = await getAnthropic();
 
-  const response = await client.messages.parse({
-    model: MODELS.essay,
-    max_tokens: 12_000,
-    thinking: { type: "adaptive" },
-    output_config: {
-      format: zodOutputFormat(EssayResultSchema),
-      effort: "xhigh",
-    },
-    system: [
-      {
-        type: "text",
-        text: SYSTEM,
-        cache_control: { type: "ephemeral" },
+  try {
+    const response = await client.messages.parse({
+      model: MODELS.essay,
+      max_tokens: 12_000,
+      thinking: { type: "adaptive" },
+      output_config: {
+        format: zodOutputFormat(EssayResultSchema),
+        effort: "xhigh",
       },
-    ],
-    messages: [{ role: "user", content: buildUserMessage(args) }],
-  });
+      system: [
+        {
+          type: "text",
+          text: SYSTEM,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
+      messages: [{ role: "user", content: buildUserMessage(args) }],
+    });
 
-  if (!response.parsed_output) {
-    throw new Error(
-      `Essay returned no parsed output (stop_reason=${response.stop_reason})`,
-    );
+    if (!response.parsed_output) {
+      throw new Error(
+        `Essay returned no parsed output (stop_reason=${response.stop_reason})`,
+      );
+    }
+    return response.parsed_output;
+  } finally {
+    try { await (client as unknown as { close?(): Promise<void> }).close?.(); } catch {}
   }
-  return response.parsed_output;
 }
 
 
