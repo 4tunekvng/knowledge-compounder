@@ -27,8 +27,7 @@ export async function POST(request: Request) {
     await setIntegrationToken("readwise", parsed.data.token);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error.";
     console.error("[integrations/readwise/token] setIntegrationToken failed:", err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }
