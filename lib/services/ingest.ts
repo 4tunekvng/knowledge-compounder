@@ -88,18 +88,31 @@ async function processAndPersist(
 
     return { sourceId, status: "processed" };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    try {
-      await db
-        .update(sources)
-        .set({ status: "failed", errorMessage: message })
-        .where(eq(sources.id, sourceId))
-        .run();
-    } catch (updateErr) {
-      console.error(`Failed to mark source ${sourceId} as failed:`, updateErr);
-    }
-    return { sourceId, status: "failed", error: message };
+    return markFailed(db, sourceId, err);
   }
+}
+
+/**
+ * Record a processing failure on the source so the UI can show a Retry
+ * button. A failure to record it is logged, not thrown: the caller still
+ * gets the original error back.
+ */
+async function markFailed(
+  db: Awaited<ReturnType<typeof getDb>>,
+  sourceId: number,
+  err: unknown,
+): Promise<IngestResult> {
+  const message = err instanceof Error ? err.message : String(err);
+  try {
+    await db
+      .update(sources)
+      .set({ status: "failed", errorMessage: message })
+      .where(eq(sources.id, sourceId))
+      .run();
+  } catch (updateErr) {
+    console.error(`Failed to mark source ${sourceId} as failed:`, updateErr);
+  }
+  return { sourceId, status: "failed", error: message };
 }
 
 export async function ingest({ raw }: IngestInput): Promise<IngestResult> {
@@ -267,53 +280,7 @@ export async function ingestExternal(
   }
   const sourceId = inserted[0].id;
 
-  try {
-    const result = await processSource({ title: safeTitle, text: safeText });
-    const vector = await embed(`${safeTitle}\n\n${safeText}`);
-
-    await db
-      .insert(processings)
-      .values({
-        sourceId,
-        whyICared: result.why_i_cared,
-        keyTakeaways: JSON.stringify(result.key_takeaways),
-        concepts: JSON.stringify(result.concepts),
-        embedding: embeddingToBlob(vector),
-      })
-      .run();
-
-    for (const card of result.cards) {
-      await db
-        .insert(cards)
-        .values({
-          sourceId,
-          cardType: card.type,
-          front: card.front,
-          back: card.back,
-        })
-        .run();
-    }
-
-    await db
-      .update(sources)
-      .set({ status: "processed", processedAt: new Date() })
-      .where(eq(sources.id, sourceId))
-      .run();
-
-    return { sourceId, status: "processed" };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    try {
-      await db
-        .update(sources)
-        .set({ status: "failed", errorMessage: message })
-        .where(eq(sources.id, sourceId))
-        .run();
-    } catch (updateErr) {
-      console.error(`Failed to mark source ${sourceId} as failed:`, updateErr);
-    }
-    return { sourceId, status: "failed", error: message };
-  }
+  return processAndPersist(db, sourceId, { title: safeTitle, text: safeText });
 }
 
 /**
@@ -365,56 +332,16 @@ export async function retrySource(sourceId: number): Promise<IngestResult> {
       `Source is not in a failed state (current status: ${current.status}). Only failed sources can be retried.`,
     );
   }
+  let prompt: { title: string; text: string };
   try {
     await db.delete(processings).where(eq(processings.sourceId, sourceId)).run();
     await db.delete(cards).where(eq(cards.sourceId, sourceId)).run();
-
-    const safeTitle = sanitizeForPrompt(row.title) || "Untitled";
-    const safeText = sanitizeForPrompt(row.rawContent);
-    const result = await processSource({ title: safeTitle, text: safeText });
-    const vector = await embed(`${safeTitle}\n\n${safeText}`);
-
-    await db
-      .insert(processings)
-      .values({
-        sourceId,
-        whyICared: result.why_i_cared,
-        keyTakeaways: JSON.stringify(result.key_takeaways),
-        concepts: JSON.stringify(result.concepts),
-        embedding: embeddingToBlob(vector),
-      })
-      .run();
-
-    for (const card of result.cards) {
-      await db
-        .insert(cards)
-        .values({
-          sourceId,
-          cardType: card.type,
-          front: card.front,
-          back: card.back,
-        })
-        .run();
-    }
-
-    await db
-      .update(sources)
-      .set({ status: "processed", processedAt: new Date() })
-      .where(eq(sources.id, sourceId))
-      .run();
-
-    return { sourceId, status: "processed" };
+    prompt = {
+      title: sanitizeForPrompt(row.title) || "Untitled",
+      text: sanitizeForPrompt(row.rawContent),
+    };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    try {
-      await db
-        .update(sources)
-        .set({ status: "failed", errorMessage: message })
-        .where(eq(sources.id, sourceId))
-        .run();
-    } catch (updateErr) {
-      console.error(`Failed to mark source ${sourceId} as failed:`, updateErr);
-    }
-    return { sourceId, status: "failed", error: message };
+    return markFailed(db, sourceId, err);
   }
+  return processAndPersist(db, sourceId, prompt);
 }
