@@ -92,10 +92,14 @@ async function processAndPersist(
   }
 }
 
+/** Fixed text callers get back; the raw error can name gateway hosts. */
+export const PROCESSING_FAILED_MESSAGE =
+  "Processing failed. Open the source to retry.";
+
 /**
  * Record a processing failure on the source so the UI can show a Retry
- * button. A failure to record it is logged, not thrown: the caller still
- * gets the original error back.
+ * button. The raw error is logged and stored on the source row; callers
+ * (HTTP responses, sync summaries) get only the fixed message.
  */
 async function markFailed(
   db: Awaited<ReturnType<typeof getDb>>,
@@ -103,6 +107,7 @@ async function markFailed(
   err: unknown,
 ): Promise<IngestResult> {
   const message = err instanceof Error ? err.message : String(err);
+  console.error(`Processing source ${sourceId} failed:`, err);
   try {
     await db
       .update(sources)
@@ -112,7 +117,7 @@ async function markFailed(
   } catch (updateErr) {
     console.error(`Failed to mark source ${sourceId} as failed:`, updateErr);
   }
-  return { sourceId, status: "failed", error: message };
+  return { sourceId, status: "failed", error: PROCESSING_FAILED_MESSAGE };
 }
 
 export async function ingest({ raw }: IngestInput): Promise<IngestResult> {

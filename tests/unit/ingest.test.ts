@@ -27,7 +27,9 @@ vi.mock("@/lib/embeddings/client", async (importOriginal) => ({
   embed: async () => new Float32Array([0.5, 0.25]),
 }));
 
-const { ingestExternal, retrySource } = await import("@/lib/services/ingest");
+const { ingestExternal, retrySource, PROCESSING_FAILED_MESSAGE } = await import(
+  "@/lib/services/ingest"
+);
 
 const PROCESSED = {
   why_i_cared: "it matters",
@@ -134,7 +136,7 @@ describe("ingestExternal", () => {
 
     const result = await ingestExternal(READWISE_INPUT);
 
-    expect(result).toEqual({ sourceId: 1, status: "failed", error: "model down" });
+    expect(result).toEqual({ sourceId: 1, status: "failed", error: PROCESSING_FAILED_MESSAGE });
     expect(sourceRow(1)).toEqual({ status: "failed", error_message: "model down" });
     expect(cardFronts(1)).toEqual([]);
   });
@@ -171,7 +173,7 @@ describe("retrySource", () => {
 
     const result = await retrySource(id);
 
-    expect(result).toEqual({ sourceId: id, status: "failed", error: "still down" });
+    expect(result).toEqual({ sourceId: id, status: "failed", error: PROCESSING_FAILED_MESSAGE });
     expect(sourceRow(id)).toEqual({ status: "failed", error_message: "still down" });
     expect(cardFronts(id)).toEqual([]);
   });
