@@ -19,11 +19,19 @@ import {
   InvalidTokenError,
   type IngestSource,
 } from "./ingest-source";
-import { ingestExternal, type ExternalIngestInput } from "./ingest";
+import {
+  ingestExternal,
+  PROCESSING_FAILED_MESSAGE,
+  type ExternalIngestInput,
+} from "./ingest";
 import { ReadwiseSource } from "./integrations/readwise";
 import { ZoteroSource } from "./integrations/zotero";
 
 export const MAX_PER_SYNC = 200;
+
+/** Fixed text for the sync summary; the raw fetch error is only logged. */
+export const FETCH_FAILED_MESSAGE =
+  "Fetching from the provider failed. Try again later.";
 
 export interface SyncResult {
   provider: string;
@@ -110,14 +118,15 @@ export async function syncIntegration(
           latestSeen = capture.externalUpdatedAt;
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        errors.push(`${capture.externalId}: ${msg}`);
+        // The summary goes to the browser; the raw error can name hosts.
+        console.error(`Sync item ${capture.externalId} failed:`, err);
+        errors.push(`${capture.externalId}: ${PROCESSING_FAILED_MESSAGE}`);
       }
     }
   } catch (err) {
     if (err instanceof InvalidTokenError) throw err;
-    const msg = err instanceof Error ? err.message : String(err);
-    errors.push(`fetch failed: ${msg}`);
+    console.error(`Fetching ${provider} captures failed:`, err);
+    errors.push(FETCH_FAILED_MESSAGE);
   }
 
   // Advance the cursor on any non-error path — even if every item was a dup,

@@ -69,6 +69,7 @@ vi.mock("@/lib/db/client", () => ({
 }));
 
 vi.mock("@/lib/services/ingest", () => ({
+  PROCESSING_FAILED_MESSAGE: "Processing failed. Open the source to retry.",
   ingestExternal: async (input: { sourceType: string; externalId: string }) => {
     ingestCalls.push({
       externalId: input.externalId,
@@ -183,6 +184,49 @@ describe("syncIntegration", () => {
     expect(result.errors).toHaveLength(2);
     expect(result.errors.join(" ")).toContain("bad");
     expect(result.errors.join(" ")).toContain("oops");
+  });
+
+  it("keeps raw item errors out of the sync summary", async () => {
+    tokenStore.set("readwise", {
+      provider: "readwise",
+      token: "tok",
+      lastSyncedAt: null,
+    });
+    ingestBehavior.set("bad", {
+      kind: "throw",
+      reason: "502 from https://gateway.internal/v1",
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { syncIntegration } = await importOrchestrator();
+
+    const result = await syncIntegration(
+      "readwise",
+      fakeSource([makeCapture("bad")]),
+    );
+
+    expect(result.errors).toEqual([
+      "bad: Processing failed. Open the source to retry.",
+    ]);
+  });
+
+  it("keeps raw fetch errors out of the sync summary", async () => {
+    tokenStore.set("readwise", {
+      provider: "readwise",
+      token: "tok",
+      lastSyncedAt: null,
+    });
+    const failing: IngestSource = {
+      provider: "readwise",
+      async *fetchNew() {
+        throw new Error("ECONNREFUSED https://gateway.internal");
+      },
+    };
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { syncIntegration, FETCH_FAILED_MESSAGE } = await importOrchestrator();
+
+    const result = await syncIntegration("readwise", failing);
+
+    expect(result.errors).toEqual([FETCH_FAILED_MESSAGE]);
   });
 
   it("advances lastSyncedAt to the newest externalUpdatedAt on success", async () => {
