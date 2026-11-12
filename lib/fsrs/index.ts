@@ -84,15 +84,22 @@ function initialStability(rating: Rating): number {
 }
 
 // D_0(G) = W[4] − exp(W[5] × (G−1)) + 1
-function initialDifficulty(rating: Rating): number {
-  return clamp(W[4] - Math.exp(W[5] * (rating - 1)) + 1, 1, 10);
+function initialDifficultyRaw(rating: Rating): number {
+  return W[4] - Math.exp(W[5] * (rating - 1)) + 1;
 }
 
-// D' = W[6] × D_0(G) + (1 − W[6]) × (D − W[7] × (G−3))
-// Mean-reversion target is D_0 of the *current* rating, not always D_0(Easy).
+function initialDifficulty(rating: Rating): number {
+  return clamp(initialDifficultyRaw(rating), 1, 10);
+}
+
+// ΔD = −W[6] × (G−3), damped linearly so D approaches 10 but never jumps past it:
+// D' = D + ΔD × (10 − D) / 9. Then a small mean reversion toward the unclamped
+// D_0(Easy): D'' = W[7] × D_0(Easy) + (1 − W[7]) × D'.
 function nextDifficulty(d: number, rating: Rating): number {
-  const d0 = initialDifficulty(rating);
-  return clamp(W[6] * d0 + (1 - W[6]) * (d - W[7] * (rating - 3)), 1, 10);
+  const delta = -W[6] * (rating - 3);
+  const damped = d + (delta * (10 - d)) / 9;
+  const reverted = W[7] * initialDifficultyRaw(Rating.Easy) + (1 - W[7]) * damped;
+  return clamp(reverted, 1, 10);
 }
 
 // S_r (stability after successful review in Review state)

@@ -197,10 +197,7 @@ describe("FSRS-6 memory model invariants", () => {
     expect(result.dueAt.getTime()).toBe(expectedDue);
   });
 
-  it("nextDifficulty mean-reverts toward D_0 of the given rating, not always D_0(Easy)", () => {
-    // D_0(Again) ≈ 6.41, D_0(Easy) ≈ 1 (clamped). For a card at d=5.0, 'Again' should
-    // pull difficulty UP (toward 6.41) while 'Easy' should pull it DOWN (toward 1).
-    // The bug used D_0(Easy) for all ratings, making 'Again' also pull difficulty down.
+  it("Again raises difficulty, Easy lowers it", () => {
     const reviewCard: CardState = {
       stability: 10,
       difficulty: 5.0,
@@ -218,6 +215,31 @@ describe("FSRS-6 memory model invariants", () => {
 
     const afterEasy = schedule(reviewCard, Rating.Easy, NOW);
     expect(afterEasy.difficulty).toBeLessThan(5.0);
+  });
+});
+
+describe("FSRS-6 difficulty update", () => {
+  const reviewCard: CardState = {
+    stability: 10,
+    difficulty: 5.0,
+    scheduledDays: 10,
+    reps: 3,
+    lapses: 0,
+    state: State.Review,
+    lastReviewedAt: new Date(NOW.getTime() - 10 * 86_400_000),
+  };
+
+  it("Good leaves difficulty almost unchanged", () => {
+    // delta = -w6 * (3 - 3) = 0, so only the tiny w7 = 0.001 mean reversion
+    // toward D_0(Easy) moves it: 0.001 * D_0(Easy) + 0.999 * 5 ≈ 4.990.
+    const result = schedule(reviewCard, Rating.Good, NOW);
+    expect(result.difficulty).toBeCloseTo(4.99, 2);
+  });
+
+  it("Again adds a damped step of w6 per grade below Good", () => {
+    // 5 + 3.0194 * 2 * (10 - 5) / 9 = 8.355, then the w7 mean reversion ≈ 8.342.
+    const result = schedule(reviewCard, Rating.Again, NOW);
+    expect(result.difficulty).toBeCloseTo(8.342, 2);
   });
 });
 
