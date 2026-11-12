@@ -5,10 +5,12 @@
  *   3. Feed each new item through the existing AI processing pipeline.
  *   4. Update lastSyncedAt on success.
  *
- * Bounded by `MAX_PER_SYNC` so a wildly-large backlog can't blow the worker's
- * runtime budget or burn through the Claude budget unattended. The user can
- * just press "Sync now" again — the cursor advances per item, so re-runs
- * pick up where the last run stopped.
+ * Bounded by `MAX_PER_SYNC` new items so a wildly-large backlog can't blow the
+ * worker's runtime budget or burn through the Claude budget unattended. The
+ * provider stream is not sorted by update time, so the cursor only advances
+ * after a complete run; a run cut short keeps the old cursor, and the next
+ * "Sync now" skips what it already ingested (duplicates don't count toward the
+ * limit) and carries on.
  */
 
 import "server-only";
@@ -80,6 +82,7 @@ export async function syncIntegration(
   let processedCount = 0;
   let latestSeen: Date | null = null;
   let reachedLimit = false;
+  let fetchFailed = false;
   const errors: string[] = [];
 
   try {
@@ -88,8 +91,6 @@ export async function syncIntegration(
         reachedLimit = true;
         break;
       }
-      processedCount++;
-
       try {
         const input: ExternalIngestInput = {
           sourceType: provider as ExternalIngestInput["sourceType"],
@@ -103,8 +104,10 @@ export async function syncIntegration(
         if (result.status === "skipped") {
           skipped++;
         } else if (result.status === "processed") {
+          processedCount++;
           added++;
         } else {
+          processedCount++;
           // status === "failed" — surface the message but keep going.
           errors.push(
             `${capture.externalId}: ${result.error ?? "processing failed"}`,
@@ -120,19 +123,25 @@ export async function syncIntegration(
       } catch (err) {
         // The summary goes to the browser; the raw error can name hosts.
         console.error(`Sync item ${capture.externalId} failed:`, err);
+        processedCount++;
         errors.push(`${capture.externalId}: ${PROCESSING_FAILED_MESSAGE}`);
       }
     }
   } catch (err) {
     if (err instanceof InvalidTokenError) throw err;
     console.error(`Fetching ${provider} captures failed:`, err);
+    fetchFailed = true;
     errors.push(FETCH_FAILED_MESSAGE);
   }
 
-  // Advance the cursor on any non-error path — even if every item was a dup,
-  // we still want to record that we successfully checked. If the run errored
-  // before reading any page (and latestSeen is null), keep the prior cursor.
-  const newCursor = latestSeen ?? (errors.length === 0 ? new Date() : row.lastSyncedAt);
+  // Advance the cursor only after reading the whole stream — even if every item
+  // was a dup, we still want to record that we successfully checked. A run cut
+  // short by the limit or a fetch error keeps the prior cursor: items after the
+  // stop can be older than the newest one seen, and would be skipped for good.
+  const complete = !reachedLimit && !fetchFailed;
+  const newCursor = !complete
+    ? row.lastSyncedAt
+    : latestSeen ?? (errors.length === 0 ? new Date() : row.lastSyncedAt);
   await db
     .update(integrationTokens)
     .set({

@@ -247,4 +247,50 @@ describe("syncIntegration", () => {
       "2026-05-15T00:00:00.000Z",
     );
   });
+  it("keeps the prior cursor when the run stops at the per-sync limit", async () => {
+    const prior = new Date("2026-01-01T00:00:00Z");
+    tokenStore.set("readwise", { provider: "readwise", token: "tok", lastSyncedAt: prior });
+    const { syncIntegration, MAX_PER_SYNC } = await importOrchestrator();
+    // Newest item first: advancing to it would hide every item past the limit.
+    const captures = Array.from({ length: MAX_PER_SYNC + 1 }, (_, n) =>
+      makeCapture(`h${n}`, new Date(Date.UTC(2026, 5, 1) - n * 60_000).toISOString()),
+    );
+
+    const result = await syncIntegration("readwise", fakeSource(captures));
+
+    expect(result.reachedLimit).toBe(true);
+    expect(tokenStore.get("readwise")?.lastSyncedAt).toEqual(prior);
+  });
+
+  it("keeps the prior cursor when fetching fails part-way through", async () => {
+    const prior = new Date("2026-01-01T00:00:00Z");
+    tokenStore.set("readwise", { provider: "readwise", token: "tok", lastSyncedAt: prior });
+    const halfway: IngestSource = {
+      provider: "readwise",
+      async *fetchNew() {
+        yield makeCapture("a", "2026-05-15T00:00:00Z");
+        throw new Error("page 2 failed");
+      },
+    };
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { syncIntegration } = await importOrchestrator();
+
+    await syncIntegration("readwise", halfway);
+
+    expect(tokenStore.get("readwise")?.lastSyncedAt).toEqual(prior);
+  });
+
+  it("does not count already-ingested duplicates toward the limit", async () => {
+    tokenStore.set("readwise", { provider: "readwise", token: "tok", lastSyncedAt: null });
+    const { syncIntegration, MAX_PER_SYNC } = await importOrchestrator();
+    const dups = Array.from({ length: MAX_PER_SYNC }, (_, n) => makeCapture(`d${n}`));
+    dups.forEach((c) => ingestBehavior.set(c.externalId, { kind: "skipped" }));
+
+    const result = await syncIntegration(
+      "readwise",
+      fakeSource([...dups, makeCapture("new")]),
+    );
+
+    expect(result).toMatchObject({ added: 1, skipped: MAX_PER_SYNC, reachedLimit: false });
+  });
 });
