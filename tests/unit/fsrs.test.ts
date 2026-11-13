@@ -261,3 +261,31 @@ describe("retrievability", () => {
     expect(retrievability(5, -1)).toBe(0);
   });
 });
+
+describe("FSRS-6 short-term stability", () => {
+  const relearning: CardState = {
+    stability: 10,
+    difficulty: 6,
+    scheduledDays: 0,
+    reps: 2,
+    lapses: 1,
+    state: State.Relearning,
+    lastReviewedAt: new Date(NOW.getTime() - 10 * 60_000),
+  };
+
+  it("Good never lowers stability (reference keeps 10)", () => {
+    // Raw factor 10^-w19 * e^(w17 * w18) ≈ 0.90; the reference floors it at 1.
+    const result = schedule(relearning, Rating.Good, NOW);
+    expect(result.stability).toBeCloseTo(10, 6);
+  });
+
+  it("Hard never lowers stability either", () => {
+    const result = schedule({ ...relearning, stability: 2 }, Rating.Hard, NOW);
+    expect(result.stability).toBeCloseTo(2, 6);
+  });
+
+  it("Again can still lower it", () => {
+    const result = schedule(relearning, Rating.Again, NOW);
+    expect(result.stability).toBeLessThan(10);
+  });
+});

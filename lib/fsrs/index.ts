@@ -138,8 +138,14 @@ function stabilityAfterLapse(d: number, s: number, r: number): number {
 // Implementation note: the original form  s * pow(s, -W[19])  equals  pow(s, 1-W[19]).
 // The factored form avoids 0 * Inf = NaN (IEEE 754) when s=0, which can occur for
 // legacy DB rows with ease=0 in a Relearning state.
+//
+// As in the reference, a passing grade (Hard/Good/Easy) never shrinks stability:
+// the growth factor pow(s, -W[19]) × exp(…) is floored at 1 unless it is Again.
 function shortTermStability(s: number, rating: Rating): number {
-  return Math.max(0.1, Math.pow(s, 1 - W[19]) * Math.exp(W[17] * (rating - 3 + W[18])));
+  const gradeFactor = Math.exp(W[17] * (rating - 3 + W[18]));
+  const growth = Math.pow(s, -W[19]) * gradeFactor;
+  if (rating >= Rating.Hard && growth < 1) return Math.max(0.1, s);
+  return Math.max(0.1, Math.pow(s, 1 - W[19]) * gradeFactor);
 }
 
 function clamp(v: number, lo: number, hi: number): number {
