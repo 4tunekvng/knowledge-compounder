@@ -166,7 +166,7 @@ export function schedule(card: CardState, rating: Rating, now: Date = new Date()
     return scheduleReview(card, rating, elapsedDays, now);
   } else {
     // Learning or Relearning
-    return scheduleRelearning(card, rating, now);
+    return scheduleRelearning(card, rating, elapsedDays, now);
   }
 }
 
@@ -236,8 +236,22 @@ function scheduleReview(
   };
 }
 
-function scheduleRelearning(card: CardState, rating: Rating, now: Date): ScheduleResult {
-  const s = shortTermStability(card.stability, rating);
+// The same-day formula applies only within a day of the last review, as in the
+// reference; a card left in Relearning longer gets the long-term lapse / recall
+// update, so the days that passed count toward its new stability.
+function scheduleRelearning(
+  card: CardState,
+  rating: Rating,
+  elapsedDays: number,
+  now: Date,
+): ScheduleResult {
+  const r = retrievability(elapsedDays, card.stability);
+  const s =
+    elapsedDays < 1
+      ? shortTermStability(card.stability, rating)
+      : rating === Rating.Again
+        ? stabilityAfterLapse(card.difficulty, card.stability, r)
+        : stabilityAfterRecall(card.difficulty, card.stability, r, rating);
   const d = nextDifficulty(card.difficulty, rating);
 
   if (rating === Rating.Again) {

@@ -289,3 +289,32 @@ describe("FSRS-6 short-term stability", () => {
     expect(result.stability).toBeLessThan(10);
   });
 });
+
+describe("FSRS-6 relearning card reviewed on a later day", () => {
+  // The reference uses the same-day formula only when no full day has passed;
+  // after that the long-term recall / lapse formulas apply, as for Review cards.
+  const relearning: CardState = {
+    stability: 0.3,
+    difficulty: 6,
+    scheduledDays: 0,
+    reps: 2,
+    lapses: 1,
+    state: State.Relearning,
+    lastReviewedAt: new Date(NOW.getTime() - 3 * 86_400_000),
+  };
+
+  it("Good after 3 days uses the recall formula (S ≈ 3.6, due in 4 days)", () => {
+    // R = 0.693; S' = 0.3 * (1 + e^w8 * (11 - 6) * 0.3^-w9 * (e^(w10 * 0.307) - 1))
+    const result = schedule(relearning, Rating.Good, NOW);
+    expect(result.state).toBe(State.Review);
+    expect(result.stability).toBeCloseTo(3.6, 1);
+    expect(result.scheduledDays).toBe(4);
+  });
+
+  it("Again after 3 days uses the lapse formula and stays in Relearning", () => {
+    const result = schedule(relearning, Rating.Again, NOW);
+    // S_f = w11 * 6^-w12 * (1.3^w13 - 1) * e^(w14 * 0.307) ≈ 0.157
+    expect(result.state).toBe(State.Relearning);
+    expect(result.stability).toBeCloseTo(0.157, 2);
+  });
+});
