@@ -1,5 +1,6 @@
 import "server-only";
 import { getEnv } from "@/lib/db/client";
+import { STOP_WORDS } from "@/lib/stop-words";
 
 const VOYAGE_MODEL = "voyage-3.5-lite";
 const VOYAGE_DIM = 512;
@@ -86,15 +87,6 @@ function hash32(str: string): number {
   }
   return h >>> 0;
 }
-
-const STOP_WORDS = new Set([
-  "the", "and", "for", "with", "that", "this", "from", "have", "are", "was",
-  "but", "not", "you", "your", "they", "their", "there", "what", "when",
-  "which", "will", "into", "about", "than", "then", "been", "were", "also",
-  "more", "most", "some", "such", "these", "those", "would", "could", "should",
-  "make", "made", "much", "many", "very", "just", "only", "over", "after",
-  "before", "between", "where", "while",
-]);
 
 export function embeddingToBlob(vec: Float32Array): Buffer {
   return Buffer.from(vec.buffer, vec.byteOffset, vec.byteLength);

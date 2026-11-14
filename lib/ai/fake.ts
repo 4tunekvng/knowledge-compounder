@@ -1,3 +1,4 @@
+import { STOP_WORDS } from "@/lib/stop-words";
 import type {
   AdditionalCardsResult,
   EssayResult,
@@ -205,59 +206,9 @@ ${footnotes}
 }
 
 function countWords(text: string): [string, number][] {
-  const stop = new Set([
-    "the",
-    "and",
-    "for",
-    "with",
-    "that",
-    "this",
-    "from",
-    "have",
-    "are",
-    "was",
-    "but",
-    "not",
-    "you",
-    "your",
-    "they",
-    "their",
-    "there",
-    "what",
-    "when",
-    "which",
-    "will",
-    "into",
-    "about",
-    "than",
-    "then",
-    "been",
-    "were",
-    "also",
-    "more",
-    "most",
-    "some",
-    "such",
-    "these",
-    "those",
-    "would",
-    "could",
-    "should",
-    "make",
-    "made",
-    "much",
-    "many",
-    "very",
-    "just",
-    "only",
-    "over",
-    "after",
-    "before",
-    "between",
-  ]);
   const counts = new Map<string, number>();
   for (const raw of text.toLowerCase().split(/[^a-z0-9]+/)) {
-    if (raw.length < 4 || stop.has(raw)) continue;
+    if (raw.length < 4 || STOP_WORDS.has(raw)) continue;
     counts.set(raw, (counts.get(raw) ?? 0) + 1);
   }
   return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
