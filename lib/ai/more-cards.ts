@@ -1,6 +1,5 @@
 import "server-only";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { getAnthropic, isFakeAi, MODELS } from "./client";
+import { isFakeAi, MODELS, parseStructured } from "./client";
 import { fakeMoreCards } from "./fake";
 import { AdditionalCardsResultSchema, type AdditionalCardsResult } from "./schemas";
 import { sanitizeForPrompt } from "@/lib/sanitize";
@@ -24,36 +23,15 @@ export async function generateMoreCards(args: {
     return fakeMoreCards(args.title, args.text, args.existingFronts);
   }
 
-  const client = await getAnthropic();
-
-  try {
-    const response = await client.messages.parse({
-      model: MODELS.process,
-      max_tokens: 4096,
-      thinking: { type: "adaptive" },
-      output_config: {
-        format: zodOutputFormat(AdditionalCardsResultSchema),
-        effort: "medium",
-      },
-      system: [
-        {
-          type: "text",
-          text: SYSTEM,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
-      messages: [{ role: "user", content: buildUserMessage(args) }],
-    });
-
-    if (!response.parsed_output) {
-      throw new Error(
-        `More-cards returned no parsed output (stop_reason=${response.stop_reason})`,
-      );
-    }
-    return response.parsed_output;
-  } finally {
-    try { await (client as unknown as { close?(): Promise<void> }).close?.(); } catch {}
-  }
+  return parseStructured({
+    label: "More-cards",
+    model: MODELS.process,
+    maxTokens: 4096,
+    effort: "medium",
+    schema: AdditionalCardsResultSchema,
+    system: SYSTEM,
+    userMessage: buildUserMessage(args),
+  });
 }
 
 

@@ -1,6 +1,5 @@
 import "server-only";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { getAnthropic, isFakeAi, MODELS } from "./client";
+import { isFakeAi, MODELS, parseStructured } from "./client";
 import { fakeEssay } from "./fake";
 import { EssayResultSchema, type EssayResult } from "./schemas";
 import { sanitizeForPrompt } from "@/lib/sanitize";
@@ -26,36 +25,15 @@ export async function draftEssay(args: {
     return fakeEssay(args.themeLabel, args.themeSummary, args.sources);
   }
 
-  const client = await getAnthropic();
-
-  try {
-    const response = await client.messages.parse({
-      model: MODELS.essay,
-      max_tokens: 12_000,
-      thinking: { type: "adaptive" },
-      output_config: {
-        format: zodOutputFormat(EssayResultSchema),
-        effort: "xhigh",
-      },
-      system: [
-        {
-          type: "text",
-          text: SYSTEM,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
-      messages: [{ role: "user", content: buildUserMessage(args) }],
-    });
-
-    if (!response.parsed_output) {
-      throw new Error(
-        `Essay returned no parsed output (stop_reason=${response.stop_reason})`,
-      );
-    }
-    return response.parsed_output;
-  } finally {
-    try { await (client as unknown as { close?(): Promise<void> }).close?.(); } catch {}
-  }
+  return parseStructured({
+    label: "Essay",
+    model: MODELS.essay,
+    maxTokens: 12_000,
+    effort: "xhigh",
+    schema: EssayResultSchema,
+    system: SYSTEM,
+    userMessage: buildUserMessage(args),
+  });
 }
 
 
