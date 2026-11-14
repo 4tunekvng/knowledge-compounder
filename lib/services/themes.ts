@@ -1,6 +1,7 @@
 import "server-only";
 import { eq, inArray, isNull, or } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
+import { chunkForD1 } from "@/lib/db/chunk";
 import { sources, themes, essays, processings } from "@/lib/db/schema";
 import { findThemes } from "@/lib/ai/themes";
 import { draftEssay as draftEssayAi } from "@/lib/ai/essay";
@@ -61,11 +62,13 @@ export async function generateThemes() {
   // null-themeId orphans were silently skipped on the very first run and
   // any subsequent run where no prior themes existed.
   if (oldIds.length > 0) {
-    await db
-      .delete(essays)
-      .where(or(inArray(essays.themeId, oldIds), isNull(essays.themeId)))
-      .run();
-    await db.delete(themes).where(inArray(themes.id, oldIds)).run();
+    for (const part of chunkForD1(oldIds)) {
+      await db
+        .delete(essays)
+        .where(or(inArray(essays.themeId, part), isNull(essays.themeId)))
+        .run();
+      await db.delete(themes).where(inArray(themes.id, part)).run();
+    }
   } else {
     // No old themes to delete, but still clean up any null-themeId orphans
     // that could accumulate from previous failed generation cycles.
@@ -86,15 +89,21 @@ export async function draftEssayForTheme(themeId: number) {
   }
 
   const db = await getDb();
-  const themeSources = await db
-    .select({
-      source: sources,
-      processing: processings,
-    })
-    .from(sources)
-    .innerJoin(processings, eq(processings.sourceId, sources.id))
-    .where(inArray(sources.id, ids))
-    .all();
+  const themeSources = (
+    await Promise.all(
+      chunkForD1(ids).map((part) =>
+        db
+          .select({
+            source: sources,
+            processing: processings,
+          })
+          .from(sources)
+          .innerJoin(processings, eq(processings.sourceId, sources.id))
+          .where(inArray(sources.id, part))
+          .all(),
+      ),
+    )
+  ).flat();
 
   if (themeSources.length < 2) {
     throw new Error(

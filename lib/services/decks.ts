@@ -1,6 +1,7 @@
 import "server-only";
 import { desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
+import { chunkForD1 } from "@/lib/db/chunk";
 import { cards, decks, sources, type Deck } from "@/lib/db/schema";
 import { parseSourceIds } from "@/lib/parsers";
 
@@ -53,12 +54,16 @@ export async function createDeck(input: {
 
   const db = await getDb();
   // Keep only sources that actually exist and are processed.
-  const valid = await db
-    .select({ id: sources.id })
-    .from(sources)
-    .where(inArray(sources.id, requested))
-    .all();
-  const validIds = valid.map((s) => s.id);
+  const valid = await Promise.all(
+    chunkForD1(requested).map((part) =>
+      db
+        .select({ id: sources.id })
+        .from(sources)
+        .where(inArray(sources.id, part))
+        .all(),
+    ),
+  );
+  const validIds = valid.flat().map((s) => s.id);
   if (validIds.length === 0) {
     throw new Error("None of the selected sources exist.");
   }
@@ -123,20 +128,27 @@ export async function getDeckByToken(token: string): Promise<DeckWithCards | nul
     return { deck, sourceTitles: [], cards: [] };
   }
 
-  const rows = await db
-    .select({
-      id: cards.id,
-      cardType: cards.cardType,
-      front: cards.front,
-      back: cards.back,
-      sourceId: sources.id,
-      sourceTitle: sources.title,
-    })
-    .from(cards)
-    .innerJoin(sources, eq(sources.id, cards.sourceId))
-    .where(inArray(cards.sourceId, sourceIds))
-    .orderBy(cards.sourceId, cards.id)
-    .all();
+  // Slices of ascending ids, each ordered by (source, card), join in order.
+  const ascending = [...sourceIds].sort((a, b) => a - b);
+  const slices = await Promise.all(
+    chunkForD1(ascending).map((part) =>
+      db
+        .select({
+          id: cards.id,
+          cardType: cards.cardType,
+          front: cards.front,
+          back: cards.back,
+          sourceId: sources.id,
+          sourceTitle: sources.title,
+        })
+        .from(cards)
+        .innerJoin(sources, eq(sources.id, cards.sourceId))
+        .where(inArray(cards.sourceId, part))
+        .orderBy(cards.sourceId, cards.id)
+        .all(),
+    ),
+  );
+  const rows = slices.flat();
 
   const titleMap = new Map<number, string>();
   for (const r of rows) titleMap.set(r.sourceId, r.sourceTitle);
@@ -161,10 +173,14 @@ export async function getDeckByToken(token: string): Promise<DeckWithCards | nul
 async function countCardsForSources(sourceIds: number[]): Promise<number> {
   if (sourceIds.length === 0) return 0;
   const db = await getDb();
-  const rows = await db
-    .select({ id: cards.id })
-    .from(cards)
-    .where(inArray(cards.sourceId, sourceIds))
-    .all();
-  return rows.length;
+  const slices = await Promise.all(
+    chunkForD1(sourceIds).map((part) =>
+      db
+        .select({ id: cards.id })
+        .from(cards)
+        .where(inArray(cards.sourceId, part))
+        .all(),
+    ),
+  );
+  return slices.reduce((total, rows) => total + rows.length, 0);
 }
