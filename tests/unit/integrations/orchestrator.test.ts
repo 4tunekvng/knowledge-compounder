@@ -280,6 +280,25 @@ describe("syncIntegration", () => {
     expect(tokenStore.get("readwise")?.lastSyncedAt).toEqual(prior);
   });
 
+  it("keeps the prior cursor when an item hits a database error", async () => {
+    const prior = new Date("2026-01-01T00:00:00Z");
+    tokenStore.set("readwise", { provider: "readwise", token: "tok", lastSyncedAt: prior });
+    // The thrown item was never stored, so only a rerun from the old cursor finds it.
+    ingestBehavior.set("lost", { kind: "throw", reason: "D1_ERROR: database is locked" });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { syncIntegration } = await importOrchestrator();
+
+    await syncIntegration(
+      "readwise",
+      fakeSource([
+        makeCapture("lost", "2026-05-01T00:00:00Z"),
+        makeCapture("ok", "2026-05-15T00:00:00Z"),
+      ]),
+    );
+
+    expect(tokenStore.get("readwise")?.lastSyncedAt).toEqual(prior);
+  });
+
   it("does not count already-ingested duplicates toward the limit", async () => {
     tokenStore.set("readwise", { provider: "readwise", token: "tok", lastSyncedAt: null });
     const { syncIntegration, MAX_PER_SYNC } = await importOrchestrator();

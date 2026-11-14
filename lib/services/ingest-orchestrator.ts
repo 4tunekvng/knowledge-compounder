@@ -8,9 +8,9 @@
  * Bounded by `MAX_PER_SYNC` new items so a wildly-large backlog can't blow the
  * worker's runtime budget or burn through the Claude budget unattended. The
  * provider stream is not sorted by update time, so the cursor only advances
- * after a complete run; a run cut short keeps the old cursor, and the next
- * "Sync now" skips what it already ingested (duplicates don't count toward the
- * limit) and carries on.
+ * after a complete run; a run cut short (or with an item that threw) keeps the
+ * old cursor, and the next "Sync now" skips what it already ingested
+ * (duplicates don't count toward the limit) and carries on.
  */
 
 import "server-only";
@@ -83,6 +83,7 @@ export async function syncIntegration(
   let latestSeen: Date | null = null;
   let reachedLimit = false;
   let fetchFailed = false;
+  let itemThrew = false;
   const errors: string[] = [];
 
   try {
@@ -124,6 +125,7 @@ export async function syncIntegration(
         // The summary goes to the browser; the raw error can name hosts.
         console.error(`Sync item ${capture.externalId} failed:`, err);
         processedCount++;
+        itemThrew = true;
         errors.push(`${capture.externalId}: ${PROCESSING_FAILED_MESSAGE}`);
       }
     }
@@ -138,7 +140,9 @@ export async function syncIntegration(
   // was a dup, we still want to record that we successfully checked. A run cut
   // short by the limit or a fetch error keeps the prior cursor: items after the
   // stop can be older than the newest one seen, and would be skipped for good.
-  const complete = !reachedLimit && !fetchFailed;
+  // So does an item that threw (a database error, say): unlike a "failed"
+  // result it may never have been stored, so only a rerun can pick it up.
+  const complete = !reachedLimit && !fetchFailed && !itemThrew;
   const newCursor = !complete
     ? row.lastSyncedAt
     : latestSeen ?? (errors.length === 0 ? new Date() : row.lastSyncedAt);
