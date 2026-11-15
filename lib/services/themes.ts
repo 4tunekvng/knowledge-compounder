@@ -20,7 +20,8 @@ export async function generateThemes() {
   const validated = result.themes
     .map((t) => ({
       ...t,
-      source_ids: t.source_ids.filter((id) => validIds.has(id)),
+      // A repeated id is still one source; dedupe before the two-source rule.
+      source_ids: [...new Set(t.source_ids)].filter((id) => validIds.has(id)),
     }))
     .filter((t) => t.source_ids.length >= 2);
 
