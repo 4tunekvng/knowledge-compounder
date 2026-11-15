@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 export const ConceptSchema = z.object({
-  name: z.string().min(1).max(120),
+  name: z.string().min(1).max(1000),
   weight: z.number().min(0).max(1),
 });
 
 export const CardSchema = z.object({
   type: z.enum(["definition", "mechanism", "application"]),
-  front: z.string().min(3).max(400),
+  front: z.string().min(3).max(1000),
   back: z.string().min(3).max(1200),
 });
 
@@ -15,12 +15,12 @@ export const ProcessingResultSchema = z.object({
   why_i_cared: z
     .string()
     .min(40)
-    .max(900)
+    .max(4000)
     .describe(
       "100-word first-person reflection on why this material is worth remembering, in the user's voice.",
     ),
   key_takeaways: z
-    .array(z.string().min(5).max(500))
+    .array(z.string().min(5).max(1000))
     .min(2)
     .max(5)
     .describe("Two to five distinct takeaways, each as a single sentence."),
@@ -57,11 +57,11 @@ export const AdditionalCardsResultSchema = z.object({
 export type AdditionalCardsResult = z.infer<typeof AdditionalCardsResultSchema>;
 
 export const ThemeSchema = z.object({
-  label: z.string().min(3).max(140),
+  label: z.string().min(3).max(1000),
   summary: z
     .string()
     .min(40)
-    .max(600)
+    .max(4000)
     .describe(
       "Two to four sentences describing the theme and why it cuts across the captured sources.",
     ),
@@ -81,12 +81,12 @@ export const CitationSchema = z.object({
   quote: z
     .string()
     .min(8)
-    .max(600)
+    .max(4000)
     .describe("Verbatim or near-verbatim quote from the source supporting the claim."),
 });
 
 export const EssayResultSchema = z.object({
-  title: z.string().min(5).max(140),
+  title: z.string().min(5).max(1000),
   draft_md: z
     .string()
     .min(400)
