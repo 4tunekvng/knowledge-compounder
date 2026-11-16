@@ -121,20 +121,16 @@ async function readHtmlBody(response: Response, sourceUrl: string): Promise<stri
   return new TextDecoder().decode(combined);
 }
 
-export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    throw new Error(`Invalid URL: ${url}`);
-  }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new Error(`Only http and https URLs are supported (got ${parsed.protocol}): ${url}`);
-  }
-  if (isPrivateHost(parsed.hostname)) {
-    throw new Error(`Fetching private/internal addresses is not allowed: ${parsed.hostname}`);
-  }
-  const response = await fetch(url, {
+// Labels for the two redirects we follow, in the order they happen. A third
+// redirect is refused, so the chain can't wander towards a private host.
+const REDIRECT_LABELS = ["Redirect", "Second redirect"];
+
+function isHttp(url: URL): boolean {
+  return url.protocol === "http:" || url.protocol === "https:";
+}
+
+function fetchHop(url: string): Promise<Response> {
+  return fetch(url, {
     redirect: "manual",
     signal: AbortSignal.timeout(15_000),
     headers: {
@@ -143,76 +139,60 @@ export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
       Accept: "text/html,application/xhtml+xml",
     },
   });
-  // Follow redirects manually to block SSRF via open-redirect to private hosts.
-  if (response.status >= 300 && response.status < 400) {
+}
+
+// Resolve a redirect's Location against the URL that sent it, refusing any
+// target that is not http(s) or points at a private host (SSRF guard).
+function redirectTarget(response: Response, from: string, label: string): string {
+  const location = response.headers.get("location");
+  if (!location) throw new Error(`${label} from ${from} had no Location header`);
+  let next: URL;
+  try {
+    next = new URL(location, from);
+  } catch {
+    throw new Error(`${label} to invalid URL: ${location}`);
+  }
+  if (!isHttp(next)) {
+    throw new Error(`Redirect to non-HTTP(S) scheme blocked: ${next.protocol}`);
+  }
+  if (isPrivateHost(next.hostname)) {
+    throw new Error(
+      `Redirect to private/internal address blocked: ${next.hostname}`,
+    );
+  }
+  return next.toString();
+}
+
+export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`Invalid URL: ${url}`);
+  }
+  if (!isHttp(parsed)) {
+    throw new Error(`Only http and https URLs are supported (got ${parsed.protocol}): ${url}`);
+  }
+  if (isPrivateHost(parsed.hostname)) {
+    throw new Error(`Fetching private/internal addresses is not allowed: ${parsed.hostname}`);
+  }
+  // Follow redirects by hand so every hop passes the same SSRF checks.
+  let target = url;
+  for (let hop = 0; ; hop++) {
+    const response = await fetchHop(target);
+    if (response.status < 300 || response.status >= 400) {
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${target} (${response.status})`);
+      }
+      const html = await readHtmlBody(response, target);
+      return extractFromHtml(html, target);
+    }
+    if (hop === REDIRECT_LABELS.length) {
+      throw new Error(`Too many redirects fetching ${url}`);
+    }
     await response.body?.cancel();
-    const location = response.headers.get("location");
-    if (!location) throw new Error(`Redirect from ${url} had no Location header`);
-    let redirectUrl: URL;
-    try {
-      redirectUrl = new URL(location, url);
-    } catch {
-      throw new Error(`Redirect to invalid URL: ${location}`);
-    }
-    if (redirectUrl.protocol !== "http:" && redirectUrl.protocol !== "https:") {
-      throw new Error(`Redirect to non-HTTP(S) scheme blocked: ${redirectUrl.protocol}`);
-    }
-    if (isPrivateHost(redirectUrl.hostname)) {
-      throw new Error(`Redirect to private/internal address blocked: ${redirectUrl.hostname}`);
-    }
-    const followed = await fetch(redirectUrl.toString(), {
-      redirect: "manual",
-      signal: AbortSignal.timeout(15_000),
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; KnowledgeCompounder/0.1; +https://example.com)",
-        Accept: "text/html,application/xhtml+xml",
-      },
-    });
-    // Validate any second-hop redirect to prevent SSRF via chained open-redirects.
-    if (followed.status >= 300 && followed.status < 400) {
-      await followed.body?.cancel();
-      const location2 = followed.headers.get("location");
-      if (!location2) throw new Error(`Second redirect from ${redirectUrl} had no Location header`);
-      let finalUrl: URL;
-      try {
-        finalUrl = new URL(location2, redirectUrl);
-      } catch {
-        throw new Error(`Second redirect to invalid URL: ${location2}`);
-      }
-      if (finalUrl.protocol !== "http:" && finalUrl.protocol !== "https:") {
-        throw new Error(`Redirect to non-HTTP(S) scheme blocked: ${finalUrl.protocol}`);
-      }
-      if (isPrivateHost(finalUrl.hostname)) {
-        throw new Error(`Redirect to private/internal address blocked: ${finalUrl.hostname}`);
-      }
-      const finalResp = await fetch(finalUrl.toString(), {
-        redirect: "manual",
-        signal: AbortSignal.timeout(15_000),
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (compatible; KnowledgeCompounder/0.1; +https://example.com)",
-          Accept: "text/html,application/xhtml+xml",
-        },
-      });
-      // Block further redirect chains beyond the third hop to prevent SSRF via deep chains.
-      if (finalResp.status >= 300 && finalResp.status < 400) {
-        throw new Error(`Too many redirects fetching ${url}`);
-      }
-      if (!finalResp.ok) throw new Error(`Failed to fetch ${finalUrl} (${finalResp.status})`);
-      const finalHtml = await readHtmlBody(finalResp, finalUrl.toString());
-      return extractFromHtml(finalHtml, finalUrl.toString());
-    }
-    if (!followed.ok) throw new Error(`Failed to fetch ${redirectUrl} (${followed.status})`);
-    const html = await readHtmlBody(followed, redirectUrl.toString());
-    return extractFromHtml(html, redirectUrl.toString());
+    target = redirectTarget(response, target, REDIRECT_LABELS[hop]);
   }
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${url} (${response.status})`);
-  }
-  const html = await readHtmlBody(response, url);
-  const extracted = extractFromHtml(html, url);
-  return extracted;
 }
 
 export function extractFromText(input: string): ExtractedDoc {
