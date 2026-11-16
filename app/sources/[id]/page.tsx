@@ -52,7 +52,9 @@ export default async function SourcePage({ params }: Params) {
           data-testid="source-error"
         >
           <p className="font-medium mb-1">Processing failed</p>
-          <p>{source.errorMessage ?? "Unknown error."}</p>
+          {/* The raw error stays on the row and in the logs; it can name
+              gateway hosts, and this page is not behind the API secret. */}
+          <p>Something went wrong while processing this source.</p>
           <RetrySourceButton sourceId={source.id} />
         </div>
       ) : source.status === "pending" ? (

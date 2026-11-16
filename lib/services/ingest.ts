@@ -99,7 +99,7 @@ export const PROCESSING_FAILED_MESSAGE =
 /**
  * Record a processing failure on the source so the UI can show a Retry
  * button. The raw error is logged and stored on the source row; callers
- * (HTTP responses, sync summaries) get only the fixed message.
+ * (HTTP responses, sync summaries, the source page) get only fixed text.
  */
 async function markFailed(
   db: Awaited<ReturnType<typeof getDb>>,
