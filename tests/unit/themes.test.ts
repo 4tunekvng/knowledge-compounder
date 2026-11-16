@@ -33,4 +33,39 @@ describe("generateThemes", () => {
     expect(inserted.map((t) => t.label)).toEqual(["Real"]);
     expect(inserted[0]?.sourceIds).toBe("[1,2]");
   });
+  it("keeps a valid sixth theme when the first five name one source", async () => {
+    // Arrange
+    const single = { summary, source_ids: [1] };
+    findThemes.mockResolvedValue({
+      themes: [
+        ...["A", "B", "C", "D", "E"].map((label) => ({ ...single, label })),
+        { label: "Sixth", summary, source_ids: [1, 2] },
+      ],
+    });
+    const { generateThemes } = await import("@/lib/services/themes");
+
+    // Act
+    const inserted = await generateThemes();
+
+    // Assert
+    expect(inserted.map((t) => t.label)).toEqual(["Sixth"]);
+  });
+
+  it("saves at most five valid themes", async () => {
+    // Arrange
+    findThemes.mockResolvedValue({
+      themes: ["A", "B", "C", "D", "E", "F"].map((label) => ({
+        label,
+        summary,
+        source_ids: [1, 2],
+      })),
+    });
+    const { generateThemes } = await import("@/lib/services/themes");
+
+    // Act
+    const inserted = await generateThemes();
+
+    // Assert
+    expect(inserted.map((t) => t.label)).toEqual(["A", "B", "C", "D", "E"]);
+  });
 });

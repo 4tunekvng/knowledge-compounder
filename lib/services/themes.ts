@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db/client";
 import { chunkForD1 } from "@/lib/db/chunk";
 import { sources, themes, essays, processings } from "@/lib/db/schema";
 import { findThemes } from "@/lib/ai/themes";
+import { fitThemes } from "@/lib/ai/schemas";
 import { draftEssay as draftEssayAi } from "@/lib/ai/essay";
 import { getCorpusForThemes, getTheme, parseSourceIds } from "./queries";
 
@@ -17,13 +18,15 @@ export async function generateThemes() {
 
   const result = await findThemes(corpus);
   const validIds = new Set(corpus.map((c) => c.id));
-  const validated = result.themes
-    .map((t) => ({
-      ...t,
-      // A repeated id is still one source; dedupe before the two-source rule.
-      source_ids: [...new Set(t.source_ids)].filter((id) => validIds.has(id)),
-    }))
-    .filter((t) => t.source_ids.length >= 2);
+  const { themes: validated } = fitThemes({
+    themes: result.themes
+        .map((t) => ({
+        ...t,
+        // A repeated id is still one source; dedupe before the two-source rule.
+        source_ids: [...new Set(t.source_ids)].filter((id) => validIds.has(id)),
+      }))
+      .filter((t) => t.source_ids.length >= 2),
+  });
 
   if (validated.length === 0) {
     throw new Error(

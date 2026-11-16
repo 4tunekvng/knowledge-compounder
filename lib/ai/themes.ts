@@ -1,7 +1,7 @@
 import "server-only";
 import { isFakeAi, MODELS, parseStructured } from "./client";
 import { fakeThemes } from "./fake";
-import { fitThemes, ThemesResultSchema, type ThemesResult } from "./schemas";
+import { ThemesResultSchema, type ThemesResult } from "./schemas";
 import { sanitizeForPrompt } from "@/lib/sanitize";
 
 const SYSTEM = `You are the Knowledge Compounder themes agent. The user has captured a corpus of reading and you find emergent themes that cut across multiple sources.
@@ -23,7 +23,9 @@ export async function findThemes(
     return fakeThemes(sources);
   }
 
-  return fitThemes(await parseStructured({
+  // Not trimmed here: generateThemes trims after dropping themes with fewer
+  // than two real sources, so an invalid first five cannot crowd out a sixth.
+  return parseStructured({
     label: "Themes",
     model: MODELS.themes,
     maxTokens: 4096,
@@ -31,7 +33,7 @@ export async function findThemes(
     schema: ThemesResultSchema,
     system: SYSTEM,
     userMessage: buildUserMessage(sources),
-  }));
+  });
 }
 
 
