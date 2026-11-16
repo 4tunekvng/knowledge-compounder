@@ -1,4 +1,4 @@
-import { getDeckByToken } from "@/lib/services/decks";
+import { deckFileSlug, getDeckByToken } from "@/lib/services/decks";
 
 export const runtime = "nodejs";
 
@@ -31,11 +31,12 @@ export async function GET(
   }
   const body = lines.join("\n") + "\n";
 
+  const fileName = `${deckFileSlug(deck.deck.title)}-anki.csv`;
   return new Response(body, {
     status: 200,
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${fileSlug(deck.deck.title)}-anki.csv"`,
+      "Content-Disposition": `attachment; filename="${fileName}"`,
       "Cache-Control": "no-store",
     },
   });
@@ -54,14 +55,4 @@ function slugTag(s: string): string {
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 40);
-}
-
-function fileSlug(s: string): string {
-  return (
-    s
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 50) || "deck"
-  );
 }

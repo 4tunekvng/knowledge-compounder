@@ -1,5 +1,9 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import { getDeckByToken, type DeckWithCards } from "@/lib/services/decks";
+import {
+  deckFileSlug,
+  getDeckByToken,
+  type DeckWithCards,
+} from "@/lib/services/decks";
 
 export const runtime = "nodejs";
 
@@ -22,11 +26,12 @@ export async function GET(
   }
 
   const bytes = await buildPdf(deck);
+  const fileName = `${deckFileSlug(deck.deck.title)}-study-guide.pdf`;
   return new Response(bytes as BodyInit, {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${fileSlug(deck.deck.title)}-study-guide.pdf"`,
+      "Content-Disposition": `attachment; filename="${fileName}"`,
       "Cache-Control": "no-store",
     },
   });
@@ -160,14 +165,4 @@ function toWinAnsi(s: string): string {
     .replace(/…/g, "...")
     .replace(/ /g, " ")
     .replace(/[^\x00-\xFF]/g, "");
-}
-
-function fileSlug(s: string): string {
-  return (
-    s
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 50) || "deck"
-  );
 }

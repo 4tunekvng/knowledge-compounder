@@ -39,6 +39,26 @@ describe("chunkForD1", () => {
   });
 });
 
+describe("deckFileSlug", () => {
+  it("lowercases a title and joins its words with dashes", async () => {
+    const { deckFileSlug } = await import("@/lib/services/decks");
+
+    expect(deckFileSlug("  Week 3: Moats & Margins! ")).toBe("week-3-moats-margins");
+  });
+
+  it("falls back to deck when no letters or digits remain", async () => {
+    const { deckFileSlug } = await import("@/lib/services/decks");
+
+    expect(deckFileSlug("¿¡!")).toBe("deck");
+  });
+
+  it("caps the name at 50 characters", async () => {
+    const { deckFileSlug } = await import("@/lib/services/decks");
+
+    expect(deckFileSlug("a".repeat(80))).toBe("a".repeat(50));
+  });
+});
+
 describe("decks over 100 sources", () => {
   it("create, list and open a deck without hitting the parameter limit", async () => {
     const { createDeck, getDeckByToken, listDecks } = await import(

@@ -110,6 +110,20 @@ export async function deleteDeck(id: number): Promise<boolean> {
 }
 
 /**
+ * Turn a deck title into a safe download file name stem, shared by the PDF and
+ * Anki exports so both files of one deck are named alike.
+ */
+export function deckFileSlug(title: string): string {
+  return (
+    title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 50) || "deck"
+  );
+}
+
+/**
  * Load a deck by its public share token, together with every flashcard drawn
  * from its sources. Used by the student study page and the PDF / Anki exports.
  * Returns null when the token doesn't match a deck.
