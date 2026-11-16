@@ -25,6 +25,8 @@ const { findThemes } = await import("@/lib/ai/themes");
 const { draftEssay } = await import("@/lib/ai/essay");
 const { generateMoreCards } = await import("@/lib/ai/more-cards");
 
+const card = { type: "definition", front: "Q?", back: "A." };
+
 const CASES = [
   {
     name: "processSource",
@@ -33,6 +35,12 @@ const CASES = [
     maxTokens: 8192,
     effort: "medium",
     label: "Processing",
+    reply: {
+      why_i_cared: "w",
+      key_takeaways: ["t"],
+      cards: [card],
+      concepts: [{ name: "data", weight: 0.5 }],
+    },
     userSnippet: "Title: Moats",
   },
   {
@@ -45,6 +53,7 @@ const CASES = [
     maxTokens: 4096,
     effort: "medium",
     label: "Themes",
+    reply: { themes: [{ label: "l", summary: "s", source_ids: [7] }] },
     userSnippet: '- Source 7: "Moats"',
   },
   {
@@ -59,6 +68,7 @@ const CASES = [
     maxTokens: 12_000,
     effort: "xhigh",
     label: "Essay",
+    reply: { title: "t", draft_md: "d", citations: [] },
     userSnippet: "Label: Moats erode",
   },
   {
@@ -69,6 +79,7 @@ const CASES = [
     maxTokens: 4096,
     effort: "medium",
     label: "More-cards",
+    reply: { cards: [card] },
     userSnippet: "- Q?",
   },
 ];
@@ -80,11 +91,11 @@ describe("lib/ai calls", () => {
   });
 
   it.each(CASES)("$name sends a cached, structured request", async (c) => {
-    parse.mockResolvedValue({ parsed_output: { ok: true } });
+    parse.mockResolvedValue({ parsed_output: c.reply });
 
     const result = await c.call();
 
-    expect(result).toEqual({ ok: true });
+    expect(result).toEqual(c.reply);
     const request = parse.mock.calls[0][0];
     expect(request).toMatchObject({
       model: c.model,

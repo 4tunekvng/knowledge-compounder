@@ -1,7 +1,7 @@
 import "server-only";
 import { isFakeAi, MODELS, parseStructured } from "./client";
 import { fakeProcessing } from "./fake";
-import { ProcessingResultSchema, type ProcessingResult } from "./schemas";
+import { fitProcessing, ProcessingResultSchema, type ProcessingResult } from "./schemas";
 import { sanitizeForPrompt } from "@/lib/sanitize";
 
 const SYSTEM = `You are the Knowledge Compounder processing agent. The user has captured a piece of reading material — an article, essay, paper excerpt, or note — and you turn it into:
@@ -21,7 +21,7 @@ export async function processSource(args: {
     return fakeProcessing(args.title, args.text);
   }
 
-  return parseStructured({
+  return fitProcessing(await parseStructured({
     label: "Processing",
     model: MODELS.process,
     maxTokens: 8192,
@@ -29,7 +29,7 @@ export async function processSource(args: {
     schema: ProcessingResultSchema,
     system: SYSTEM,
     userMessage: buildUserMessage(args.title, args.text),
-  });
+  }));
 }
 
 

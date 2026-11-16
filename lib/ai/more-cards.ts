@@ -1,7 +1,7 @@
 import "server-only";
 import { isFakeAi, MODELS, parseStructured } from "./client";
 import { fakeMoreCards } from "./fake";
-import { AdditionalCardsResultSchema, type AdditionalCardsResult } from "./schemas";
+import { fitMoreCards, AdditionalCardsResultSchema, type AdditionalCardsResult } from "./schemas";
 import { sanitizeForPrompt } from "@/lib/sanitize";
 
 const SYSTEM = `You are the Knowledge Compounder card generator. The user already has some flashcards for a source and wants MORE — additional Anki-style cards that deepen coverage without repeating what they already have.
@@ -23,7 +23,7 @@ export async function generateMoreCards(args: {
     return fakeMoreCards(args.title, args.text, args.existingFronts);
   }
 
-  return parseStructured({
+  return fitMoreCards(await parseStructured({
     label: "More-cards",
     model: MODELS.process,
     maxTokens: 4096,
@@ -31,7 +31,7 @@ export async function generateMoreCards(args: {
     schema: AdditionalCardsResultSchema,
     system: SYSTEM,
     userMessage: buildUserMessage(args),
-  });
+  }));
 }
 
 

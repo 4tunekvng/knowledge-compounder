@@ -10,7 +10,7 @@ type FakeCard = ProcessingResult["cards"][number];
 
 // Build a scaled, deterministic set of cards from the extracted concepts:
 // one definition per concept plus a mechanism and an application card. Always
-// yields between 4 and 6 cards (ProcessingResultSchema requires 4–12), so the
+// yields between 4 and 6 cards (the processing prompt asks for 4–12), so the
 // "more flashcards" behaviour is visible even in the fake-AI E2E path.
 function buildFakeCards(
   title: string,
@@ -46,7 +46,7 @@ export function fakeProcessing(title: string, text: string): ProcessingResult {
     name,
     weight: Number((1 / (i + 1)).toFixed(2)),
   }));
-  // ProcessingResultSchema requires min(2) concepts; pad with title-derived
+  // The processing prompt asks for at least 2 concepts; pad with title-derived
   // fallbacks when the text yields fewer (e.g. very short or numeric inputs).
   const concepts =
     rawConcepts.length >= 2
@@ -114,8 +114,8 @@ export function fakeThemes(
   if (sources.length < 2) {
     // This branch should not be reached in practice — generateThemes() guards against
     // calling findThemes/fakeThemes with fewer than 2 sources. Throwing is safer than
-    // returning an object that violates ThemeSchema (source_ids requires min(2)) or
-    // ThemesResultSchema (themes requires min(1)).
+    // returning a theme with fewer than two sources, which generateThemes() drops,
+    // or no theme at all.
     throw new Error(
       "fakeThemes requires at least 2 sources (received " + sources.length + ")",
     );
