@@ -28,7 +28,7 @@ export default async function StudentDeckPage({ params }: Params) {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-wider text-[color:var(--accent)]">
+        <p className="text-xs text-[color:var(--accent)]">
           Shared study deck
         </p>
         <h1 className="font-serif text-3xl md:text-4xl tracking-tight" data-testid="deck-title">

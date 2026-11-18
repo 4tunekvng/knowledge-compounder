@@ -31,7 +31,7 @@ export default async function SourcePage({ params }: Params) {
   return (
     <article className="flex flex-col gap-8">
       <header className="min-w-0">
-        <p className="text-xs uppercase tracking-wider text-[color:var(--muted)] mb-1">
+        <p className="text-xs text-[color:var(--muted)] mb-1">
           Source #{source.id}
         </p>
         <h1

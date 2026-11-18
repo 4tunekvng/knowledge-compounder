@@ -25,7 +25,7 @@ export default async function EssayPage({ params }: Params) {
   return (
     <article className="flex flex-col gap-6">
       <header>
-        <p className="text-xs uppercase tracking-wider text-[color:var(--muted)] mb-1">
+        <p className="text-xs text-[color:var(--muted)] mb-1">
           Drafted essay
         </p>
         <h1
