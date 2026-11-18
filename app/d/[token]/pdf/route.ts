@@ -4,6 +4,7 @@ import {
   getDeckByToken,
   type DeckWithCards,
 } from "@/lib/services/decks";
+import { toWinAnsi } from "@/lib/pdf-text";
 
 export const runtime = "nodejs";
 
@@ -152,17 +153,4 @@ function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): 
     if (cur) out.push(cur);
   }
   return out.length ? out : [""];
-}
-
-// StandardFonts use WinAnsi encoding and throw on characters outside it. Map
-// the common smart-punctuation we actually see, then drop anything still
-// outside Latin-1 so a PDF always renders.
-function toWinAnsi(s: string): string {
-  return s
-    .replace(/[‘’‚‹›]/g, "'")
-    .replace(/[“”„«»]/g, '"')
-    .replace(/[–—−]/g, "-")
-    .replace(/…/g, "...")
-    .replace(/ /g, " ")
-    .replace(/[^\x00-\xFF]/g, "");
 }
