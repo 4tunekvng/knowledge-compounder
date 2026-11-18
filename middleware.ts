@@ -10,7 +10,8 @@ import type { NextRequest } from "next/server";
  *   Authorization: Bearer <KC_API_SECRET>    (scripts)
  *   Basic auth with KC_API_SECRET as the password, any user name (browsers)
  * Anything else gets a 401 that makes the browser show its own sign-in
- * prompt. The browser then resends the password on every same-site request,
+ * prompt. Share links (/d/<token>) stay public: the unguessable token is
+ * their access check, and students who open them have no password. The browser then resends the password on every same-site request,
  * including the components' fetch("/api/...") calls, which send no header of
  * their own.
  */
@@ -48,9 +49,14 @@ function presentedSecret(auth: string | null): string {
   }
 }
 
+const SHARE_PREFIX = "/d/";
+
 export function middleware(request: NextRequest) {
   const secret = process.env.KC_API_SECRET;
   if (!secret) return NextResponse.next();
+  if (request.nextUrl.pathname.startsWith(SHARE_PREFIX)) {
+    return NextResponse.next();
+  }
 
   const presented = presentedSecret(request.headers.get("authorization"));
   if (!timingSafeEqual(presented, secret)) {

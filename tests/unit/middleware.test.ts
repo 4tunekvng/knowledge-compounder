@@ -48,6 +48,30 @@ describe("middleware with KC_API_SECRET set", () => {
     expect(res.status).toBe(200);
   });
 
+  it("lets a student without the password open a share link", () => {
+    vi.stubEnv("KC_API_SECRET", "s3cret");
+
+    const res = middleware(request("/d/0123abcd"));
+
+    expect(res.status).toBe(200);
+  });
+
+  it("lets a student without the password download a share link's PDF", () => {
+    vi.stubEnv("KC_API_SECRET", "s3cret");
+
+    const res = middleware(request("/d/0123abcd/pdf"));
+
+    expect(res.status).toBe(200);
+  });
+
+  it("still guards a path that only starts with the letter d", () => {
+    vi.stubEnv("KC_API_SECRET", "s3cret");
+
+    const res = middleware(request("/decks"));
+
+    expect(res.status).toBe(401);
+  });
+
   it("refuses malformed basic credentials", () => {
     vi.stubEnv("KC_API_SECRET", "s3cret");
 
