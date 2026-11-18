@@ -55,7 +55,16 @@ export function ReviewQueue({ cards }: Props) {
           You graded {completed.length} {completed.length === 1 ? "card" : "cards"}.
         </p>
         <button
-          onClick={() => router.refresh()}
+          onClick={() =>
+            // Client state outlives router.refresh(), so restart the queue in
+            // the same transition that brings in the newly due cards.
+            startTransition(() => {
+              setIndex(0);
+              setCompleted([]);
+              setRevealed(false);
+              router.refresh();
+            })
+          }
           className="rounded-md bg-[color:var(--accent)] px-5 py-2 text-sm font-medium text-white"
         >
           Refresh queue
