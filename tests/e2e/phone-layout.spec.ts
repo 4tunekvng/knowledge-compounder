@@ -42,6 +42,15 @@ test.describe("phone layout", () => {
     expect(box!.x + box!.width).toBeLessThanOrEqual(PHONE.width);
   });
 
+  test("the menu is one row under the wordmark", async ({ page }) => {
+    await page.goto("/");
+    const capture = await page.getByTestId("nav-capture").boundingBox();
+    const integrations = await page
+      .getByTestId("nav-integrations")
+      .boundingBox();
+    expect(integrations!.y).toBe(capture!.y);
+  });
+
   test("the source page does not scroll sideways", async ({ page }) => {
     await page.goto("/library");
     await page.getByRole("link", { name: LONG_TITLE }).click();

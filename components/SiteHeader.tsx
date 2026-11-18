@@ -38,7 +38,12 @@ export function SiteHeader({ dueCount }: { dueCount: number }) {
 
   return (
     <header className="border-b border-[color:var(--border)] bg-[color:var(--background)]">
-      <div className="max-w-5xl mx-auto px-6 py-5 flex items-baseline justify-between gap-4">
+      <div
+        className={
+          "max-w-5xl mx-auto px-6 py-5 flex flex-col gap-3 " +
+          "sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
+        }
+      >
         <Link
           href="/"
           className="font-serif text-xl tracking-tight text-[color:var(--foreground)] no-underline shrink-0"
@@ -46,7 +51,13 @@ export function SiteHeader({ dueCount }: { dueCount: number }) {
         >
           <Wordmark />
         </Link>
-        <nav className="flex flex-wrap gap-x-6 gap-y-1 text-sm items-baseline justify-end">
+        {/* One scrollable row on a phone; wraps to the right on wider screens. */}
+        <nav
+          className={
+            "flex gap-x-6 gap-y-1 text-sm items-baseline whitespace-nowrap " +
+            "overflow-x-auto sm:flex-wrap sm:justify-end sm:overflow-visible"
+          }
+        >
           {NAV.map((item) => (
             <Link
               key={item.href}
