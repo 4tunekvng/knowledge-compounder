@@ -18,7 +18,7 @@ export default async function ReviewPage() {
       <div>
         <h1 className="font-serif text-3xl tracking-tight">Review</h1>
         <p className="text-[color:var(--muted)] mt-1">
-          {cards.length} {cards.length === 1 ? "card" : "cards"} due now.
+          {cards.length} {cards.length === 1 ? "card" : "cards"} due now
         </p>
       </div>
       <ReviewQueue cards={cards} />

@@ -17,12 +17,15 @@ interface Props {
 }
 
 // FSRS-6 ratings: 1=Again 2=Hard 3=Good 4=Easy
-const GRADE_BUTTONS: { grade: number; label: string; description: string; color: string }[] = [
-  { grade: 1, label: "Again", description: "Couldn't recall", color: "bg-red-700" },
-  { grade: 2, label: "Hard", description: "Recalled with difficulty", color: "bg-orange-600" },
-  { grade: 3, label: "Good", description: "Recalled with hesitation", color: "bg-emerald-600" },
-  { grade: 4, label: "Easy", description: "Perfect recall", color: "bg-emerald-800" },
+const GRADE_BUTTONS: { grade: number; label: string; description: string }[] = [
+  { grade: 1, label: "Again", description: "Couldn't recall" },
+  { grade: 2, label: "Hard", description: "Recalled with difficulty" },
+  { grade: 3, label: "Good", description: "Recalled with hesitation" },
+  { grade: 4, label: "Easy", description: "Perfect recall" },
 ];
+
+// One neutral style for every grade; the accent marks the expected answer.
+const GOOD_GRADE = 3;
 
 export function ReviewQueue({ cards }: Props) {
   const [index, setIndex] = useState(0);
@@ -52,7 +55,7 @@ export function ReviewQueue({ cards }: Props) {
       >
         <h2 className="font-serif text-2xl mb-2">Queue cleared</h2>
         <p className="text-[color:var(--muted)] mb-4">
-          You graded {completed.length} {completed.length === 1 ? "card" : "cards"}.
+          You graded {completed.length} {completed.length === 1 ? "card" : "cards"}
         </p>
         <button
           onClick={() =>
@@ -100,18 +103,18 @@ export function ReviewQueue({ cards }: Props) {
 
   return (
     <div className="flex flex-col gap-5" data-testid="review-card">
-      <div className="flex items-baseline justify-between text-sm text-[color:var(--muted)]">
-        <span>
+      <div className="flex items-baseline justify-between gap-4 text-sm text-[color:var(--muted)]">
+        <span className="shrink-0">
           Card {index + 1} of {cards.length}
         </span>
-        <span>
+        <span className="min-w-0 truncate">
           From{" "}
           <Link href={`/sources/${card.source.id}`}>{card.source.title}</Link>
         </span>
       </div>
 
       <div className="border border-[color:var(--border)] bg-[color:var(--card)] rounded-md p-8">
-        <p className="text-[10px] uppercase tracking-wider text-[color:var(--accent)] mb-3">
+        <p className="text-xs capitalize text-[color:var(--accent)] mb-3">
           {card.cardType}
         </p>
         <p
@@ -146,7 +149,11 @@ export function ReviewQueue({ cards }: Props) {
               onClick={() => grade(b.grade)}
               disabled={isPending}
               data-testid={`grade-${b.grade}`}
-              className={`flex-1 min-w-[110px] rounded-md text-white px-4 py-3 text-sm font-medium ${b.color} disabled:opacity-50`}
+              className={`flex-1 min-w-[110px] rounded-md border px-4 py-3 text-sm font-medium disabled:opacity-50 ${
+                b.grade === GOOD_GRADE
+                  ? "border-[color:var(--accent)] bg-[color:var(--accent)] text-white"
+                  : "border-[color:var(--border)] hover:bg-[color:var(--background)]"
+              }`}
               title={b.description}
             >
               <div>{b.label}</div>

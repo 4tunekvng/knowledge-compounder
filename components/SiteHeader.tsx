@@ -57,7 +57,7 @@ export function SiteHeader({ dueCount }: { dueCount: number }) {
               {item.label}
               {item.label === "Review" && dueCount > 0 && (
                 <span
-                  className="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold"
+                  className="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold"
                   style={{
                     background: "var(--accent)",
                     color: "var(--background)",
