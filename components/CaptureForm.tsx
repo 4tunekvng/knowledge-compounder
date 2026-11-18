@@ -8,6 +8,7 @@ import {
   type DragEvent,
   type FormEvent,
 } from "react";
+import { FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 const PROCESSING_STEPS = [
@@ -55,7 +56,7 @@ function ProcessingIndicator() {
             style={{ opacity: i > activeIdx ? 0.4 : 1 }}
           >
             <span
-              className="flex size-4 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold"
+              className="flex size-4 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
               style={{
                 background: done
                   ? "color-mix(in srgb, var(--accent) 22%, transparent)"
@@ -185,12 +186,6 @@ export function CaptureForm() {
       }}
       onDrop={onDrop}
     >
-      <label
-        htmlFor="capture-input"
-        className="text-sm font-medium text-[color:var(--foreground)]"
-      >
-        Paste a URL or text, or drop in a PDF. The agent extracts, distills, and adds it to your corpus.
-      </label>
       <div
         className="relative rounded-md transition"
         style={
@@ -201,10 +196,11 @@ export function CaptureForm() {
       >
         <textarea
           id="capture-input"
+          aria-label="Paste a URL or text, or drop in a PDF"
           data-testid="capture-input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="https://example.com/an-essay  — or paste passages directly — or drop a PDF onto this box"
+          placeholder="Paste a URL or text"
           rows={6}
           disabled={isPending}
           className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--card)] px-4 py-3 text-base font-mono leading-relaxed text-[color:var(--foreground)] placeholder:text-[color:var(--muted)] focus:border-[color:var(--accent)] focus:outline-none disabled:opacity-50"
@@ -230,8 +226,12 @@ export function CaptureForm() {
       />
 
       {pdfName && (
-        <p className="text-xs text-[color:var(--muted)]" data-testid="pdf-name">
-          📄 {pdfName}
+        <p
+          className="flex items-center gap-2 text-xs text-[color:var(--muted)]"
+          data-testid="pdf-name"
+        >
+          <FileText aria-hidden size={16} strokeWidth={1.5} className="shrink-0" />
+          {pdfName}
         </p>
       )}
 
@@ -251,7 +251,7 @@ export function CaptureForm() {
             data-testid="pdf-upload-button"
             className="inline-flex items-center gap-2 rounded-md border border-[color:var(--border)] px-4 py-2.5 text-sm font-medium text-[color:var(--foreground)] transition hover:border-[color:var(--accent)] hover:text-[color:var(--accent)]"
           >
-            <span aria-hidden>📄</span> Upload a PDF
+            <FileText aria-hidden size={16} strokeWidth={1.5} /> Upload a PDF
           </button>
         )}
         <button

@@ -13,11 +13,11 @@ export function SourceListItem({ source, whyICared, conceptsJson, cardCount }: P
   const concepts = conceptsJson ? parseConcepts(conceptsJson) : [];
   return (
     <li
-      className="border border-[color:var(--border)] bg-[color:var(--card)] rounded-md p-5"
+      className="min-w-0 border border-[color:var(--border)] bg-[color:var(--card)] rounded-md p-5"
       data-testid={`source-item-${source.id}`}
     >
-      <div className="flex items-baseline justify-between gap-4">
-        <h3 className="font-serif text-lg leading-tight">
+      <div className="flex items-baseline justify-between gap-4 min-w-0">
+        <h3 className="min-w-0 break-words font-serif text-lg leading-tight">
           <Link
             href={`/sources/${source.id}`}
             className="text-[color:var(--foreground)] no-underline hover:text-[color:var(--accent)]"
@@ -70,15 +70,7 @@ export function SourceListItem({ source, whyICared, conceptsJson, cardCount }: P
 }
 
 function StatusBadge({ status }: { status: Source["status"] }) {
-  const styles =
-    status === "processed"
-      ? "bg-green-100 text-green-800"
-      : status === "failed"
-        ? "bg-red-100 text-red-800"
-        : "bg-amber-100 text-amber-800";
-  return (
-    <span className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded-full ${styles}`}>
-      {status}
-    </span>
-  );
+  const color =
+    status === "failed" ? "text-red-700" : "text-[color:var(--muted)]";
+  return <span className={`shrink-0 font-mono text-xs ${color}`}>{status}</span>;
 }

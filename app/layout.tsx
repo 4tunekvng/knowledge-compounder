@@ -43,7 +43,7 @@ export default async function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <SiteHeader dueCount={dueCount} />
-        <main className="flex-1">
+        <main className="flex-1 wrap-anywhere">
           <div className="max-w-5xl mx-auto px-6 py-10">{children}</div>
         </main>
         <footer className="border-t border-[color:var(--border)] py-6 text-center text-xs text-[color:var(--muted)]">

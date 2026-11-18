@@ -191,7 +191,7 @@ export function StudyDeck({ cards, exportBase }: Props) {
               onClick={() => setRevealed((r) => !r)}
               className="text-left border border-[color:var(--border)] bg-[color:var(--card)] rounded-md p-8 min-h-[220px] flex flex-col justify-center transition hover:border-[color:var(--accent)]"
             >
-              <p className="text-[10px] uppercase tracking-wider text-[color:var(--accent)] mb-3">
+              <p className="text-xs capitalize text-[color:var(--accent)] mb-3">
                 {card.cardType}
               </p>
               <p className="font-serif text-2xl leading-snug" data-testid="study-front">
@@ -270,7 +270,7 @@ function BrowseList({ cards }: { cards: StudyCard[] }) {
                 key={c.id}
                 className="border border-[color:var(--border)] bg-[color:var(--card)] rounded-md p-4"
               >
-                <p className="text-[10px] uppercase tracking-wider text-[color:var(--accent)] mb-2">
+                <p className="text-xs capitalize text-[color:var(--accent)] mb-2">
                   {c.cardType}
                 </p>
                 <p className="font-medium text-sm mb-2">{c.front}</p>

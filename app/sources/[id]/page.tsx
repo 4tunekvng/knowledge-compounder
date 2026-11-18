@@ -30,15 +30,18 @@ export default async function SourcePage({ params }: Params) {
 
   return (
     <article className="flex flex-col gap-8">
-      <header>
-        <p className="text-xs uppercase tracking-wider text-[color:var(--muted)] mb-1">
+      <header className="min-w-0">
+        <p className="text-xs text-[color:var(--muted)] mb-1">
           Source #{source.id}
         </p>
-        <h1 className="font-serif text-3xl tracking-tight" data-testid="source-title">
+        <h1
+          className="break-words font-serif text-3xl tracking-tight"
+          data-testid="source-title"
+        >
           {source.title}
         </h1>
         {source.url && (
-          <p className="mt-2 text-sm">
+          <p className="mt-2 truncate text-sm">
             <a href={source.url} target="_blank" rel="noopener noreferrer">
               {source.url}
             </a>
@@ -90,7 +93,7 @@ export default async function SourcePage({ params }: Params) {
                 {concepts.map((c) => (
                   <span
                     key={c.name}
-                    className="text-sm border border-[color:var(--border)] rounded-full px-3 py-1 bg-[color:var(--card)]"
+                    className="min-w-0 max-w-full break-words text-sm border border-[color:var(--border)] rounded-full px-3 py-1 bg-[color:var(--card)]"
                     title={`weight: ${c.weight}`}
                   >
                     {c.name}
@@ -125,7 +128,7 @@ export default async function SourcePage({ params }: Params) {
                     className="border border-[color:var(--border)] bg-[color:var(--card)] rounded-md p-4"
                     data-testid={`card-${card.id}`}
                   >
-                    <p className="text-[10px] uppercase tracking-wider text-[color:var(--accent)] mb-2">
+                    <p className="text-xs capitalize text-[color:var(--accent)] mb-2">
                       {card.cardType}
                     </p>
                     <p className="font-medium text-sm mb-2">{card.front}</p>
