@@ -1,0 +1,95 @@
+name: Deploy to Cloudflare Workers
+
+# Every push to main ships the app, so the live site never drifts behind main
+# again (the 2026-06-03 deploy sat 61 commits behind; see #8).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time, so two pushes never apply migrations side by side.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Cloudflare token
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CF_TOKEN" ] || [ -z "$CF_ACCOUNT" ]; then
+            echo "::error::Add the CLOUDFLARE_API_TOKEN and" \
+              "CLOUDFLARE_ACCOUNT_ID repository secrets" \
+              "(Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+          RESP=$(curl -s https://api.cloudflare.com/client/v4/user/tokens/verify \
+            -H "Authorization: Bearer $CF_TOKEN")
+          OK=$(echo "$RESP" | python3 -c \
+            "import sys,json; print(json.load(sys.stdin).get('success'))" \
+            2>/dev/null || echo False)
+          if [ "$OK" != "True" ]; then
+            echo "::error::Cloudflare rejected CLOUDFLARE_API_TOKEN. Replace" \
+              "it with a fresh 'Edit Cloudflare Workers' token that can also" \
+              "edit D1."
+            exit 1
+          fi
+          echo "Cloudflare token valid"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Stop before deploying, not after, when a secret the code needs is
+      # missing on the Worker. Without KC_API_SECRET anyone can spend the AI budget.
+      - name: Check Worker secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          REQUIRED: KC_API_SECRET ANTHROPIC_API_KEY
+        run: |
+          HAVE=$(npx wrangler secret list --config wrangler.jsonc \
+            | jq -r '.[].name')
+          for NAME in $REQUIRED; do
+            if ! grep -qx "$NAME" <<< "$HAVE"; then
+              echo "::error::Worker secret $NAME is missing. Set it first:" \
+                "npx wrangler secret put $NAME --config wrangler.jsonc"
+              exit 1
+            fi
+          done
+          echo "Worker secrets present: $REQUIRED"
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run cf:build
+
+      # Schema changes reach the database before the code that needs them.
+      # With nothing pending this prints "No migrations to apply" and moves on.
+      - name: Apply database migrations
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >-
+            d1 migrations apply knowledge-compounder --remote
+            --config wrangler.jsonc
+
+      # Worker secrets (ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL) persist on the
+      # worker from `wrangler secret put`; a deploy does not touch them.
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --config wrangler.jsonc
