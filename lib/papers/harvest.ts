@@ -1,5 +1,5 @@
 import "server-only";
-import { desc, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { D1_MAX_BOUND_PARAMS } from "@/lib/db/chunk";
 import { paperHarvests, papers } from "@/lib/db/schema";
@@ -125,6 +125,13 @@ export async function harvestIfDue(
     if (fresh && lastAt >= dayStart(now)) return null;
   }
 
+  // Log the run before any work, so a run that dies partway still counts and
+  // the next tick does not fetch the feeds again five minutes later.
+  const [run] = await db
+    .insert(paperHarvests)
+    .values({ startedAt: new Date(now), papersSeen: 0, failedSources: "[]" })
+    .returning({ id: paperHarvests.id });
+
   const { found, failedSources } = await collect(fetchImpl, now);
   const rows = mergeHarvested(found).map((p) => ({
     arxivId: p.arxivId,
@@ -154,10 +161,9 @@ export async function harvestIfDue(
         },
       });
   }
-  await db.insert(paperHarvests).values({
-    startedAt: new Date(now),
-    papersSeen: rows.length,
-    failedSources: JSON.stringify(failedSources),
-  });
+  await db
+    .update(paperHarvests)
+    .set({ papersSeen: rows.length, failedSources: JSON.stringify(failedSources) })
+    .where(eq(paperHarvests.id, run.id));
   return { papersSeen: rows.length, failedSources };
 }

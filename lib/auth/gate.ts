@@ -44,7 +44,7 @@ const AUTH_INTERNAL = "https://auth.internal";
 
 /** Who the visitor is, set only by this gate. */
 export const USER_HEADER = "x-kc-user";
-/** Marks the cron's own drain request (lib/scheduled.ts), set only there. */
+/** Marks the cron's own requests (lib/scheduled.ts), set only there. */
 export const CRON_HEADER = "x-kc-cron";
 const INTERNAL_HEADER_PREFIX = "x-kc-";
 
