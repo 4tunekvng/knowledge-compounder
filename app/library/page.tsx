@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { CAPTURE_ACTION, EmptyCard } from "@/components/EmptyCard";
 import { SourceListItem } from "@/components/SourceListItem";
 import { countLabel, formatMonth } from "@/lib/format";
 import { listSources, type SourceListItem as Item } from "@/lib/services/queries";
@@ -31,12 +31,10 @@ export default async function LibraryPage() {
         </p>
       </div>
       {sources.length === 0 ? (
-        <div className="border-t border-line pt-6 text-ui text-ink-2">
-          <p>
-            Everything you capture is filed here, newest first.{" "}
-            <Link href="/">Capture something you just read</Link>
-          </p>
-        </div>
+        <EmptyCard head="Empty drawer" action={CAPTURE_ACTION}>
+          Everything you capture is filed here, newest first, each with its
+          note and flashcards.
+        </EmptyCard>
       ) : (
         <div className="flex flex-col gap-12" data-testid="library-list">
           {byMonth(sources).map(([month, items]) => (

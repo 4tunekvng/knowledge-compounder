@@ -9,6 +9,8 @@ interface Props extends HTMLAttributes<HTMLElement> {
   aside?: ReactNode;
   size?: "large" | "small";
   as?: "div" | "li" | "section";
+  // Unruled space at the foot of the card, for a button.
+  footer?: ReactNode;
   children: ReactNode;
 }
 
@@ -18,6 +20,7 @@ export function IndexCard({
   size = "large",
   as: Tag = "div",
   className = "",
+  footer,
   children,
   ...rest
 }: Props) {
@@ -29,6 +32,11 @@ export function IndexCard({
         {aside && <span className="shrink-0">{aside}</span>}
       </div>
       <div className="index-card__body">{children}</div>
+      {footer && (
+        <div className="rounded-b-box bg-stock px-[var(--pad-x)] pb-6">
+          {footer}
+        </div>
+      )}
     </Tag>
   );
 }

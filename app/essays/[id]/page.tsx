@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { renderMarkdown } from "@/lib/markdown";
-import { CatalogNo } from "@/components/CatalogNo";
-import { displayTitle, essayHeading, formatDay } from "@/lib/format";
+import { essayBodyMarkdown, renderMarkdown } from "@/lib/markdown";
+import {
+  catalogNumber,
+  displayTitle,
+  essayHeading,
+  formatDay,
+} from "@/lib/format";
 import {
   getEssay,
   getTheme,
@@ -28,21 +32,20 @@ export default async function EssayPage({ params }: Params) {
   if (!essay) {
     notFound();
   }
-  const html = renderMarkdown(essay.draftMd);
   const citations = parseCitations(essay.citations);
   const [theme, sources] = await Promise.all([
     essay.themeId ? getTheme(user.id, essay.themeId) : null,
     listSources(user.id, 200),
   ]);
-  // The quotes are already the essay's footnotes; this lists each capture
-  // the essay draws on once, linked, in the order first cited.
-  const citedIds = [...new Set(citations.map((c) => c.sourceId))];
-  const cited = citedIds.map((sourceId) => ({
-    id: sourceId,
-    title:
-      sources.find((s) => s.source.id === sourceId)?.source.title ??
-      "A capture no longer in the library",
-  }));
+  const heading = essayHeading(essay.title, theme?.label ?? null);
+  const html = renderMarkdown(
+    essayBodyMarkdown(essay.draftMd, [heading, essay.title]),
+  );
+  // Citation i is footnote i + 1 (lib/ai/schemas.ts): each note names its
+  // capture once, then quotes it.
+  const titleOf = (sourceId: number) =>
+    sources.find((s) => s.source.id === sourceId)?.source.title ??
+    "A capture no longer in the library";
 
   return (
     <article className="mx-auto flex max-w-[680px] flex-col gap-10">
@@ -58,12 +61,12 @@ export default async function EssayPage({ params }: Params) {
           className="mt-3 text-title font-medium"
           data-testid="essay-title"
         >
-          {essayHeading(essay.title, theme?.label ?? null)}
+          {heading}
         </h1>
         {html.includes("<em>") && (
           <p className="mt-4 text-ui text-ink-2">
             Notes marked{" "}
-            <span className="rounded-sm bg-accent-wash px-1 text-accent">
+            <span className="rounded-box bg-accent-wash px-1 text-accent">
               like this
             </span>{" "}
             follow the weakest claims: the places to push back or add your own
@@ -83,26 +86,33 @@ export default async function EssayPage({ params }: Params) {
           className="border-t border-line pt-8"
           data-testid="essay-citations"
         >
-          <h2 className="section-title mb-2">Drawn from</h2>
-          <ul>
-            {cited.map((c) => (
+          <h2 className="section-title mb-2">Notes</h2>
+          <ol>
+            {citations.map((c, i) => (
               <li
-                key={c.id}
-                className="flex items-baseline gap-4 border-t border-line py-3"
+                key={i}
+                id={`fn-${i + 1}`}
+                className={
+                  "grid scroll-mt-8 grid-cols-[24px_minmax(0,1fr)] gap-x-2 " +
+                  "border-t border-line py-3 text-meta"
+                }
               >
-                <CatalogNo id={c.id} />
-                <Link
-                  href={`/sources/${c.id}`}
-                  className={
-                    "min-w-0 flex-1 text-ui text-ink no-underline " +
-                    "hover:text-accent"
-                  }
-                >
-                  {displayTitle(c.title)}
-                </Link>
+                <span className="text-ink-3">{i + 1}</span>
+                <span>
+                  <Link
+                    href={`/sources/${c.sourceId}`}
+                    className="text-ink no-underline hover:text-accent"
+                  >
+                    {catalogNumber(c.sourceId)} ·{" "}
+                    {displayTitle(titleOf(c.sourceId))}
+                  </Link>
+                  <span className="mt-1 block text-ink-2">
+                    &ldquo;{c.quote}&rdquo;
+                  </span>
+                </span>
               </li>
             ))}
-          </ul>
+          </ol>
         </aside>
       )}
     </article>

@@ -4,8 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Download, ExternalLink, Mail, Trash2 } from "lucide-react";
 import { CardStack, IndexCard } from "@/components/IndexCard";
-import { CatalogNo } from "@/components/CatalogNo";
-import { countLabel, displayTitle } from "@/lib/format";
+import { catalogNumber, countLabel, displayTitle } from "@/lib/format";
 
 interface SourceOption {
   id: number;
@@ -166,16 +165,21 @@ export function DeckManager({ sources, decks, origin }: Props) {
       </div>
       <fieldset className="flex min-w-0 flex-col gap-2">
         <legend className="text-ui font-medium">Captures</legend>
+        {/* On a phone the rows sit straight in the panel, divided by
+            hairlines; from 640px up the list gets its own frame. */}
         <ul
-          className="rounded-lg border border-line-strong"
+          className="sm:rounded-box sm:border sm:border-line-strong"
           data-testid="deck-source-list"
         >
           {shownSources.map((s) => (
-            <li key={s.id} className="border-t border-line first:border-t-0">
+            <li
+              key={s.id}
+              className="border-t border-line sm:first:border-t-0"
+            >
               <label
                 className={
-                  "flex min-h-11 cursor-pointer items-baseline gap-3 px-3 py-3 " +
-                  "hover:bg-raised"
+                  "flex min-h-11 cursor-pointer items-start gap-3 py-3 " +
+                  "hover:bg-raised sm:px-3"
                 }
               >
                 <input
@@ -183,15 +187,14 @@ export function DeckManager({ sources, decks, origin }: Props) {
                   data-testid={`deck-source-${s.id}`}
                   checked={selected.has(s.id)}
                   onChange={() => toggle(s.id)}
-                  className="size-[18px] shrink-0 self-center accent-accent"
+                  className="mt-0.5 size-[18px] shrink-0 accent-accent"
                 />
-                <CatalogNo id={s.id} />
                 <span className="min-w-0 flex-1">
                   <span className="block text-meta">
-                    {displayTitle(s.title, 56)}
+                    {displayTitle(s.title, 80)}
                   </span>
                   <span className="block text-label text-ink-3">
-                    {countLabel(s.cardCount, "card")}
+                    {catalogNumber(s.id)} · {countLabel(s.cardCount, "card")}
                   </span>
                 </span>
               </label>
@@ -202,7 +205,7 @@ export function DeckManager({ sources, decks, origin }: Props) {
           <button
             type="button"
             onClick={() => setShowAll(true)}
-            className="btn btn-quiet btn-sm self-start"
+            className="btn btn-quiet btn-sm -ml-3 self-start"
           >
             Show all {sources.length} captures
           </button>

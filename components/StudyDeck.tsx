@@ -79,7 +79,7 @@ export function StudyDeck({ cards, exportBase }: Props) {
       data-testid={`mode-${value}`}
       aria-pressed={mode === value}
       className={
-        "btn btn-sm min-h-10 " +
+        "btn btn-sm min-h-10 rounded-box " +
         (mode === value ? "bg-stock text-ink ring-1 ring-line" : "btn-quiet")
       }
     >
@@ -89,7 +89,7 @@ export function StudyDeck({ cards, exportBase }: Props) {
 
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="inline-flex rounded-[10px] bg-raised p-1">
+      <div className="inline-flex rounded-control bg-raised p-1">
         {modeButton("study", "Study")}
         {modeButton("browse", "Browse all")}
       </div>
@@ -166,7 +166,7 @@ export function StudyDeck({ cards, exportBase }: Props) {
                       Card {pos + 1} of {order.length}
                     </span>
                   }
-                  className="min-h-[264px] cursor-pointer"
+                  className="min-h-[196px] cursor-pointer sm:min-h-[264px]"
                   onClick={() => setRevealed((r) => !r)}
                 >
                   <p className="index-card__front" data-testid="study-front">

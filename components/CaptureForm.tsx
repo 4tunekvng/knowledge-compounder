@@ -8,6 +8,7 @@ import {
   type FormEvent,
 } from "react";
 import { FileText, FileUp } from "lucide-react";
+import { FilingCard } from "@/components/FilingCard";
 import { IndexCard } from "@/components/IndexCard";
 import { displayTitle, formatDay } from "@/lib/format";
 import { useLocalTime } from "@/lib/use-local-time";
@@ -29,6 +30,7 @@ export function CaptureForm({
   const [isPending, startTransition] = useTransition();
   const [isDragging, setIsDragging] = useState(false);
   const [pdfName, setPdfName] = useState<string | null>(null);
+  const [filing, setFiling] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -72,6 +74,7 @@ export function CaptureForm({
   // Posts a capture and shows it being filed until the answer comes back.
   function send(title: string, init: RequestInit) {
     // Outside the transition, so the filing card shows while it runs.
+    setFiling(title);
     onFiling?.(title);
     startTransition(async () => {
       try {
@@ -81,6 +84,7 @@ export function CaptureForm({
       } catch {
         setError("Couldn't reach the app. Check your connection and try again.");
       } finally {
+        setFiling(null);
         onFiling?.(null);
       }
     });
@@ -154,13 +158,17 @@ export function CaptureForm({
           <div
             className={
               "pointer-events-none absolute inset-0 flex items-center " +
-              "justify-center rounded-md bg-stock/90 text-ui text-accent"
+              "justify-center rounded-box bg-stock/90 text-ui text-accent"
             }
           >
             Drop the PDF to capture it
           </div>
         )}
       </IndexCard>
+
+      {/* On a phone the capture being filed shows right under the card you
+          wrote it on; wider screens show it atop Recent captures. */}
+      {filing && <FilingCard title={filing} className="lg:hidden" />}
 
       <input
         ref={fileInputRef}

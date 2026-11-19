@@ -37,7 +37,9 @@ export function CaptureWorkspace({
             </Link>
           )}
         </div>
-        {filing && <FilingCard title={filing} />}
+        {filing && (
+          <FilingCard title={filing} className="mb-4 hidden lg:block" />
+        )}
         {recent}
       </section>
     </div>

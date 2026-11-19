@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { CAPTURE_ACTION, EmptyCard } from "@/components/EmptyCard";
 import { CatalogNo } from "@/components/CatalogNo";
 import { countLabel, displayTitle } from "@/lib/format";
 
@@ -121,16 +122,17 @@ export function ThemesPanel({
       )}
 
       {themes.length === 0 ? (
-        <div className="text-ui text-ink-2" data-testid="themes-empty">
-          <p>No themes yet.</p>
-          <p className="mt-2 max-w-[36rem] text-ink-3">
-            {hasEnoughSources
-              ? "Press Find themes to group your captures by idea. Any theme " +
-                "can then become a drafted essay."
-              : "Capture a few things you read, then come back to see the " +
-                "ideas they share."}
-          </p>
-        </div>
+        <EmptyCard
+          head="No themes yet"
+          action={hasEnoughSources ? undefined : CAPTURE_ACTION}
+          data-testid="themes-empty"
+        >
+          {hasEnoughSources
+            ? "Press Find themes to group your captures by idea. Any theme " +
+              "can then become a drafted essay."
+            : "Capture a few things you read, then come back to see the " +
+              "ideas they share."}
+        </EmptyCard>
       ) : (
         <ul className="flex flex-col gap-16 pt-8" data-testid="themes-list">
           {themes.map((theme, i) => {
@@ -139,7 +141,7 @@ export function ThemesPanel({
               <li
                 key={theme.id}
                 className={
-                  "relative rounded-md border border-line bg-guide shadow-card"
+                  "relative rounded-box border border-line bg-guide"
                 }
                 data-testid={`theme-${theme.id}`}
               >
@@ -148,7 +150,7 @@ export function ThemesPanel({
                   aria-hidden
                   className={
                     "absolute -top-8 left-6 flex h-[33px] items-center " +
-                    "rounded-t-md border border-b-0 border-line bg-guide px-4 " +
+                    "rounded-t-box border border-b-0 border-line bg-guide px-4 " +
                     "font-typed text-ui"
                   }
                 >

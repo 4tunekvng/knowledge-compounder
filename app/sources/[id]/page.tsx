@@ -44,6 +44,25 @@ export default async function SourcePage({ params }: Params) {
   const takeaways = processing ? parseTakeaways(processing.keyTakeaways) : [];
   const concepts = processing ? parseConcepts(processing.concepts) : [];
   const title = displayTitle(source.title);
+  const hasNotes = processing !== null || source.status === "processed";
+
+  // The text as captured, at the foot of the note column.
+  const captured = (
+    <details className="panel text-ui">
+      <summary className="cursor-pointer px-6 py-4 text-ink-2">
+        Captured text ({source.rawContent.length.toLocaleString("en-GB")}{" "}
+        characters)
+      </summary>
+      <pre
+        className={
+          "max-h-[400px] overflow-auto whitespace-pre-wrap px-6 pb-6 font-serif " +
+          "text-meta text-ink-2"
+        }
+      >
+        {source.rawContent}
+      </pre>
+    </details>
+  );
 
   return (
     <article className="flex flex-col gap-12">
@@ -79,7 +98,7 @@ export default async function SourcePage({ params }: Params) {
 
       {source.status === "failed" ? (
         <div
-          className="max-w-[760px] rounded-xl bg-danger-wash p-6 text-ui"
+          className="max-w-[760px] rounded-box bg-danger-wash p-6 text-ui"
           data-testid="source-error"
         >
           <p className="font-semibold text-danger">Processing failed</p>
@@ -94,7 +113,7 @@ export default async function SourcePage({ params }: Params) {
           <RetrySourceButton sourceId={source.id} />
         </div>
       ) : source.status === "pending" ? (
-        <div className="max-w-[760px] rounded-xl bg-raised p-6 text-ui">
+        <div className="max-w-[760px] rounded-box bg-raised p-6 text-ui">
           <p className="font-semibold">Waiting to be processed</p>
           <p className="mt-1 text-ink-2">
             Its note and flashcards appear here once they are written. Refresh
@@ -103,7 +122,7 @@ export default async function SourcePage({ params }: Params) {
         </div>
       ) : null}
 
-      {(processing || source.status === "processed") && (
+      {hasNotes ? (
         <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-16">
           <div className="flex min-w-0 flex-col gap-12">
             {processing && (
@@ -150,7 +169,7 @@ export default async function SourcePage({ params }: Params) {
                   <GenerateCardsButton sourceId={source.id} />
                 </div>
                 {cards.length > 0 ? (
-                  <ul className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <ul className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
                     {cards.map((card) => (
                       <IndexCard
                         as="li"
@@ -171,6 +190,7 @@ export default async function SourcePage({ params }: Params) {
                 )}
               </section>
             )}
+            {captured}
           </div>
 
           {(concepts.length > 0 || related.length > 0) && (
@@ -218,22 +238,9 @@ export default async function SourcePage({ params }: Params) {
             </aside>
           )}
         </div>
+      ) : (
+        <div className="max-w-[760px]">{captured}</div>
       )}
-
-      <details className="panel max-w-[760px] text-ui">
-        <summary className="cursor-pointer px-6 py-4 text-ink-2">
-          Captured text ({source.rawContent.length.toLocaleString("en-GB")}{" "}
-          characters)
-        </summary>
-        <pre
-          className={
-            "max-h-[400px] overflow-auto whitespace-pre-wrap px-6 pb-6 font-serif " +
-            "text-meta text-ink-2"
-          }
-        >
-          {source.rawContent}
-        </pre>
-      </details>
     </article>
   );
 }

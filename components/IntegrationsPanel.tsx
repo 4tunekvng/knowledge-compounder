@@ -206,7 +206,7 @@ export function IntegrationsPanel({ readwise }: { readwise: ProviderStatus }) {
           role="status"
           data-testid="integration-message"
           className={
-            "rounded-lg px-4 py-3 text-ui " +
+            "rounded-box px-4 py-3 text-ui " +
             (message.kind === "error"
               ? "bg-danger-wash text-danger"
               : "bg-raised text-ok")
@@ -221,7 +221,7 @@ export function IntegrationsPanel({ readwise }: { readwise: ProviderStatus }) {
           <summary className="cursor-pointer">Sync details</summary>
           <pre
             className={
-              "mt-2 whitespace-pre-wrap rounded-lg bg-raised p-4"
+              "mt-2 whitespace-pre-wrap rounded-box bg-raised p-4"
             }
           >
             {JSON.stringify(lastSync, null, 2)}

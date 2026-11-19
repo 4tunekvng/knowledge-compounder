@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { CAPTURE_ACTION, EmptyCard } from "@/components/EmptyCard";
 import { CardStack, IndexCard } from "@/components/IndexCard";
 import {
   cardTypeLabel,
@@ -46,18 +47,14 @@ export function ReviewQueue({ cards }: Props) {
 
   if (cards.length === 0) {
     return (
-      <div data-testid="review-empty">
-        <IndexCard head="Nothing due">
-          <p className="index-card__front">Nothing to review.</p>
-          <p className="index-card__back">
-            Each card comes back on the day it is due. Capture something new
-            to add more.
-          </p>
-        </IndexCard>
-        <Link href="/" className="btn btn-secondary mt-8">
-          Capture something
-        </Link>
-      </div>
+      <EmptyCard
+        head="Nothing due"
+        action={CAPTURE_ACTION}
+        data-testid="review-empty"
+      >
+        Nothing to review right now. Each card comes back on the day it is
+        due, and every new capture adds more.
+      </EmptyCard>
     );
   }
 

@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { headers } from "next/headers";
 import { DeckManager } from "@/components/DeckManager";
+import { CAPTURE_ACTION, EmptyCard } from "@/components/EmptyCard";
 import { listSources } from "@/lib/services/queries";
 import { listDecks } from "@/lib/services/decks";
 import { requireUser } from "@/lib/auth/user";
@@ -55,13 +55,10 @@ export default async function DecksPage() {
       </div>
 
       {sources.length === 0 ? (
-        <div className="border-t border-line pt-6 text-ui text-ink-2">
-          <p>Decks are made from flashcards, and there are none yet.</p>
-          <p className="mt-2">
-            <Link href="/">Capture something</Link> and its cards can go in a
-            deck.
-          </p>
-        </div>
+        <EmptyCard head="No flashcards yet" action={CAPTURE_ACTION}>
+          Decks are made from the flashcards of your captures. Capture
+          something you read and its cards can go in a deck.
+        </EmptyCard>
       ) : (
         <DeckManager sources={sources} decks={decks} origin={origin} />
       )}

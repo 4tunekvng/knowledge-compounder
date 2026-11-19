@@ -121,7 +121,7 @@ export function SiteHeader({
                     className={
                       "relative flex h-16 flex-col items-center justify-center " +
                       "gap-1 text-label no-underline transition-colors " +
-                      "sm:h-9 sm:flex-row sm:gap-2 sm:rounded-lg sm:px-3 " +
+                      "sm:h-9 sm:flex-row sm:gap-2 sm:rounded-control sm:px-3 " +
                       "sm:text-meta " +
                       (active
                         ? "font-medium text-ink sm:bg-raised"

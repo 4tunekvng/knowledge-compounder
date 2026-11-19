@@ -49,11 +49,14 @@
   --shadow-card: var(--card-shadow);
   --font-serif: var(--font-source-serif), Georgia, serif;
   --font-typed: var(--font-courier-prime), "Courier New", monospace;
+  /* Two corner radii: boxes and cards, then buttons and inputs. */
+  --radius-box: 4px;
+  --radius-control: 8px;
   /* The whole type scale: five sizes, the same on every screen width. */
-  --text-label: 12px;
-  --text-label--line-height: 16px;
-  --text-meta: 14px;
-  --text-meta--line-height: 20px;
+  --text-label: 13px;
+  --text-label--line-height: 18px;
+  --text-meta: 15px;
+  --text-meta--line-height: 22px;
   --text-ui: 17px;
   --text-ui--line-height: 26px;
   --text-lead: 22px;
@@ -87,7 +90,7 @@
   :where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: var(--radius-box);
   }
 }
 
@@ -100,18 +103,17 @@
     gap: 8px;
     min-height: 44px;
     padding: 0 20px;
-    border-radius: 8px;
+    border-radius: var(--radius-control);
     border: 1px solid transparent;
     font-size: var(--text-ui);
     line-height: var(--text-ui--line-height);
     font-weight: 500;
     text-decoration: none;
     cursor: pointer;
-    transition:
-      background-color 150ms var(--ease),
-      border-color 150ms var(--ease),
-      color 150ms var(--ease),
-      transform 120ms var(--ease);
+    font-family: var(--font-serif);
+    /* Colour changes are instant, so no frame shows a half-faded label
+       between disabled and active; only the press animates. */
+    transition: transform 120ms var(--ease);
   }
   .btn:active:not(:disabled) {
     transform: scale(0.98);
@@ -165,16 +167,16 @@
   }
 
   .field {
+    font-family: var(--font-serif);
     width: 100%;
     min-height: 44px;
     padding: 8px 12px;
-    border-radius: 8px;
+    border-radius: var(--radius-control);
     border: 1px solid var(--line-strong);
     background: var(--stock);
     color: var(--ink);
     font-size: var(--text-ui);
     line-height: var(--text-ui--line-height);
-    transition: border-color 150ms var(--ease);
   }
   .field::placeholder {
     color: var(--ink-3);
@@ -191,7 +193,7 @@
 
   /* A panel for forms and notices; flat, with a hairline. */
   .panel {
-    border-radius: 12px;
+    border-radius: var(--radius-box);
     border: 1px solid var(--line);
     background: var(--stock);
   }
@@ -208,7 +210,7 @@
     --head: 48px;
     --pad-x: 32px;
     position: relative;
-    border-radius: 6px;
+    border-radius: var(--radius-box);
     background-color: var(--stock);
     background-image:
       linear-gradient(var(--card-head), var(--card-head)),
@@ -303,7 +305,7 @@
     position: absolute;
     inset: 0;
     z-index: -1;
-    border-radius: 6px;
+    border-radius: var(--radius-box);
     background: var(--stock);
     box-shadow: var(--card-shadow), inset 0 0 0 1px var(--line);
   }
@@ -410,23 +412,15 @@
     font-style: normal;
     color: var(--accent);
     background: var(--accent-wash);
-    border-radius: 2px;
+    border-radius: var(--radius-box);
     padding: 0 4px;
-  }
-
-  /* Footnotes under the essay: the sources, set small. */
-  .prose-essay p:has(> sup[id^="fn-"]) {
-    font-size: var(--text-meta);
-    line-height: var(--text-meta--line-height);
-    color: var(--ink-2);
-    margin-bottom: 12px;
   }
 
   .prose-essay code {
     font-family: var(--font-typed);
     background: var(--raised);
     padding: 0 4px;
-    border-radius: 4px;
+    border-radius: var(--radius-box);
     font-size: var(--text-meta);
   }
 }
