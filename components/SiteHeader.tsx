@@ -8,6 +8,7 @@ import {
   Layers,
   Library,
   Network,
+  Newspaper,
   PenLine,
   Share2,
   type LucideIcon,
@@ -32,6 +33,7 @@ const NAV: NavItem[] = [
     owns: ["/sources/"],
   },
   { href: "/review", label: "Review", id: "review", icon: Layers },
+  { href: "/papers", label: "Papers", id: "papers", icon: Newspaper },
   {
     href: "/themes",
     label: "Themes",
@@ -107,7 +109,11 @@ export function SiteHeader({
             "sm:static sm:ml-auto sm:border-0 sm:bg-transparent sm:pb-0"
           }
         >
-          <ul className="grid grid-cols-6 sm:flex sm:items-center sm:gap-1">
+          <ul
+            className="grid sm:flex sm:items-center sm:gap-1"
+            // One column per menu item, so adding an item never wraps the bar.
+            style={{ gridTemplateColumns: `repeat(${NAV.length}, minmax(0, 1fr))` }}
+          >
             {NAV.map((item) => {
               const active = isActive(item, pathname);
               const Icon = item.icon;
@@ -120,7 +126,9 @@ export function SiteHeader({
                     data-testid={`nav-${item.id}`}
                     className={
                       "relative flex h-16 flex-col items-center justify-center " +
-                      "gap-1 text-label no-underline transition-colors " +
+                      // Seven tabs share a 320px phone: smaller labels there.
+                      "gap-1 text-[11px] no-underline transition-colors " +
+                      "min-[360px]:text-label " +
                       "sm:h-9 sm:flex-row sm:gap-2 sm:rounded-control sm:px-3 " +
                       "sm:text-meta " +
                       (active
