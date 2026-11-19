@@ -39,6 +39,9 @@
 			"remote": true
 		}
 	],
+	// Google sign-in (fortuneking-auth). worker.ts asks it who each visitor
+	// is through this binding; see lib/auth/gate.ts.
+	"services": [{ "binding": "AUTH", "service": "fortuneking-auth" }],
 	"vars": {
 		"ANTHROPIC_MODEL": "claude-sonnet-5-5"
 	}

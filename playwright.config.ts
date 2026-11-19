@@ -12,6 +12,14 @@ export default defineConfig({
   reporter: [["list"]],
   use: {
     baseURL: `http://localhost:${PORT}`,
+    // `next dev` has no sign-in gate in front of it (that is worker.ts in
+    // production, which deletes this header from every outside request), so
+    // the suite says who it is the way the gate would.
+    extraHTTPHeaders: {
+      "x-kc-user": encodeURIComponent(
+        JSON.stringify({ id: "e2e-user", email: "e2e@example.com", name: "E2E" }),
+      ),
+    },
     trace: "retain-on-failure",
   },
   projects: [

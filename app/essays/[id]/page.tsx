@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { renderMarkdown } from "@/lib/markdown";
 import { getEssay, parseCitations } from "@/lib/services/queries";
+import { requireUser } from "@/lib/auth/user";
 
 export const dynamic = "force-dynamic";
 
@@ -10,12 +11,13 @@ interface Params {
 }
 
 export default async function EssayPage({ params }: Params) {
+  const user = await requireUser();
   const { id: idStr } = await params;
   const id = Number(idStr);
   if (!Number.isInteger(id) || id <= 0) {
     notFound();
   }
-  const essay = await getEssay(id);
+  const essay = await getEssay(user.id, id);
   if (!essay) {
     notFound();
   }

@@ -65,6 +65,12 @@ vi.mock("@/lib/db/client", () => ({
   getEnv: async () => ({}),
 }));
 
+// Sealing has its own tests (token-box.test.ts); here a token is stored as is.
+vi.mock("@/lib/token-box", () => ({
+  sealToken: async (plain: string) => plain,
+  openToken: async (stored: string) => stored,
+}));
+
 vi.mock("@/lib/services/ingest", () => ({
   ingestExternal: async (input: { sourceType: string; externalId: string }) => {
     ingestCalls.push({
@@ -120,7 +126,7 @@ describe("syncIntegration", () => {
       lastSyncedAt: null,
     });
     const { syncIntegration } = await importOrchestrator();
-    const result = await syncIntegration("readwise", fakeSource([]));
+    const result = await syncIntegration("owner-1", "readwise", fakeSource([]));
     expect(result.added).toBe(0);
     expect(result.skipped).toBe(0);
     expect(result.errors).toEqual([]);
@@ -137,7 +143,11 @@ describe("syncIntegration", () => {
       makeCapture("b", "2026-05-02T00:00:00Z"),
     ];
     const { syncIntegration } = await importOrchestrator();
-    const result = await syncIntegration("readwise", fakeSource(captures));
+    const result = await syncIntegration(
+      "owner-1",
+      "readwise",
+      fakeSource(captures),
+    );
     expect(result.added).toBe(2);
     expect(result.skipped).toBe(0);
     expect(ingestCalls.map((c) => c.externalId)).toEqual(["a", "b"]);
@@ -154,7 +164,11 @@ describe("syncIntegration", () => {
     ingestBehavior.set("c", { kind: "skipped" });
     const captures = [makeCapture("a"), makeCapture("b"), makeCapture("c")];
     const { syncIntegration } = await importOrchestrator();
-    const result = await syncIntegration("readwise", fakeSource(captures));
+    const result = await syncIntegration(
+      "owner-1",
+      "readwise",
+      fakeSource(captures),
+    );
     expect(result.added).toBe(1);
     expect(result.skipped).toBe(2);
   });
@@ -175,7 +189,11 @@ describe("syncIntegration", () => {
       makeCapture("fine"),
     ];
     const { syncIntegration } = await importOrchestrator();
-    const result = await syncIntegration("readwise", fakeSource(captures));
+    const result = await syncIntegration(
+      "owner-1",
+      "readwise",
+      fakeSource(captures),
+    );
     expect(result.added).toBe(2);
     expect(result.errors).toHaveLength(1);
     expect(result.errors.join(" ")).toContain("bad");
@@ -195,6 +213,7 @@ describe("syncIntegration", () => {
     const { syncIntegration, SAVE_FAILED_MESSAGE } = await importOrchestrator();
 
     const result = await syncIntegration(
+      "owner-1",
       "readwise",
       fakeSource([makeCapture("bad")]),
     );
@@ -217,7 +236,7 @@ describe("syncIntegration", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const { syncIntegration, FETCH_FAILED_MESSAGE } = await importOrchestrator();
 
-    const result = await syncIntegration("readwise", failing);
+    const result = await syncIntegration("owner-1", "readwise", failing);
 
     expect(result.errors).toEqual([FETCH_FAILED_MESSAGE]);
   });
@@ -234,7 +253,11 @@ describe("syncIntegration", () => {
       makeCapture("c", "2026-05-10T00:00:00Z"),
     ];
     const { syncIntegration } = await importOrchestrator();
-    const result = await syncIntegration("readwise", fakeSource(captures));
+    const result = await syncIntegration(
+      "owner-1",
+      "readwise",
+      fakeSource(captures),
+    );
     expect(result.lastSyncedAt).toBe("2026-05-15T00:00:00.000Z");
     expect(tokenStore.get("readwise")?.lastSyncedAt?.toISOString()).toBe(
       "2026-05-15T00:00:00.000Z",
@@ -249,7 +272,11 @@ describe("syncIntegration", () => {
       makeCapture(`h${n}`, new Date(Date.UTC(2026, 5, 1) - n * 60_000).toISOString()),
     );
 
-    const result = await syncIntegration("readwise", fakeSource(captures));
+    const result = await syncIntegration(
+      "owner-1",
+      "readwise",
+      fakeSource(captures),
+    );
 
     expect(result.reachedLimit).toBe(true);
     expect(tokenStore.get("readwise")?.lastSyncedAt).toEqual(prior);
@@ -268,7 +295,7 @@ describe("syncIntegration", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const { syncIntegration } = await importOrchestrator();
 
-    await syncIntegration("readwise", halfway);
+    await syncIntegration("owner-1", "readwise", halfway);
 
     expect(tokenStore.get("readwise")?.lastSyncedAt).toEqual(prior);
   });
@@ -282,6 +309,7 @@ describe("syncIntegration", () => {
     const { syncIntegration } = await importOrchestrator();
 
     await syncIntegration(
+      "owner-1",
       "readwise",
       fakeSource([
         makeCapture("lost", "2026-05-01T00:00:00Z"),
@@ -299,6 +327,7 @@ describe("syncIntegration", () => {
     dups.forEach((c) => ingestBehavior.set(c.externalId, { kind: "skipped" }));
 
     const result = await syncIntegration(
+      "owner-1",
       "readwise",
       fakeSource([...dups, makeCapture("new")]),
     );

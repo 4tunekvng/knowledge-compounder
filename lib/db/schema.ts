@@ -12,6 +12,9 @@ export const sources = sqliteTable(
   "sources",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
+    // Google account id of the person this row belongs to (from the
+    // fortuneking-auth session). Every query filters on it.
+    ownerId: text("owner_id").notNull(),
     kind: text("kind", { enum: ["url", "text", "pdf"] }).notNull(),
     title: text("title").notNull(),
     url: text("url"),
@@ -47,34 +50,46 @@ export const sources = sqliteTable(
     attempts: integer("attempts").notNull().default(0),
   },
   (table) => ({
-    // Prevents duplicate captures when re-syncing the same external item.
-    // Manual rows (sourceType=url/text) have externalId=NULL — SQLite UNIQUE
-    // permits multiple NULL externalIds, so manual captures aren't affected.
-    sourceTypeExternalIdIdx: uniqueIndex("sources_source_type_external_id_idx").on(
+    // Prevents duplicate captures when one person re-syncs the same external
+    // item. Manual rows (sourceType=url/text) have externalId=NULL — SQLite
+    // UNIQUE permits multiple NULL externalIds, so manual captures aren't
+    // affected.
+    ownerExternalIdx: uniqueIndex("sources_owner_external_idx").on(
+      table.ownerId,
       table.sourceType,
       table.externalId,
     ),
   }),
 );
 
-// Per-provider auth + sync state. One row per integration. Plaintext token
-// is acceptable for v1 (single-user dev mode); encrypt at rest before going
-// multi-user.
-export const integrationTokens = sqliteTable("integration_tokens", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  provider: text("provider").notNull().unique(),
-  token: text("token").notNull(),
-  lastSyncedAt: integer("last_synced_at", { mode: "timestamp_ms" }),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
-    .notNull()
-    .default(sql`(unixepoch() * 1000)`),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-    .notNull()
-    .default(sql`(unixepoch() * 1000)`),
-});
+// Per-person, per-provider auth + sync state. The token is sealed with
+// AES-GCM (lib/token-box.ts) before it is stored.
+export const integrationTokens = sqliteTable(
+  "integration_tokens",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    ownerId: text("owner_id").notNull(),
+    provider: text("provider").notNull(),
+    token: text("token").notNull(),
+    lastSyncedAt: integer("last_synced_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => ({
+    ownerProviderIdx: uniqueIndex("integration_tokens_owner_provider_idx").on(
+      table.ownerId,
+      table.provider,
+    ),
+  }),
+);
 
 export const processings = sqliteTable("processings", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  ownerId: text("owner_id").notNull(),
   sourceId: integer("source_id")
     .notNull()
     .references(() => sources.id, { onDelete: "cascade" }),
@@ -89,6 +104,7 @@ export const processings = sqliteTable("processings", {
 
 export const cards = sqliteTable("cards", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  ownerId: text("owner_id").notNull(),
   sourceId: integer("source_id")
     .notNull()
     .references(() => sources.id, { onDelete: "cascade" }),
@@ -115,6 +131,7 @@ export const cards = sqliteTable("cards", {
 
 export const themes = sqliteTable("themes", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  ownerId: text("owner_id").notNull(),
   label: text("label").notNull(),
   summary: text("summary").notNull(),
   sourceIds: text("source_ids").notNull(), // JSON array of source ids
@@ -125,6 +142,7 @@ export const themes = sqliteTable("themes", {
 
 export const essays = sqliteTable("essays", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  ownerId: text("owner_id").notNull(),
   themeId: integer("theme_id").references(() => themes.id, {
     onDelete: "set null",
   }),
@@ -142,6 +160,7 @@ export const essays = sqliteTable("essays", {
 // the link can be shared without exposing the rest of the corpus.
 export const decks = sqliteTable("decks", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  ownerId: text("owner_id").notNull(),
   title: text("title").notNull(),
   description: text("description"),
   shareToken: text("share_token").notNull().unique(),

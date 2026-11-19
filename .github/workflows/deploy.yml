@@ -53,12 +53,13 @@ jobs:
       - run: npm ci
 
       # Stop before deploying, not after, when a secret the code needs is
-      # missing on the Worker. Without KC_API_SECRET anyone can spend the AI budget.
+      # missing on the Worker. Without KC_TOKEN_KEY nobody can save a Readwise
+      # token (lib/token-box.ts).
       - name: Check Worker secrets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          REQUIRED: KC_API_SECRET ANTHROPIC_API_KEY
+          REQUIRED: KC_TOKEN_KEY ANTHROPIC_API_KEY
         run: |
           HAVE=$(npx wrangler secret list --config wrangler.jsonc \
             | jq -r '.[].name')

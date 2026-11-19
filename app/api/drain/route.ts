@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { CRON_HEADER } from "@/lib/auth/gate";
 import { processPendingSources } from "@/lib/services/ingest";
 
 export const runtime = "nodejs";
@@ -10,11 +11,15 @@ export const runtime = "nodejs";
 const DRAIN_BATCH = 5;
 
 /**
- * Process stored-but-unprocessed sources. Behind the site's KC_API_SECRET
- * check (middleware.ts) like every other route; the worker's cron handler
- * sends the secret as a bearer token.
+ * Process stored-but-unprocessed sources, everyone's. Only the cron may call
+ * it: its request (lib/scheduled.ts) goes straight to the app with the
+ * x-kc-cron header, which the sign-in gate (lib/auth/gate.ts) strips from
+ * every request that arrives from outside, signed in or not.
  */
-export async function POST() {
+export async function POST(request: Request) {
+  if (!request.headers.has(CRON_HEADER)) {
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
+  }
   try {
     const results = await processPendingSources(DRAIN_BATCH);
     return NextResponse.json({ results });

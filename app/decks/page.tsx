@@ -3,13 +3,15 @@ import { headers } from "next/headers";
 import { DeckManager } from "@/components/DeckManager";
 import { listSources } from "@/lib/services/queries";
 import { listDecks } from "@/lib/services/decks";
+import { requireUser } from "@/lib/auth/user";
 
 export const dynamic = "force-dynamic";
 
 export default async function DecksPage() {
+  const user = await requireUser();
   const [sourceItems, deckSummaries, headerList] = await Promise.all([
-    listSources(200),
-    listDecks(),
+    listSources(user.id, 200),
+    listDecks(user.id),
     headers(),
   ]);
 

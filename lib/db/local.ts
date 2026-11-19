@@ -52,19 +52,32 @@ export function getLocalDb(dbPath: string): DrizzleD1Database<typeof schema> {
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
 
+  // CREATE TABLE IF NOT EXISTS never adds a column to an existing table, so a
+  // dev database made before a migration gets its columns here instead. This
+  // runs before the schema file, whose indexes name the newer columns.
+  const sourceColumns = sqlite.pragma("table_info(sources)") as {
+    name: string;
+  }[];
+  const runMigration = (file: string) =>
+    sqlite.exec(
+      readFileSync(path.join(process.cwd(), "migrations", file), "utf8"),
+    );
+  if (sourceColumns.length > 0) {
+    const has = (name: string) => sourceColumns.some((c) => c.name === name);
+    if (!has("claimed_at")) runMigration("0004_claimed_at.sql");
+    if (!has("owner_id")) {
+      // 0005 alters decks, which databases from before 0003 lack.
+      runMigration("0003_decks.sql");
+      runMigration("0005_owners.sql");
+    }
+  }
+
   // Apply the full schema (idempotent — every statement is IF NOT EXISTS).
   const schemaSql = readFileSync(
     path.join(process.cwd(), "lib", "db", "local-schema.sql"),
     "utf8",
   );
   sqlite.exec(schemaSql);
-  // CREATE TABLE IF NOT EXISTS never adds a column to an existing table, so a
-  // dev database made before migration 0004 gets its columns here instead.
-  const sourceColumns = sqlite.pragma("table_info(sources)") as { name: string }[];
-  if (!sourceColumns.some((c) => c.name === "claimed_at")) {
-    const migration = path.join(process.cwd(), "migrations", "0004_claimed_at.sql");
-    sqlite.exec(readFileSync(migration, "utf8"));
-  }
 
   const db = drizzle(sqlite, { schema }) as unknown as DrizzleD1Database<
     typeof schema

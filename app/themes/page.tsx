@@ -6,13 +6,15 @@ import {
   listThemes,
   parseSourceIds,
 } from "@/lib/services/queries";
+import { requireUser } from "@/lib/auth/user";
 
 export const dynamic = "force-dynamic";
 
 export default async function ThemesPage() {
-  const themes = await listThemes();
-  const corpus = await getCorpusForThemes();
-  const essays = await listEssays();
+  const user = await requireUser();
+  const themes = await listThemes(user.id);
+  const corpus = await getCorpusForThemes(user.id);
+  const essays = await listEssays(user.id);
 
   const themeViews = themes.map((t) => ({
     id: t.id,

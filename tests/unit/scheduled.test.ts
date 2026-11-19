@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { CRON_HEADER } from "@/lib/auth/gate";
 import { DRAIN_URL, drainThroughApp } from "@/lib/scheduled";
 
 /**
@@ -7,16 +8,16 @@ import { DRAIN_URL, drainThroughApp } from "@/lib/scheduled";
  */
 
 describe("drainThroughApp", () => {
-  it("asks the app to drain, signed with the site secret", async () => {
+  it("asks the app to drain, marked as the cron's own request", async () => {
     const appFetch = vi.fn().mockResolvedValue(Response.json({ results: [] }));
     vi.spyOn(console, "log").mockImplementation(() => {});
-    const env = { KC_API_SECRET: "s3cret" };
+    const env = {};
 
     await drainThroughApp(appFetch, env, {});
 
     const [request, passedEnv] = appFetch.mock.calls[0];
     expect([request.method, request.url]).toEqual(["POST", DRAIN_URL]);
-    expect(request.headers.get("authorization")).toBe("Bearer s3cret");
+    expect(request.headers.get(CRON_HEADER)).toBe("1");
     expect(passedEnv).toBe(env);
   });
 

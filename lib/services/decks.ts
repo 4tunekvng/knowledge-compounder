@@ -1,5 +1,5 @@
 import "server-only";
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { chunkForD1 } from "@/lib/db/chunk";
 import { cards, decks, sources, type Deck } from "@/lib/db/schema";
@@ -37,6 +37,7 @@ function generateShareToken(): string {
  * sources so the API can return a clean 400.
  */
 export async function createDeck(input: {
+  ownerId: string;
   title: string;
   description?: string;
   sourceIds: number[];
@@ -53,13 +54,14 @@ export async function createDeck(input: {
   }
 
   const db = await getDb();
-  // Keep only sources that actually exist and are processed.
+  // Keep only this person's sources: a deck's public link shows every card
+  // in it, so another person's ids must never get in.
   const valid = await Promise.all(
-    chunkForD1(requested).map((part) =>
+    chunkForD1(requested, 1).map((part) =>
       db
         .select({ id: sources.id })
         .from(sources)
-        .where(inArray(sources.id, part))
+        .where(and(eq(sources.ownerId, input.ownerId), inArray(sources.id, part)))
         .all(),
     ),
   );
@@ -73,6 +75,7 @@ export async function createDeck(input: {
   const inserted = await db
     .insert(decks)
     .values({
+      ownerId: input.ownerId,
       title,
       description,
       shareToken: generateShareToken(),
@@ -84,28 +87,30 @@ export async function createDeck(input: {
   return inserted[0];
 }
 
-export async function listDecks(): Promise<DeckSummary[]> {
+export async function listDecks(ownerId: string): Promise<DeckSummary[]> {
   const db = await getDb();
-  const rows = await db.select().from(decks).orderBy(desc(decks.createdAt)).all();
+  const rows = await db
+    .select()
+    .from(decks)
+    .where(eq(decks.ownerId, ownerId))
+    .orderBy(desc(decks.createdAt))
+    .all();
 
   const summaries: DeckSummary[] = [];
   for (const deck of rows) {
     const sourceIds = parseSourceIds(deck.sourceIds);
-    const cardCount = await countCardsForSources(sourceIds);
+    const cardCount = await countCardsForSources(ownerId, sourceIds);
     summaries.push({ deck, sourceIds, cardCount });
   }
   return summaries;
 }
 
-export async function deleteDeck(id: number): Promise<boolean> {
+export async function deleteDeck(ownerId: string, id: number): Promise<boolean> {
   const db = await getDb();
-  const existing = await db
-    .select({ id: decks.id })
-    .from(decks)
-    .where(eq(decks.id, id))
-    .get();
+  const owned = and(eq(decks.id, id), eq(decks.ownerId, ownerId));
+  const existing = await db.select({ id: decks.id }).from(decks).where(owned).get();
   if (!existing) return false;
-  await db.delete(decks).where(eq(decks.id, id)).run();
+  await db.delete(decks).where(owned).run();
   return true;
 }
 
@@ -126,7 +131,8 @@ export function deckFileSlug(title: string): string {
 /**
  * Load a deck by its public share token, together with every flashcard drawn
  * from its sources. Used by the student study page and the PDF / Anki exports.
- * Returns null when the token doesn't match a deck.
+ * Returns null when the token doesn't match a deck. Public: the token is the
+ * access check, and only the deck owner's cards are ever included.
  */
 export async function getDeckByToken(token: string): Promise<DeckWithCards | null> {
   const db = await getDb();
@@ -145,7 +151,7 @@ export async function getDeckByToken(token: string): Promise<DeckWithCards | nul
   // Slices of ascending ids, each ordered by (source, card), join in order.
   const ascending = [...sourceIds].sort((a, b) => a - b);
   const slices = await Promise.all(
-    chunkForD1(ascending).map((part) =>
+    chunkForD1(ascending, 1).map((part) =>
       db
         .select({
           id: cards.id,
@@ -157,7 +163,9 @@ export async function getDeckByToken(token: string): Promise<DeckWithCards | nul
         })
         .from(cards)
         .innerJoin(sources, eq(sources.id, cards.sourceId))
-        .where(inArray(cards.sourceId, part))
+        .where(
+          and(eq(cards.ownerId, deck.ownerId), inArray(cards.sourceId, part)),
+        )
         .orderBy(cards.sourceId, cards.id)
         .all(),
     ),
@@ -184,15 +192,18 @@ export async function getDeckByToken(token: string): Promise<DeckWithCards | nul
   };
 }
 
-async function countCardsForSources(sourceIds: number[]): Promise<number> {
+async function countCardsForSources(
+  ownerId: string,
+  sourceIds: number[],
+): Promise<number> {
   if (sourceIds.length === 0) return 0;
   const db = await getDb();
   const slices = await Promise.all(
-    chunkForD1(sourceIds).map((part) =>
+    chunkForD1(sourceIds, 1).map((part) =>
       db
         .select({ id: cards.id })
         .from(cards)
-        .where(inArray(cards.sourceId, part))
+        .where(and(eq(cards.ownerId, ownerId), inArray(cards.sourceId, part)))
         .all(),
     ),
   );
