@@ -21,8 +21,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unknown paper or action." }, { status: 400 });
   }
   try {
-    await recordEvent(user.id, arxivId, kind);
-    return NextResponse.json({ ok: true });
+    const { sourceId } = await recordEvent(user.id, arxivId, kind);
+    return NextResponse.json({ ok: true, sourceId });
   } catch (err) {
     console.error("[papers] recordEvent failed:", err);
     return NextResponse.json(
