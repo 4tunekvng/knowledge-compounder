@@ -85,6 +85,19 @@ describe("harvestIfDue", () => {
     expect([again, calls.length]).toEqual([null, 0]);
   });
 
+  it("does not fetch again soon after a harvest that failed partway", async () => {
+    sqlite.exec(
+      "CREATE TRIGGER no_more_papers BEFORE INSERT ON papers " +
+        "BEGIN SELECT RAISE(ABORT, 'disk full'); END",
+    );
+    await expect(harvestIfDue(NOW, stubFetch())).rejects.toThrow("disk full");
+    const calls: string[] = [];
+
+    await harvestIfDue(NOW + 5 * 60 * 1000, stubFetch(calls));
+
+    expect(calls.length).toBe(0);
+  });
+
   it("harvests again once a new reading day starts at 05:00 UTC", async () => {
     await harvestIfDue(Date.parse("2026-11-19T04:58:00Z"), stubFetch());
     const calls: string[] = [];

@@ -27,7 +27,8 @@ never take the same row, and a capture whose request died part-way is picked up 
 its claim is 35 minutes old. Only the worker holding a row's current claim writes its
 cards, so a slow request that was taken over writes nothing. After 3 tries a row is
 marked failed, so its page offers Retry. Under `next dev` there is no cron: run `curl
--X POST http://127.0.0.1:3000/api/drain` to process synced highlights.
+-X POST -H "x-kc-cron: 1" http://127.0.0.1:3000/api/drain` to process synced
+highlights (the same with `/api/cron/papers` harvests new papers).
 
 **Extending to more providers.** The integration lives behind an `IngestSource` interface (`lib/services/ingest-source.ts`):
 
@@ -96,6 +97,7 @@ app/                      Next.js App Router
     sources/[id]/cards/   POST: generate additional flashcards for a source
     sources/[id]/retry/   POST: retry a failed source
     drain/                POST: process pending sources (called by the cron)
+    cron/papers/          POST: harvest new papers (called by the cron)
     review/               POST: grade a card
     themes/               POST: regenerate themes from current corpus
     essay/                POST: draft an essay from a theme
@@ -109,7 +111,8 @@ lib/
   embeddings/             Voyage REST client + lexical fallback + cosine similarity
   extract/                url.ts (Readability) + pdf.ts (unpdf, Workers-compatible)
   parsers.ts              Pure JSON parsers (DB stores arrays/objects as TEXT)
-  scheduled.ts            Cron handler: asks the app to run the drain
+  papers/                 Paper picks: arXiv + Hugging Face feeds, harvest
+  scheduled.ts            Cron handler: asks the app to run the drain, then papers
   services/
     ingest.ts             Manual + PDF capture pipeline, sync storage, drain
     cards.ts              Generate-more-cards for an existing source
@@ -145,9 +148,10 @@ Requires the Cloudflare account that holds the `fortuneking-auth` Worker (the
 it seals Readwise tokens, so changing it means everyone pastes theirs again).
 
 The deploy also registers the worker's cron trigger (`triggers.crons` in
-`wrangler.jsonc`), which drains everyone's pending sources every 5 minutes.
-Only the cron can run the drain: `/api/drain` answers 404 to any request from
-outside.
+`wrangler.jsonc`), which every 5 minutes drains everyone's pending sources and
+then, as a separate request, harvests new papers when the last harvest is 3 hours
+old or a new reading day has begun. Only the cron can run either: `/api/drain` and
+`/api/cron/papers` answer 404 to any request from outside.
 
 ## Sign-in
 
