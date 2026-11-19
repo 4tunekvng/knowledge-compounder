@@ -1,4 +1,5 @@
 import { DOMParser } from "linkedom";
+import { safeExternalHref } from "@/lib/safe-href";
 
 /**
  * Parsers for the two places new papers come from. Both return the same
@@ -99,7 +100,7 @@ export function parseHfDaily(entries: unknown): HarvestedPaper[] {
       publishedAt: Number.isNaN(publishedAt) ? Date.now() : publishedAt,
       hfUpvotes: typeof p?.upvotes === "number" ? p.upvotes : 0,
       hfSummary: p?.ai_summary?.trim() || null,
-      githubUrl: p?.githubRepo ?? null,
+      githubUrl: safeExternalHref(p?.githubRepo),
       source: "hf",
     });
   }

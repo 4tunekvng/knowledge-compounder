@@ -14,6 +14,7 @@
  * Example: `1234567:abc123xyz456` (no spaces).
  */
 
+import { safeExternalHref } from "@/lib/safe-href";
 import {
   InvalidTokenError,
   type IngestSource,
@@ -123,7 +124,7 @@ function itemToCapture(item: ZoteroItem, modifiedAt: Date | undefined): NewCaptu
     externalId: item.key,
     title: d.title?.trim() || item.key,
     text,
-    url: d.url || undefined,
+    url: safeExternalHref(d.url) ?? undefined,
     externalUpdatedAt: modifiedAt,
   };
 }

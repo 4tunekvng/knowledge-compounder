@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { safeExternalHref } from "@/lib/safe-href";
 
 export interface PaperPickView {
   arxivId: string;
@@ -48,6 +49,7 @@ export function PaperPick({ pick }: { pick: PaperPickView }) {
   }
 
   const button = "btn btn-secondary btn-sm";
+  const githubHref = safeExternalHref(pick.githubUrl);
 
   return (
     <article data-testid="paper-pick" className="panel flex flex-col gap-3 p-5">
@@ -64,10 +66,10 @@ export function PaperPick({ pick }: { pick: PaperPickView }) {
       <p className="text-ui text-ink-2">{pick.summary}</p>
       <p className="text-meta text-ink-3" data-testid="pick-why">
         Why you got this: {pick.matched.join(", ")}
-        {pick.githubUrl && (
+        {githubHref && (
           <>
             {" · "}
-            <a href={pick.githubUrl} target="_blank" rel="noreferrer">
+            <a href={githubHref} target="_blank" rel="noreferrer">
               code
             </a>
           </>

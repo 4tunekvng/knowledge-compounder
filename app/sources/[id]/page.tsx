@@ -7,6 +7,7 @@ import {
   parseConcepts,
 } from "@/lib/services/queries";
 import { requireUser } from "@/lib/auth/user";
+import { safeExternalHref } from "@/lib/safe-href";
 import { FlashcardGrid } from "@/components/FlashcardGrid";
 import { IndexCard } from "@/components/IndexCard";
 import { RetrySourceButton } from "@/components/RetrySourceButton";
@@ -83,9 +84,9 @@ export default async function SourcePage({ params }: Params) {
         >
           {title}
         </h1>
-        {source.url && (
+        {safeExternalHref(source.url) && (
           <a
-            href={source.url}
+            href={safeExternalHref(source.url)!}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-4 inline-flex items-center gap-1 text-ui text-ink-2"
