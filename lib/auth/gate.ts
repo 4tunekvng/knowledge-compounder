@@ -9,6 +9,8 @@
  *   signed out, page      -> 302 /login?next=<path>
  *   signed out, /api/...  -> 401 JSON
  *   signed in             -> app, with x-kc-user: <the user, URI-encoded JSON>
+ *   /auth/signout         -> revoke the sign-in, clear the app's cookie,
+ *                            then the service's sign-out
  *   /d/<token> (share links), /login, /auth/start, /auth/callback -> public
  *
  * Kept free of Next.js imports so it runs, and is tested, as plain Fetch
@@ -33,7 +35,10 @@ export interface AuthEnv {
 type Next = (request: Request) => Promise<Response>;
 
 export const APP_HOST = "knowledge-compounder.fortuneking.dev";
-export const AUTH_ORIGIN = "https://auth.fortuneking.dev";
+// The sign-in service's browser-facing address. It sits on the bare domain:
+// Cloudflare refuses a subdomain request that arrives on a connection Chrome
+// opened for another fortuneking.dev name.
+export const AUTH_BASE = "https://fortuneking.dev/auth";
 // Only the AUTH binding reaches this host; public traffic can't.
 const AUTH_INTERNAL = "https://auth.internal";
 
@@ -47,7 +52,12 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /** Ties a sign-in to the browser that started it (contract v2.1). */
 const NONCE_COOKIE = "__Host-fk_nonce";
-const NONCE_ATTRS = "Path=/; HttpOnly; Secure; SameSite=Lax";
+/** The app's own sign-in cookie, made by the service at /exchange. */
+const APP_COOKIE = "__Host-fk_app";
+const COOKIE_ATTRS = "Path=/; HttpOnly; Secure; SameSite=Lax";
+
+/** The "Sign out" link: the gate's own route, below. */
+export const SIGN_OUT_PATH = "/auth/signout";
 
 /**
  * Where to send someone after sign-in: `next` resolved against this app's
@@ -74,9 +84,9 @@ function cookieValue(request: Request, name: string): string | null {
   return null;
 }
 
-export function signOutUrl(host: string): string {
+function signOutUrl(host: string): string {
   const returnTo = `https://${host}/login`;
-  return `${AUTH_ORIGIN}/logout?return_to=${encodeURIComponent(returnTo)}`;
+  return `${AUTH_BASE}/logout?return_to=${encodeURIComponent(returnTo)}`;
 }
 
 /** The user the gate attached to this request, or null. */
@@ -149,10 +159,10 @@ function authStart(url: URL): Response {
   const nonce = crypto.randomUUID().replace(/-/g, "");
   const returnTo = nextUrl(url.searchParams.get("next"), url.origin);
   const login =
-    `${AUTH_ORIGIN}/login?return_to=${encodeURIComponent(returnTo)}` +
+    `${AUTH_BASE}/login?return_to=${encodeURIComponent(returnTo)}` +
     `&nonce=${nonce}`;
   return redirect(login, {
-    "set-cookie": `${NONCE_COOKIE}=${nonce}; Max-Age=600; ${NONCE_ATTRS}`,
+    "set-cookie": `${NONCE_COOKIE}=${nonce}; Max-Age=600; ${COOKIE_ATTRS}`,
   });
 }
 
@@ -166,7 +176,7 @@ async function authCallback(
   env: AuthEnv,
 ): Promise<Response> {
   const next = url.searchParams.get("next") ?? "/";
-  const clearNonce = `${NONCE_COOKIE}=; Max-Age=0; ${NONCE_ATTRS}`;
+  const clearNonce = `${NONCE_COOKIE}=; Max-Age=0; ${COOKIE_ATTRS}`;
   const back = redirect(
     `${url.origin}/login?next=${encodeURIComponent(next)}&error=1`,
     { "set-cookie": clearNonce },
@@ -185,6 +195,34 @@ async function authCallback(
   const headers = new Headers({ "set-cookie": setCookie });
   headers.append("set-cookie", clearNonce);
   return redirect(nextUrl(next, url.origin), headers);
+}
+
+/**
+ * GET /auth/signout: end the sign-in this browser's cookie came from (which
+ * signs out every app, even when the service's own cookie has expired),
+ * clear the app's cookie, then sign out at the service. Revoking is best
+ * effort: if the service can't be reached, signing out here still happens.
+ */
+async function authSignOut(
+  request: Request,
+  url: URL,
+  env: AuthEnv,
+): Promise<Response> {
+  const cookie = request.headers.get("cookie");
+  if (cookie && env.AUTH) {
+    try {
+      const res = await env.AUTH.fetch(`${AUTH_INTERNAL}/revoke`, {
+        method: "POST",
+        headers: { cookie, "x-app-host": url.host },
+      });
+      if (res.status !== 204) console.error("[gate] revoke answered", res.status);
+    } catch (err) {
+      console.error("[gate] revoke failed:", err);
+    }
+  }
+  return redirect(signOutUrl(url.host), {
+    "set-cookie": `${APP_COOKIE}=; Max-Age=0; ${COOKIE_ATTRS}`,
+  });
 }
 
 export async function gate(
@@ -208,6 +246,7 @@ export async function gate(
 
   if (url.pathname === "/auth/start") return authStart(url);
   if (url.pathname === "/auth/callback") return authCallback(request, url, env);
+  if (url.pathname === SIGN_OUT_PATH) return authSignOut(request, url, env);
   if (isPublic(url.pathname)) return next(forwarded(request));
 
   let user: SignedInUser | null;

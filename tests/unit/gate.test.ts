@@ -201,6 +201,47 @@ function callback(query: string, cookie = `__Host-fk_nonce=${NONCE}`) {
   return new Request(`${HOST}/auth/callback?${query}`, { headers: { cookie } });
 }
 
+describe("gate, /auth/signout", () => {
+  it("revokes the sign-in with this browser's cookie", async () => {
+    const AUTH = auth(new Response(null, { status: 204 }));
+
+    await gate(get("/auth/signout"), { AUTH }, app());
+
+    expect(AUTH.fetch).toHaveBeenCalledTimes(1);
+    expect(AUTH.fetch).toHaveBeenCalledWith("https://auth.internal/revoke", {
+      method: "POST",
+      headers: {
+        cookie: "c=1",
+        "x-app-host": "knowledge-compounder.fortuneking.dev",
+      },
+    });
+  });
+
+  it("clears the app's cookie and signs out at the sign-in service", async () => {
+    const AUTH = auth(new Response(null, { status: 204 }));
+
+    const res = await gate(get("/auth/signout"), { AUTH }, app());
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(
+      "https://fortuneking.dev/auth/logout?return_to=" +
+        encodeURIComponent(`${HOST}/login`),
+    );
+    expect(res.headers.getSetCookie()).toEqual([
+      "__Host-fk_app=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax",
+    ]);
+  });
+
+  it("still signs out when the sign-in service is down", async () => {
+    const AUTH = { fetch: vi.fn().mockRejectedValue(new Error("down")) };
+
+    const res = await gate(get("/auth/signout"), { AUTH }, app());
+
+    expect(res.status).toBe(302);
+    expect(res.headers.getSetCookie()).toHaveLength(1);
+  });
+});
+
 describe("gate, /auth/start", () => {
   it("remembers a fresh nonce here and sends it to Google sign-in", async () => {
     const res = await gate(
@@ -215,7 +256,7 @@ describe("gate, /auth/start", () => {
     expect(cookie).toContain("Path=/; HttpOnly; Secure; SameSite=Lax");
     expect(cookie).toContain("Max-Age=600");
     expect(location.origin + location.pathname).toBe(
-      "https://auth.fortuneking.dev/login",
+      "https://fortuneking.dev/auth/login",
     );
     expect(location.searchParams.get("return_to")).toBe(`${HOST}/decks`);
     expect(location.searchParams.get("nonce")).toBe(nonce);
