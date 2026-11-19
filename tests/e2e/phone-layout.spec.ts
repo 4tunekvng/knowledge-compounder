@@ -60,3 +60,28 @@ test.describe("phone layout", () => {
     await expectNoSideScroll(page);
   });
 });
+
+test.describe("the smallest phones", () => {
+  const SMALL = { width: 320, height: 700 };
+  test.use({ viewport: SMALL });
+
+  test("signed-in pages fit 320px with the account in the header", async ({
+    page,
+  }) => {
+    for (const path of ["/", "/review", "/papers"]) {
+      await page.goto(path);
+      await expect(page.getByTestId("sign-out")).toBeVisible();
+      const scrollWidth = await page.evaluate(
+        () => document.documentElement.scrollWidth,
+      );
+      expect(scrollWidth).toBeLessThanOrEqual(SMALL.width);
+    }
+  });
+
+  test("the menu names every tab, even when it shows only icons", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: "Imports" })).toBeVisible();
+  });
+});
