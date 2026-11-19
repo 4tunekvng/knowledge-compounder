@@ -15,6 +15,11 @@ vi.mock("@/lib/db/client", () => ({
   getDb: async () => drizzle(sqlite, { schema }),
 }));
 
+const extractFromUrl = vi.fn();
+vi.mock("@/lib/extract/url", () => ({
+  extractFromUrl: (url: string) => extractFromUrl(url),
+}));
+
 const readers = await import("@/lib/papers/readers");
 
 const NOW = Date.parse("2026-11-19T12:00:00Z");
@@ -57,6 +62,8 @@ function seedPapers(harvestedAt: number) {
 const ids = (picks: { arxivId: string }[]) => picks.map((p) => p.arxivId);
 
 beforeEach(() => {
+  extractFromUrl.mockReset();
+  extractFromUrl.mockRejectedValue(new Error("no HTML version"));
   sqlite = new Database(":memory:");
   sqlite.exec(
     readFileSync(path.join(process.cwd(), "lib", "db", "local-schema.sql"), "utf8"),
@@ -139,5 +146,91 @@ describe("rankActiveMembers", () => {
 
     expect(await readers.rankActiveMembers(NOW, 25)).toBe(1);
     expect(await readers.rankActiveMembers(NOW, 25)).toBe(0);
+  });
+});
+
+function librarySources(owner: string) {
+  return sqlite
+    .prepare(
+      "SELECT source_type, external_id, url, status, raw_content FROM sources " +
+        "WHERE owner_id = ? ORDER BY id",
+    )
+    .all(owner) as Record<string, string>[];
+}
+
+function addProcessedSource(owner: string, concepts: object[]) {
+  const { lastInsertRowid } = sqlite
+    .prepare(
+      "INSERT INTO sources (owner_id, kind, title, raw_content, excerpt, status) " +
+        "VALUES (?, 'text', 't', 'x', 'x', 'processed')",
+    )
+    .run(owner);
+  sqlite
+    .prepare(
+      "INSERT INTO processings (owner_id, source_id, why_i_cared, key_takeaways, " +
+        "concepts) VALUES (?, ?, 'w', '[]', ?)",
+    )
+    .run(owner, lastInsertRowid, JSON.stringify(concepts));
+}
+
+describe("save to library", () => {
+  it("files the paper's full text as a pending capture, once", async () => {
+    extractFromUrl.mockResolvedValue({
+      title: "x",
+      text: "Full paper text. ".repeat(50),
+      excerpt: "",
+    });
+    await readers.saveInterests(FORTUNE, "reward hacking", NOW);
+
+    const first = await readers.recordEvent(FORTUNE, "2611.00001", "save", NOW);
+    const again = await readers.recordEvent(FORTUNE, "2611.00001", "save", NOW);
+
+    expect(extractFromUrl).toHaveBeenCalledWith("https://arxiv.org/html/2611.00001");
+    expect(again.sourceId).toBe(first.sourceId);
+    expect(librarySources(FORTUNE)).toEqual([
+      {
+        source_type: "arxiv",
+        external_id: "2611.00001",
+        url: "https://arxiv.org/abs/2611.00001",
+        status: "pending",
+        raw_content: expect.stringMatching(/^Full paper text\./),
+      },
+    ]);
+  });
+
+  it("files the title and abstract when arXiv has no HTML version", async () => {
+    await readers.recordEvent(FORTUNE, "2611.00005", "save", NOW);
+
+    expect(librarySources(FORTUNE)[0].raw_content).toBe(
+      "Dexterous robot grasping\n\nRobot manipulation from video.",
+    );
+  });
+
+  it("files it in the saver's library only", async () => {
+    await readers.recordEvent(FRIEND, "2611.00005", "save", NOW);
+
+    expect([librarySources(FRIEND).length, librarySources(FORTUNE).length]).toEqual([
+      1, 0,
+    ]);
+  });
+});
+
+describe("library concepts", () => {
+  it("give picks to someone who never wrote interests", async () => {
+    addProcessedSource(FRIEND, [{ name: "robot manipulation", weight: 0.9 }]);
+
+    const picks = await readers.todaysPicks(FRIEND, NOW);
+
+    expect(ids(picks).sort()).toEqual(["2611.00005", "2611.00006"]);
+  });
+
+  it("never steer another person's picks", async () => {
+    addProcessedSource(FRIEND, [{ name: "robot manipulation", weight: 0.9 }]);
+    await readers.saveInterests(FORTUNE, "reward hacking", NOW);
+
+    const picks = await readers.todaysPicks(FORTUNE, NOW);
+
+    expect(ids(picks)).not.toContain("2611.00005");
+    expect(ids(picks)).not.toContain("2611.00006");
   });
 });

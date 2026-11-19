@@ -9,7 +9,10 @@ export const dynamic = "force-dynamic";
 export default async function PapersPage() {
   const user = await requireUser();
   const profile = await getProfile(user.id);
-  const picks = profile ? await todaysPicks(user.id) : [];
+  // Someone with a library but no written interests still gets picks: the
+  // concepts in their captures count too (lib/papers/readers.ts).
+  const picks = await todaysPicks(user.id);
+  const showPicks = Boolean(profile) || picks.length > 0;
 
   return (
     <div className="flex flex-col gap-12">
@@ -17,7 +20,8 @@ export default async function PapersPage() {
         <h1 className="text-title font-medium">Papers</h1>
         <p className="mt-3 max-w-[40rem] text-ui text-ink-2">
           Three new machine-learning papers a day from arXiv and Hugging Face, picked
-          for what you care about. Tell it more or less, and it learns.
+          from what you write here and what&rsquo;s already in your library. Save one
+          and it joins your library, with flashcards for Review.
         </p>
       </div>
 
@@ -25,7 +29,7 @@ export default async function PapersPage() {
         <PaperInterests initial={profile?.interestsText ?? ""} />
       </section>
 
-      {profile && (
+      {showPicks && (
         <section className="flex flex-col gap-4" data-testid="todays-picks">
           <h2 className="section-title">Today&rsquo;s picks</h2>
           {picks.length === 0 ? (

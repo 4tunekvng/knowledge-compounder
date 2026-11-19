@@ -1,7 +1,16 @@
 import "server-only";
 import { and, desc, eq, gte, inArray, lt, or } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { dailyPicks, papers, readerEvents, readerProfiles } from "@/lib/db/schema";
+import {
+  dailyPicks,
+  papers,
+  processings,
+  readerEvents,
+  readerProfiles,
+} from "@/lib/db/schema";
+import { extractFromUrl } from "@/lib/extract/url";
+import { parseConcepts } from "@/lib/parsers";
+import { ingestExternal } from "@/lib/services/ingest";
 import { dayStart } from "./harvest";
 import {
   applyFeedback,
@@ -86,12 +95,60 @@ async function storePicks(userId: string, day: string, ranked: Ranked[]) {
   }
 }
 
-/** Rank the last few days' papers for one member and store today's top 20. */
-export async function rankMember(userId: string, now: number = Date.now()) {
+// Library concepts count for less than words a person wrote (judgment), and
+// only the strongest few join, so a big library can't drown their interests.
+const LIBRARY_WEIGHT = 0.6;
+const MAX_LIBRARY_TERMS = 40;
+
+/**
+ * What a person's own library says they care about: the concepts the capture
+ * pipeline tagged on their processed sources, weighted by how often and how
+ * strongly they recur. Someone with a library gets picks without writing a
+ * word, and every capture keeps teaching their picks.
+ */
+export async function libraryTerms(userId: string): Promise<ProfileTerm[]> {
+  const db = await getDb();
+  const rows = await db
+    .select({ concepts: processings.concepts })
+    .from(processings)
+    .where(eq(processings.ownerId, userId));
+  const totals = new Map<string, { name: string; weight: number }>();
+  for (const { concepts } of rows) {
+    for (const c of parseConcepts(concepts)) {
+      const key = c.name.trim().toLowerCase();
+      if (!key) continue;
+      const seen = totals.get(key) ?? { name: c.name.trim(), weight: 0 };
+      seen.weight += Math.max(0, Math.min(1, c.weight));
+      totals.set(key, seen);
+    }
+  }
+  return [...totals.values()]
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, MAX_LIBRARY_TERMS)
+    .map((c) => ({
+      term: c.name,
+      weight: LIBRARY_WEIGHT * Math.min(1, c.weight),
+      source: "compiled" as const,
+    }));
+}
+
+/** A person's written and learned terms, plus what their library says. */
+async function rankingTerms(userId: string): Promise<ProfileTerm[]> {
   const profile = await getProfile(userId);
-  if (!profile) return;
+  const own = profile?.terms ?? [];
+  const ownKeys = new Set(own.map((t) => t.term.toLowerCase()));
+  const library = (await libraryTerms(userId)).filter(
+    (t) => !ownKeys.has(t.term.toLowerCase()),
+  );
+  return [...own, ...library];
+}
+
+/** Rank the last few days' papers for one person and store today's top 20. */
+export async function rankMember(userId: string, now: number = Date.now()) {
+  const terms = await rankingTerms(userId);
+  if (terms.length === 0) return;
   const pool = await poolSince(now - POOL_DAYS * DAY_MS);
-  const ranked = rankPapers(buildIndex(pool), profile.terms);
+  const ranked = rankPapers(buildIndex(pool), terms);
   await storePicks(userId, readingDay(now), ranked);
 }
 
@@ -249,14 +306,15 @@ export async function recordEvent(
   arxivId: string,
   kind: EventKind,
   now: number = Date.now(),
-): Promise<void> {
+): Promise<{ sourceId?: number }> {
   const db = await getDb();
   await db
     .insert(readerEvents)
     .values({ ownerId: userId, arxivId, kind, createdAt: new Date(now) });
-  if (kind === "open") return;
+  if (kind === "open") return {};
+  const saved = kind === "save" ? await saveToLibrary(userId, arxivId) : {};
   const profile = await getProfile(userId);
-  if (!profile) return;
+  if (!profile) return saved;
   const pool = await poolSince(now - POOL_DAYS * DAY_MS);
   const index = buildIndex(pool);
   const grams = feedbackTerms(
@@ -271,6 +329,38 @@ export async function recordEvent(
     .update(readerProfiles)
     .set({ terms: JSON.stringify(terms) })
     .where(eq(readerProfiles.ownerId, userId));
+  return saved;
+}
+
+/**
+ * File a paper in the person's library like any capture: stored now, then
+ * the capture drain (every 5 minutes) writes its "why I cared", takeaways and
+ * flashcards, which join Review, themes and decks. The text is the paper's
+ * arXiv HTML when arXiv has one, else its abstract. Saving twice files it once.
+ */
+export async function saveToLibrary(
+  userId: string,
+  arxivId: string,
+): Promise<{ sourceId?: number }> {
+  const db = await getDb();
+  const [paper] = await db.select().from(papers).where(eq(papers.arxivId, arxivId));
+  if (!paper) return {};
+  let text = `${paper.title}\n\n${paper.abstract}`;
+  try {
+    const doc = await extractFromUrl(`https://arxiv.org/html/${arxivId}`);
+    if (doc.text.length > paper.abstract.length) text = doc.text;
+  } catch {
+    // No HTML version (some papers are PDF-only): the abstract will do.
+  }
+  const result = await ingestExternal({
+    ownerId: userId,
+    sourceType: "arxiv",
+    externalId: arxivId,
+    title: paper.title,
+    text,
+    url: `https://arxiv.org/abs/${arxivId}`,
+  });
+  return { sourceId: result.sourceId };
 }
 
 /** The cron's share: members seen in the last 30 days with no list today. */
@@ -294,8 +384,8 @@ export async function rankActiveMembers(
   const pool = await poolSince(now - POOL_DAYS * DAY_MS);
   const index = buildIndex(pool);
   for (const { userId } of due) {
-    const profile = await getProfile(userId);
-    if (profile) await storePicks(userId, today, rankPapers(index, profile.terms));
+    const terms = await rankingTerms(userId);
+    if (terms.length) await storePicks(userId, today, rankPapers(index, terms));
   }
   return due.length;
 }

@@ -111,7 +111,7 @@ async function currentResult(db: Db, sourceId: number): Promise<IngestResult> {
  */
 export interface ExternalIngestInput {
   ownerId: string;
-  sourceType: "readwise" | "zotero";
+  sourceType: "readwise" | "zotero" | "arxiv";
   externalId: string;
   title: string;
   text: string;

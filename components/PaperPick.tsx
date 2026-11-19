@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
@@ -27,6 +28,7 @@ export function PaperPick({ pick }: { pick: PaperPickView }) {
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState<Kind | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sourceId, setSourceId] = useState<number | null>(null);
 
   function act(kind: Kind) {
     setError(null);
@@ -36,6 +38,10 @@ export function PaperPick({ pick }: { pick: PaperPickView }) {
         setError("Not saved. Try again.");
         return;
       }
+      const data = (await res.json().catch(() => null)) as {
+        sourceId?: number;
+      } | null;
+      if (data?.sourceId) setSourceId(data.sourceId);
       setDone(kind);
       if (kind === "less") router.refresh();
     });
@@ -90,9 +96,19 @@ export function PaperPick({ pick }: { pick: PaperPickView }) {
           disabled={pending || done === "save"}
           onClick={() => act("save")}
         >
-          {done === "save" ? "Saved ✓" : "Save"}
+          {done === "save" ? "In your library ✓" : "Save to library"}
         </button>
       </div>
+      {sourceId !== null && (
+        <p
+          className="text-meta text-ink-2"
+          role="status"
+          data-testid="saved-to-library"
+        >
+          Filed in your library; its flashcards join Review within a few minutes.{" "}
+          <Link href={`/sources/${sourceId}`}>Open it</Link>
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-meta text-danger">
           {error}
