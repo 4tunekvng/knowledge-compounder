@@ -55,13 +55,21 @@ export function getLocalDb(dbPath: string): DrizzleD1Database<typeof schema> {
   // CREATE TABLE IF NOT EXISTS never adds a column to an existing table, so a
   // dev database made before a migration gets its columns here instead. This
   // runs before the schema file, whose indexes name the newer columns.
-  const sourceColumns = sqlite.pragma("table_info(sources)") as { name: string }[];
+  const sourceColumns = sqlite.pragma("table_info(sources)") as {
+    name: string;
+  }[];
   const runMigration = (file: string) =>
-    sqlite.exec(readFileSync(path.join(process.cwd(), "migrations", file), "utf8"));
+    sqlite.exec(
+      readFileSync(path.join(process.cwd(), "migrations", file), "utf8"),
+    );
   if (sourceColumns.length > 0) {
     const has = (name: string) => sourceColumns.some((c) => c.name === name);
     if (!has("claimed_at")) runMigration("0004_claimed_at.sql");
-    if (!has("owner_id")) runMigration("0005_owners.sql");
+    if (!has("owner_id")) {
+      // 0005 alters decks, which databases from before 0003 lack.
+      runMigration("0003_decks.sql");
+      runMigration("0005_owners.sql");
+    }
   }
 
   // Apply the full schema (idempotent — every statement is IF NOT EXISTS).

@@ -1,7 +1,7 @@
 /**
  * Sign-in gate for every request the Worker receives (worker.ts), in front
  * of the Next.js app. It asks fortuneking-auth who the visitor is through
- * the AUTH service binding (contract v2: ~/personal_projects/fortuneking-auth
+ * the AUTH service binding (contract v2.1: ~/personal_projects/fortuneking-auth
  * README) and hands the app the answer in one header the visitor can't
  * forge, because the gate deletes every `x-kc-*` header a request arrives
  * with before it sets its own.
@@ -9,7 +9,7 @@
  *   signed out, page      -> 302 /login?next=<path>
  *   signed out, /api/...  -> 401 JSON
  *   signed in             -> app, with x-kc-user: <the user, URI-encoded JSON>
- *   /d/<token> (share links), /login, /auth/callback -> public
+ *   /d/<token> (share links), /login, /auth/start, /auth/callback -> public
  *
  * Kept free of Next.js imports so it runs, and is tested, as plain Fetch
  * API code.
@@ -45,23 +45,33 @@ const INTERNAL_HEADER_PREFIX = "x-kc-";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
+/** Ties a sign-in to the browser that started it (contract v2.1). */
+const NONCE_COOKIE = "__Host-fk_nonce";
+const NONCE_ATTRS = "Path=/; HttpOnly; Secure; SameSite=Lax";
+
 /**
- * A same-site path to send someone to after sign-in. Anything else ("//x",
- * "/\\x", "https://x", empty) becomes "/", so the page can't be used to
- * bounce a visitor to another site. Browsers drop tabs and newlines from a
- * Location ("/\t/x" becomes "//x") and read "\\" as "/", so any control
- * character or backslash is refused too.
+ * Where to send someone after sign-in: `next` resolved against this app's
+ * origin, as an absolute URL, or the app's home page when it resolves to
+ * another site. A string check ("starts with / and not //") is not enough:
+ * browsers drop tabs and newlines and resolve dot segments, so "/\t/x" and
+ * "/.//x" would pass it and leave the site.
  */
-export function safeNext(raw: string | null | undefined): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/";
-  if (/[\u0000-\u001f\u007f\\]/.test(raw)) return "/";
-  return raw;
+export function nextUrl(raw: string | null | undefined, origin: string): string {
+  try {
+    const dest = new URL(raw || "/", origin);
+    if (dest.origin === origin) return dest.href;
+  } catch {
+    // Not a URL at all: fall through to home.
+  }
+  return `${origin}/`;
 }
 
-/** The Google sign-in link for the page at `next` on `host`. */
-export function googleSignInUrl(host: string, next: string): string {
-  const returnTo = `https://${host}${safeNext(next)}`;
-  return `${AUTH_ORIGIN}/login?return_to=${encodeURIComponent(returnTo)}`;
+function cookieValue(request: Request, name: string): string | null {
+  for (const part of (request.headers.get("cookie") ?? "").split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === name) return rest.join("=") || null;
+  }
+  return null;
 }
 
 export function signOutUrl(host: string): string {
@@ -131,21 +141,50 @@ async function sessionUser(
   return parseUser(body.user);
 }
 
-/** GET /auth/callback?code=…&next=…: trade the one-time code for a cookie. */
-async function authCallback(url: URL, env: AuthEnv): Promise<Response> {
-  const next = safeNext(url.searchParams.get("next"));
-  const back = `/login?next=${encodeURIComponent(next)}&error=1`;
+/**
+ * GET /auth/start?next=…: remember a fresh nonce in this browser, then go to
+ * Google sign-in, which hands the nonce back inside the one-time code.
+ */
+function authStart(url: URL): Response {
+  const nonce = crypto.randomUUID().replace(/-/g, "");
+  const returnTo = nextUrl(url.searchParams.get("next"), url.origin);
+  const login =
+    `${AUTH_ORIGIN}/login?return_to=${encodeURIComponent(returnTo)}` +
+    `&nonce=${nonce}`;
+  return redirect(login, {
+    "set-cookie": `${NONCE_COOKIE}=${nonce}; Max-Age=600; ${NONCE_ATTRS}`,
+  });
+}
+
+/**
+ * GET /auth/callback?code=…&next=…: trade the one-time code, with this
+ * browser's nonce, for the app's own sign-in cookie.
+ */
+async function authCallback(
+  request: Request,
+  url: URL,
+  env: AuthEnv,
+): Promise<Response> {
+  const next = url.searchParams.get("next") ?? "/";
+  const clearNonce = `${NONCE_COOKIE}=; Max-Age=0; ${NONCE_ATTRS}`;
+  const back = redirect(
+    `${url.origin}/login?next=${encodeURIComponent(next)}&error=1`,
+    { "set-cookie": clearNonce },
+  );
   const code = url.searchParams.get("code");
-  if (!code || !env.AUTH) return redirect(back);
+  const nonce = cookieValue(request, NONCE_COOKIE);
+  if (!code || !nonce || !env.AUTH) return back;
   const res = await env.AUTH.fetch(`${AUTH_INTERNAL}/exchange`, {
     method: "POST",
     headers: { "x-app-host": url.host, "content-type": "application/json" },
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code, nonce }),
   });
-  if (!res.ok) return redirect(back);
+  if (!res.ok) return back;
   const { setCookie } = (await res.json()) as { setCookie?: unknown };
-  if (typeof setCookie !== "string" || !setCookie) return redirect(back);
-  return redirect(next, { "set-cookie": setCookie });
+  if (typeof setCookie !== "string" || !setCookie) return back;
+  const headers = new Headers({ "set-cookie": setCookie });
+  headers.append("set-cookie", clearNonce);
+  return redirect(nextUrl(next, url.origin), headers);
 }
 
 export async function gate(
@@ -167,7 +206,8 @@ export async function gate(
     return Response.json({ error: "Cross-site request refused." }, { status: 403 });
   }
 
-  if (url.pathname === "/auth/callback") return authCallback(url, env);
+  if (url.pathname === "/auth/start") return authStart(url);
+  if (url.pathname === "/auth/callback") return authCallback(request, url, env);
   if (isPublic(url.pathname)) return next(forwarded(request));
 
   let user: SignedInUser | null;
@@ -182,14 +222,14 @@ export async function gate(
   }
 
   if (url.pathname === "/login") {
-    if (user) return redirect(safeNext(url.searchParams.get("next")));
+    if (user) return redirect(nextUrl(url.searchParams.get("next"), url.origin));
     return next(forwarded(request));
   }
   if (!user) {
     if (url.pathname.startsWith("/api/")) {
       return Response.json({ error: "Sign in first." }, { status: 401 });
     }
-    const path = safeNext(`${url.pathname}${url.search}`);
+    const path = `${url.pathname}${url.search}`;
     return redirect(`/login?next=${encodeURIComponent(path)}`);
   }
   const value = encodeURIComponent(JSON.stringify(user));

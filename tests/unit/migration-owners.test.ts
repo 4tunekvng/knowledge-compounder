@@ -1,7 +1,10 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { beforeEach, describe, expect, it } from "vitest";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as schema from "@/lib/db/schema";
 
 /**
  * Migration 0005 against a database built the way production's was: the
@@ -16,6 +19,10 @@ function migration(file: string): string {
 }
 
 let db: Database.Database;
+
+vi.mock("@/lib/db/client", () => ({
+  getDb: async () => drizzle(db, { schema }),
+}));
 
 function count(sql: string): number {
   return (db.prepare(sql).get() as { n: number }).n;
@@ -113,5 +120,50 @@ describe("migration 0005_owners", () => {
     );
 
     expect(count("SELECT COUNT(*) n FROM sources WHERE owner_id = ''")).toBe(1);
+  });
+});
+
+describe("the app right after migration 0005", () => {
+  it("shows a newly signed-in stranger an empty library", async () => {
+    db.exec(migration("0005_owners.sql"));
+    const { listSources, listDueCards } = await import("@/lib/services/queries");
+
+    const sources = await listSources("a-stranger");
+    const due = await listDueCards("a-stranger", new Date(8.64e15));
+
+    expect([sources, due]).toEqual([[], []]);
+  });
+
+  it("shows Fortune his whole library", async () => {
+    db.exec(migration("0005_owners.sql"));
+    const { listSources } = await import("@/lib/services/queries");
+
+    const sources = await listSources(FORTUNE);
+
+    expect(sources.map((s) => s.source.title).sort()).toEqual(["One", "Two"]);
+  });
+
+  it("keeps an existing share link working", async () => {
+    db.exec(migration("0005_owners.sql"));
+    const { getDeckByToken } = await import("@/lib/services/decks");
+
+    const deck = await getDeckByToken("tok");
+
+    expect(deck?.cards.map((c) => c.front)).toEqual(["Q", "Q2"]);
+  });
+});
+
+describe("a local dev database from before decks existed", () => {
+  it("upgrades to owners when the app opens it", async () => {
+    const file = path.join(mkdtempSync(path.join(tmpdir(), "kc-")), "old.db");
+    const old = new Database(file);
+    old.exec(migration("0001_init.sql") + migration("0002_auto_ingest.sql"));
+    old.close();
+    const { getLocalDb } = await import("@/lib/db/local");
+
+    const db = getLocalDb(file) as unknown as { $client: Database.Database };
+
+    const columns = db.$client.pragma("table_info(decks)") as { name: string }[];
+    expect(columns.map((c) => c.name)).toContain("owner_id");
   });
 });

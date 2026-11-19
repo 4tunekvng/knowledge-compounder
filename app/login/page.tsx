@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
-import { googleSignInUrl, safeNext } from "@/lib/auth/gate";
 
 export const dynamic = "force-dynamic";
 
@@ -66,8 +64,8 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string; error?: string }>;
 }) {
   const { next, error } = await searchParams;
-  const host = (await headers()).get("host") ?? "";
-  const href = googleSignInUrl(host, safeNext(next));
+  // /auth/start checks `next` and ties the sign-in to this browser.
+  const href = `/auth/start?next=${encodeURIComponent(next ?? "/")}`;
 
   return (
     <div className="flex justify-center py-6 sm:py-16">

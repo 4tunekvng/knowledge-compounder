@@ -3,13 +3,13 @@ import {
   CRON_HEADER,
   USER_HEADER,
   gate,
-  safeNext,
+  nextUrl,
   userFromHeaders,
 } from "@/lib/auth/gate";
 
 /**
  * The sign-in gate in front of the app (worker.ts). env.AUTH is a stub that
- * answers the way fortuneking-auth's internal routes do (contract v2), and
+ * answers the way fortuneking-auth's internal routes do (contract v2.1), and
  * `next` is a spy standing in for the Next.js app.
  */
 
@@ -145,7 +145,7 @@ describe("gate, signed in", () => {
 
     const res = await gate(request, { AUTH: signedIn() }, app());
 
-    expect(res.headers.get("location")).toBe("/review");
+    expect(res.headers.get("location")).toBe(`${HOST}/review`);
   });
 });
 
@@ -195,58 +195,125 @@ describe("gate, cross-site requests and other hosts", () => {
   });
 });
 
+const NONCE = "0123456789abcdef0123456789abcdef";
+
+function callback(query: string, cookie = `__Host-fk_nonce=${NONCE}`) {
+  return new Request(`${HOST}/auth/callback?${query}`, { headers: { cookie } });
+}
+
+describe("gate, /auth/start", () => {
+  it("remembers a fresh nonce here and sends it to Google sign-in", async () => {
+    const res = await gate(
+      new Request(`${HOST}/auth/start?next=%2Fdecks`),
+      {},
+      app(),
+    );
+
+    const cookie = res.headers.get("set-cookie") ?? "";
+    const nonce = /^__Host-fk_nonce=([A-Za-z0-9]{16,});/.exec(cookie)?.[1];
+    const location = new URL(res.headers.get("location") ?? "");
+    expect(cookie).toContain("Path=/; HttpOnly; Secure; SameSite=Lax");
+    expect(cookie).toContain("Max-Age=600");
+    expect(location.origin + location.pathname).toBe(
+      "https://auth.fortuneking.dev/login",
+    );
+    expect(location.searchParams.get("return_to")).toBe(`${HOST}/decks`);
+    expect(location.searchParams.get("nonce")).toBe(nonce);
+  });
+
+  it.each(["/%09/evil.example", "/.//evil.example", "//evil.example"])(
+    "keeps the return address on this site for next=%s",
+    async (raw) => {
+      const request = new Request(
+        `${HOST}/auth/start?next=${encodeURIComponent(decodeURIComponent(raw))}`,
+      );
+
+      const res = await gate(request, {}, app());
+
+      const location = new URL(res.headers.get("location") ?? "");
+      const returnTo = new URL(location.searchParams.get("return_to") ?? "");
+      expect(returnTo.origin).toBe(HOST);
+    },
+  );
+});
+
 describe("gate, /auth/callback", () => {
-  it("exchanges the code, sets the returned cookie and goes to next", async () => {
+  it("exchanges the code with this browser's nonce", async () => {
     const setCookie = "__Host-fk_app=tok; Path=/; HttpOnly; Secure";
     const AUTH = auth(Response.json({ setCookie, user: ALICE }));
-    const request = new Request(`${HOST}/auth/callback?code=xyz&next=%2Fdecks`);
 
-    const res = await gate(request, { AUTH }, app());
+    await gate(callback("code=xyz&next=%2Fdecks"), { AUTH }, app());
 
     const [url, init] = AUTH.fetch.mock.calls[0];
     expect([url, init.method, init.body]).toEqual([
       "https://auth.internal/exchange",
       "POST",
-      JSON.stringify({ code: "xyz" }),
+      JSON.stringify({ code: "xyz", nonce: NONCE }),
     ]);
     expect(init.headers["x-app-host"]).toBe("knowledge-compounder.fortuneking.dev");
-    expect(res.headers.get("location")).toBe("/decks");
-    expect(res.headers.get("set-cookie")).toBe(setCookie);
+  });
+
+  it("sets the returned cookie, clears the nonce and goes to next", async () => {
+    const setCookie = "__Host-fk_app=tok; Path=/; HttpOnly; Secure";
+    const AUTH = auth(Response.json({ setCookie, user: ALICE }));
+
+    const res = await gate(callback("code=xyz&next=%2Fdecks"), { AUTH }, app());
+
+    expect(res.headers.get("location")).toBe(`${HOST}/decks`);
+    expect(res.headers.getSetCookie()).toEqual([
+      setCookie,
+      "__Host-fk_nonce=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax",
+    ]);
+  });
+
+  it("goes back to /login, asking nothing, with no nonce cookie", async () => {
+    const AUTH = signedIn();
+    const request = callback("code=xyz&next=%2F", "other=1");
+
+    const res = await gate(request, { AUTH }, app());
+
+    expect(res.headers.get("location")).toBe(`${HOST}/login?next=%2F&error=1`);
+    expect(AUTH.fetch).not.toHaveBeenCalled();
   });
 
   it("goes back to /login when the code is refused", async () => {
     const AUTH = auth(Response.json({ error: "invalid code" }, { status: 400 }));
-    const request = new Request(`${HOST}/auth/callback?code=old&next=%2F`);
 
-    const res = await gate(request, { AUTH }, app());
+    const res = await gate(callback("code=old&next=%2F"), { AUTH }, app());
 
-    expect(res.headers.get("location")).toBe("/login?next=%2F&error=1");
-    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(res.headers.get("location")).toBe(`${HOST}/login?next=%2F&error=1`);
+    expect(res.headers.getSetCookie()).toEqual([
+      "__Host-fk_nonce=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax",
+    ]);
   });
 
-  it("never redirects off the site after sign-in", async () => {
-    const AUTH = auth(Response.json({ setCookie: "a=b", user: ALICE }));
-    const request = new Request(
-      `${HOST}/auth/callback?code=xyz&next=%2F%2Fevil.example`,
-    );
+  it.each(["/%09/evil.example", "/.//evil.example", "//evil.example"])(
+    "never leaves the site after sign-in for next=%s",
+    async (raw) => {
+      const AUTH = auth(Response.json({ setCookie: "a=b", user: ALICE }));
+      const next = encodeURIComponent(decodeURIComponent(raw));
 
-    const res = await gate(request, { AUTH }, app());
+      const res = await gate(callback(`code=xyz&next=${next}`), { AUTH }, app());
 
-    expect(res.headers.get("location")).toBe("/");
-  });
+      expect(new URL(res.headers.get("location") ?? "").origin).toBe(HOST);
+    },
+  );
 });
 
-describe("safeNext", () => {
+describe("nextUrl", () => {
   it.each([
-    ["/review?x=1", "/review?x=1"],
-    ["//evil.example", "/"],
-    ["/\\evil.example", "/"],
-    ["/\t/evil.example", "/"],
-    ["/ok\n/x", "/"],
-    ["https://evil.example", "/"],
-    ["", "/"],
-    [null, "/"],
+    ["/review?x=1", `${HOST}/review?x=1`],
+    ["//evil.example", `${HOST}/`],
+    ["/\\evil.example", `${HOST}/`],
+    ["/\t/evil.example", `${HOST}/`],
+    ["https://evil.example", `${HOST}/`],
+    ["", `${HOST}/`],
+    [null, `${HOST}/`],
   ])("%s -> %s", (raw, expected) => {
-    expect(safeNext(raw)).toBe(expected);
+    expect(nextUrl(raw, HOST)).toBe(expected);
+  });
+
+  it("keeps /.//evil.example on this site", () => {
+    expect(new URL(nextUrl("/.//evil.example", HOST)).origin).toBe(HOST);
   });
 });
