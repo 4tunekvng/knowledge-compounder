@@ -119,6 +119,54 @@ describe("extractFromUrl", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  // The URL parser normalizes the hostname first, so `host` is what the
+  // guard sees and what the error names.
+  it.each([
+    ["http://localhost/a", "localhost"],
+    ["http://LOCALHOST./a", "localhost."],
+    ["http://[::1]/a", "[::1]"],
+    ["http://[::ffff:127.0.0.1]/a", "[::ffff:7f00:1]"],
+    ["http://[::ffff:8.8.8.8]/a", "[::ffff:808:808]"],
+    ["http://[fe80::1]/a", "[fe80::1]"],
+    ["http://[fc00::1]/a", "[fc00::1]"],
+    ["http://[2001:db8::1]/a", "[2001:db8::1]"],
+    ["http://2130706433/a", "127.0.0.1"],
+    ["http://127.255.255.255/a", "127.255.255.255"],
+    ["http://10.0.0.1./a", "10.0.0.1"],
+    ["http://192.168.0.1/a", "192.168.0.1"],
+    ["http://172.16.0.1/a", "172.16.0.1"],
+    ["http://172.31.255.255/a", "172.31.255.255"],
+    ["http://169.254.169.254/a", "169.254.169.254"],
+    ["http://0.0.0.0/a", "0.0.0.0"],
+  ])("blocks %s before fetching", async (url, host) => {
+    const fetchMock = stubFetch();
+
+    await expect(extractFromUrl(url)).rejects.toThrow(
+      `Fetching private/internal addresses is not allowed: ${host}`,
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "https://example.com/a",
+    "http://8.8.8.8/a",
+    "http://11.0.0.1/a",
+    "http://128.0.0.1/a",
+    "http://172.15.255.255/a",
+    "http://172.32.0.1/a",
+    "http://192.169.0.1/a",
+    "http://169.253.0.1/a",
+    "http://100.64.0.1/a",
+    "http://255.255.255.255/a",
+  ])("lets %s through to fetch", async (url) => {
+    const fetchMock = stubFetch(html());
+
+    const doc = await extractFromUrl(url);
+
+    expect(doc.text).toBe("tiny page");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("reports a failing status with the URL that failed", async () => {
     stubFetch(html(500));
 
