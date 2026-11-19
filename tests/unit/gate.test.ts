@@ -348,6 +348,10 @@ describe("nextUrl", () => {
     ["/\\evil.example", `${HOST}/`],
     ["/\t/evil.example", `${HOST}/`],
     ["https://evil.example", `${HOST}/`],
+    [`https://user:pass@${new URL(HOST).host}/review`, `${HOST}/review`],
+    ["/login", `${HOST}/`],
+    ["/LOGIN", `${HOST}/`],
+    ["/auth/signout", `${HOST}/`],
     ["", `${HOST}/`],
     [null, `${HOST}/`],
   ])("%s -> %s", (raw, expected) => {

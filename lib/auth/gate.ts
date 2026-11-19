@@ -69,7 +69,15 @@ export const SIGN_OUT_PATH = "/auth/signout";
 export function nextUrl(raw: string | null | undefined, origin: string): string {
   try {
     const dest = new URL(raw || "/", origin);
-    if (dest.origin === origin) return dest.href;
+    if (dest.origin === origin) {
+      dest.username = "";
+      dest.password = "";
+      const path = dest.pathname.toLowerCase();
+      if (path === "/login" || path.startsWith("/login/") || path.startsWith("/auth/")) {
+        return `${origin}/`;
+      }
+      return dest.href;
+    }
   } catch {
     // Not a URL at all: fall through to home.
   }
