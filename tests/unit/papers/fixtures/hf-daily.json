@@ -1,0 +1,543 @@
+[
+ {
+  "paper": {
+   "id": "2611.22115",
+   "authors": [
+    {
+     "name": "Xingchen AGI Lab"
+    },
+    {
+     "name": "Baotian Hu"
+    },
+    {
+     "name": "Bingkai Yang"
+    },
+    {
+     "name": "Boyang Wang"
+    },
+    {
+     "name": "Changzai Pan"
+    },
+    {
+     "name": "Chao Lyu"
+    },
+    {
+     "name": "Chao Wang"
+    },
+    {
+     "name": "Chen Li"
+    },
+    {
+     "name": "Chenshuo Pan"
+    },
+    {
+     "name": "Chenyu Lin"
+    },
+    {
+     "name": "Chenyuan Zhang"
+    },
+    {
+     "name": "Chongming Liu"
+    },
+    {
+     "name": "Dawei Fan"
+    },
+    {
+     "name": "Di Wu"
+    },
+    {
+     "name": "Dong Guo"
+    },
+    {
+     "name": "Dong Li"
+    },
+    {
+     "name": "Dongfang Li"
+    },
+    {
+     "name": "Enlin Liu"
+    },
+    {
+     "name": "Fanye Xiao"
+    },
+    {
+     "name": "Fengkai Li"
+    },
+    {
+     "name": "Fubei Yao"
+    },
+    {
+     "name": "Gang Lin"
+    },
+    {
+     "name": "Han Gao"
+    },
+    {
+     "name": "Hanming Wu"
+    },
+    {
+     "name": "Haowei He"
+    },
+    {
+     "name": "Huapeng Liu"
+    },
+    {
+     "name": "Hua Wang"
+    },
+    {
+     "name": "Huinan Xu"
+    },
+    {
+     "name": "Jiahong Xiong"
+    },
+    {
+     "name": "Jiaxin Peng"
+    },
+    {
+     "name": "Jianxiang Ma"
+    },
+    {
+     "name": "Jianxing Zhuge"
+    },
+    {
+     "name": "Jie Zhang"
+    },
+    {
+     "name": "Ji Xiong"
+    },
+    {
+     "name": "Jinglin Chen"
+    },
+    {
+     "name": "Jingqi Li"
+    },
+    {
+     "name": "Jingxuan Li"
+    },
+    {
+     "name": "Jiwang Ye"
+    },
+    {
+     "name": "Junchen Li"
+    },
+    {
+     "name": "Junbiao Li"
+    },
+    {
+     "name": "Junyang Wu"
+    },
+    {
+     "name": "Kaidong Yu"
+    },
+    {
+     "name": "Kaipeng Jia"
+    },
+    {
+     "name": "Kehai Chen"
+    },
+    {
+     "name": "Kuai Li"
+    },
+    {
+     "name": "Laobin Liu"
+    },
+    {
+     "name": "Lei Li"
+    },
+    {
+     "name": "Libo Qin"
+    },
+    {
+     "name": "Lingling Shi"
+    },
+    {
+     "name": "Luwen Pu"
+    },
+    {
+     "name": "Menghao Xu"
+    },
+    {
+     "name": "Mengjiao Bao"
+    },
+    {
+     "name": "Mengqi Chen"
+    },
+    {
+     "name": "Min Zhang"
+    },
+    {
+     "name": "Mingrui Wang"
+    },
+    {
+     "name": "Naying Wang"
+    },
+    {
+     "name": "Peicong Han"
+    },
+    {
+     "name": "Peiming Guo"
+    },
+    {
+     "name": "Pengfei Li"
+    },
+    {
+     "name": "Qiang Feng"
+    },
+    {
+     "name": "Qi Wang"
+    },
+    {
+     "name": "Qingjun Zhu"
+    },
+    {
+     "name": "Qingli Li"
+    },
+    {
+     "name": "Qitai Ding"
+    },
+    {
+     "name": "Qiyi Xie"
+    },
+    {
+     "name": "Quanchao Zhao"
+    },
+    {
+     "name": "Rongbao Han"
+    },
+    {
+     "name": "Rui Xue"
+    },
+    {
+     "name": "Ruiyu Fang"
+    },
+    {
+     "name": "Ruiting Song"
+    },
+    {
+     "name": "Shijie Li"
+    },
+    {
+     "name": "Shiquan Wang"
+    },
+    {
+     "name": "Shuangyong Song"
+    },
+    {
+     "name": "Sishi Xiong"
+    },
+    {
+     "name": "Teng Su"
+    },
+    {
+     "name": "Wankang Bao"
+    },
+    {
+     "name": "Weijie Zhang"
+    },
+    {
+     "name": "Wei Mao"
+    },
+    {
+     "name": "Weiwei Fu"
+    },
+    {
+     "name": "Weiyang Huang"
+    },
+    {
+     "name": "Wenmin Deng"
+    },
+    {
+     "name": "Wenqing Hu"
+    },
+    {
+     "name": "Wujie Zhong"
+    },
+    {
+     "name": "Xi Yu"
+    },
+    {
+     "name": "Xiaohui Hu"
+    },
+    {
+     "name": "Xiaomin Fang"
+    },
+    {
+     "name": "Xiaomeng Huang"
+    },
+    {
+     "name": "Xiaoqiong Shi"
+    },
+    {
+     "name": "Xiaotong Shang"
+    },
+    {
+     "name": "Xiaoyu Li"
+    },
+    {
+     "name": "Xinglei Xu"
+    },
+    {
+     "name": "Xin Jiang"
+    },
+    {
+     "name": "Xin Wang"
+    },
+    {
+     "name": "Xin Zhang"
+    },
+    {
+     "name": "Xinzhang Liu"
+    },
+    {
+     "name": "Xue Liu"
+    },
+    {
+     "name": "Xuefeng Bai"
+    },
+    {
+     "name": "Xuewei He"
+    },
+    {
+     "name": "Yahan Li"
+    },
+    {
+     "name": "Yanhan Zhang"
+    },
+    {
+     "name": "Yanlei Xue"
+    },
+    {
+     "name": "Yanzhang Wu"
+    },
+    {
+     "name": "Yang Yu"
+    },
+    {
+     "name": "Yi Liu"
+    },
+    {
+     "name": "Yin Zhang"
+    },
+    {
+     "name": "Yingyan Li"
+    },
+    {
+     "name": "Yitong Yao"
+    },
+    {
+     "name": "Yixuan Li"
+    },
+    {
+     "name": "Yongqiang Xia"
+    },
+    {
+     "name": "Yongxiang Li"
+    },
+    {
+     "name": "Yinzhou Zhu"
+    },
+    {
+     "name": "Yu Zhao"
+    },
+    {
+     "name": "Yuhao Jiang"
+    },
+    {
+     "name": "Yunpeng Zhang"
+    },
+    {
+     "name": "Yuting Lin"
+    },
+    {
+     "name": "Yuxuan Wu"
+    },
+    {
+     "name": "Yuyao Huang"
+    },
+    {
+     "name": "Yuyi Wang"
+    },
+    {
+     "name": "Zebo Peng"
+    },
+    {
+     "name": "Zhenwu Pei"
+    },
+    {
+     "name": "Zhenxiong Li"
+    },
+    {
+     "name": "Zhao Wang"
+    },
+    {
+     "name": "Zhaoxi Zhang"
+    },
+    {
+     "name": "Zhihao Yang"
+    },
+    {
+     "name": "Zhiqiang Dong"
+    },
+    {
+     "name": "Zhiwei Yan"
+    },
+    {
+     "name": "Zhilong Lu"
+    },
+    {
+     "name": "Zhonghao Guo"
+    },
+    {
+     "name": "Zhongheng Wu"
+    },
+    {
+     "name": "Zhongjiang He"
+    },
+    {
+     "name": "Zhongqiu Li"
+    },
+    {
+     "name": "Zhu Yuan"
+    },
+    {
+     "name": "Zhuoru Jiang"
+    },
+    {
+     "name": "Zhuoyi Wei"
+    },
+    {
+     "name": "Zijia Guo"
+    },
+    {
+     "name": "Zilu Huang"
+    },
+    {
+     "name": "Zhipeng Guo"
+    },
+    {
+     "name": "Zirui Li"
+    },
+    {
+     "name": "Zihan Wang"
+    }
+   ],
+   "publishedAt": "2026-11-17T00:00:00.000Z",
+   "title": "TeleChat to Xing4: Advancing Frontier Agentic Models on Domestic Chips and Frameworks",
+   "summary": "We present Xing 4, a series of large language models that extends the TeleChat lineage through coordinated advances in model architecture and training infrastructure on Ascend. This report describes the design principles and systems engineering behind the series, spanning architecture selection, large-scale pretraining, and reasoning and agentic post-training. We study how sparse activation, attention design, model depth and width, and speculative decoding balance model capacity with computation, memory access, and execution overhead. Our pretraining infrastructure builds on MindSpore HyperParallel, combining topology-aware hybrid sharding, efficient distributed optimizer execution, and coordinated management of long-sequence workloads and activation memory. CPU affinity and core isolation further reduce host scheduling interference. Together, these mechanisms support the pretraining of a 285B-parameter model on 8,192 Ascend 910C cards, providing a concrete setting for the architectural and systems studies. For post-training, we introduce TeleGym, a unified agent execution platform that connects execution, evaluation, and trajectory construction to policy optimization. Disaggregated asynchronous execution, bounded oversampling, and partial rollout accommodate heterogeneous task durations while preserving trajectory continuity across policy updates. Together, these advances establish an Ascend-oriented training foundation for the continued development of Xing 4 across model scales and increasingly demanding reasoning and agent workloads.",
+   "upvotes": 156
+  }
+ },
+ {
+  "paper": {
+   "id": "2611.17621",
+   "authors": [
+    {
+     "name": "AI Training Platform Team"
+    },
+    {
+     "name": "Bingwei Zhang"
+    },
+    {
+     "name": "Jing Li"
+    },
+    {
+     "name": "Amir Abdullin"
+    },
+    {
+     "name": "Sihang Chen"
+    },
+    {
+     "name": "Xin Chen"
+    },
+    {
+     "name": "Liangjun Feng"
+    },
+    {
+     "name": "Yingmeng Gao"
+    },
+    {
+     "name": "Tao Guo"
+    },
+    {
+     "name": "Junjie Huang"
+    },
+    {
+     "name": "Dongfang Li"
+    },
+    {
+     "name": "Zhanglian Lin"
+    },
+    {
+     "name": "Jiajun Liu"
+    },
+    {
+     "name": "Zekun Liu"
+    },
+    {
+     "name": "Zhengxuan Lu"
+    },
+    {
+     "name": "Xiaodong Luo"
+    },
+    {
+     "name": "Jian Meng"
+    },
+    {
+     "name": "Ivan Nosov"
+    },
+    {
+     "name": "Linyuan Qiu"
+    },
+    {
+     "name": "Weijian Sun"
+    },
+    {
+     "name": "Wanrui Yan"
+    },
+    {
+     "name": "Binfan Zheng"
+    },
+    {
+     "name": "Zhicheng Zhou"
+    },
+    {
+     "name": "Baotian Hu"
+    },
+    {
+     "name": "Min Zhang"
+    },
+    {
+     "name": "Haizhou Li"
+    },
+    {
+     "name": "Zhiquan Luo"
+    }
+   ],
+   "publishedAt": "2026-11-13T00:00:00.000Z",
+   "title": "AscendGYM: A Cost-Aware Kernel Optimization Benchmark for Real-World Workloads on Ascend NPUs",
+   "summary": "Kernel optimization is essential for efficient large language model (LLM) training and inference on Ascend NPUs. Existing Ascend kernel benchmarks primarily focus on kernel generation, with less emphasis on the ability of agents to optimize existing implementations under input configurations drawn from real workloads. To address this requirement, we introduce AscendGYM, a benchmark whose initial suite comprises 48 kernels across three difficulty levels. Each kernel is paired with test cases whose data types and tensor shapes are collected from real-world training and inference tasks. Consequently, performance improvements on AscendGYM map directly to the corresponding workloads. In terms of usability, two evaluation modes are supported in AscendGYM: model evaluation and model-harness evaluation. The kernel optimization capabilities of both trained models and custom agents are allowed to be measured. It provides a complete execution environment that closely reproduces how Ascend kernels are invoked in practical pipelines. For model evaluation, it additionally includes a built-in harness equipped with search orchestration and experience accumulation. Finally, we propose a new metric, the Speedup-Token Score (STS), which quantifies performance gains relative to token cost. By jointly considering speedup and cost, STS enables the assessment of practical kernel optimization capability of a model or harness under an acceptable budget. AscendGYM is available at https://github.com/SLAI-AITP/AscendGYM.",
+   "upvotes": 92,
+   "githubRepo": "https://github.com/SLAI-AITP/AscendGYM",
+   "ai_summary": "AscendGYM provides a benchmark for assessing kernel optimization capabilities on Ascend NPUs using real-workload test cases, two evaluation modes, and a Speedup-Token Score that balances speedup against token cost."
+  }
+ },
+ {
+  "paper": {
+   "id": "2611.22055",
+   "authors": [
+    {
+     "name": "Hyunjong Ok"
+    },
+    {
+     "name": "Jaeho Lee"
+    }
+   ],
+   "publishedAt": "2026-11-17T00:00:00.000Z",
+   "title": "Weight-Space Programming Doesn't Need Transformers",
+   "summary": "Standard neural architectures such as the Transformer were chosen because they train well with gradient descent and run fast on GPUs. In weight-space programming, a large language model (LLM) writes target weights by hand without gradient-based training, so those reasons no longer apply. Should we keep the Transformer? Given minimal guidance, ten labeled examples, and a sandbox, mainly on multiple-choice questions, we task three frontier LLMs with either generating the weights of a fixed architecture or designing the architecture themselves. When free to design, all three compile plain-text facts into a sparse table queried by a fixed procedure, reaching up to 54.4% test accuracy. An LLM-designed model achieves higher test accuracy than the most accurate released Transformer that the same LLM wrote while using about 1,800x fewer parameters. Without gradients, they choose a table, in which the LLM can state what each weight means and can find and rewrite a wrong one. Each wrong answer points to one row, and removing a row changes about one other answer. From this, we propose an associative-memory-based model up to 17x faster on GPUs than a same-sized Transformer. We also test pretrained weights, other benchmarks, and tasks where models generate answers. Pretrained LLMs remain more accurate; the claim concerns which structure to build when writing weights.",
+   "upvotes": 52,
+   "githubRepo": "https://github.com/effl-lab/Weight-Space-Programming",
+   "ai_summary": "When large language models write neural network weights without gradient-based training, they tend to design sparse table or associative-memory models that outperform same-sized Transformers with far fewer parameters and faster GPU inference, though pretrained LLMs remain more accurate."
+  }
+ }
+]

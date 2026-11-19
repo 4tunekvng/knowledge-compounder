@@ -1,6 +1,6 @@
 -- Full local-dev schema for the better-sqlite3 adapter (lib/db/local.ts).
 -- Mirrors the current state of lib/db/schema.ts AFTER all migrations
--- (0001_init through 0005_owners) are applied. Used only for local dev /
+-- (0001_init through 0006_papers) are applied. Used only for local dev /
 -- preview / Playwright e2e — production runs on Cloudflare D1 and is
 -- migrated via `wrangler d1 migrations apply`. Everything is IF NOT EXISTS
 -- so applying it repeatedly on an existing dev DB is a no-op.
@@ -112,3 +112,27 @@ CREATE TABLE IF NOT EXISTS decks (
 );
 CREATE INDEX IF NOT EXISTS decks_share_token_idx ON decks(share_token);
 CREATE INDEX IF NOT EXISTS decks_owner_idx ON decks(owner_id, created_at);
+
+-- Paper picks: the shared pool of new papers (migration 0006).
+CREATE TABLE IF NOT EXISTS papers (
+  arxiv_id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  authors TEXT NOT NULL,
+  abstract TEXT NOT NULL,
+  categories TEXT NOT NULL,
+  published_at INTEGER NOT NULL,
+  hf_upvotes INTEGER,
+  hf_summary TEXT,
+  github_url TEXT,
+  harvested_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS papers_published_idx ON papers(published_at);
+
+-- One row per harvest run, so the cron harvests a few times a day instead of
+-- every 5 minutes, and so a failing source shows up in the data.
+CREATE TABLE IF NOT EXISTS paper_harvests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  started_at INTEGER NOT NULL,
+  papers_seen INTEGER NOT NULL,
+  failed_sources TEXT NOT NULL
+);
