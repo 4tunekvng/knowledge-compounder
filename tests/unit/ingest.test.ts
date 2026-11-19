@@ -13,8 +13,12 @@ import * as schema from "@/lib/db/schema";
 
 let sqlite: Database.Database;
 
+const OWNER = "owner-1";
+const TOKEN_KEY = Buffer.alloc(32, 7).toString("base64");
+
 vi.mock("@/lib/db/client", () => ({
   getDb: async () => drizzle(sqlite, { schema }),
+  getEnv: async () => ({ KC_TOKEN_KEY: TOKEN_KEY }),
 }));
 
 const processSource = vi.fn();
@@ -34,7 +38,9 @@ const {
   retrySource,
   PROCESSING_FAILED_MESSAGE,
 } = await import("@/lib/services/ingest");
-const { syncIntegration } = await import("@/lib/services/ingest-orchestrator");
+const { setIntegrationToken, syncIntegration } = await import(
+  "@/lib/services/ingest-orchestrator"
+);
 
 const PROCESSED = {
   why_i_cared: "it matters",
@@ -47,6 +53,7 @@ const PROCESSED = {
 };
 
 const READWISE_INPUT = {
+  ownerId: OWNER,
   sourceType: "readwise" as const,
   externalId: "rw-1",
   title: 'A "quoted"\ntitle',
@@ -76,18 +83,18 @@ function processingCount(id: number): number {
 function insertFailedSource(): number {
   const result = sqlite
     .prepare(
-      "INSERT INTO sources " +
-        "(kind, title, raw_content, excerpt, status, error_message) VALUES " +
-        "('text', 'Old \"title\"', 'old\ntext', 'old', 'failed', 'boom')",
+      "INSERT INTO sources (owner_id, " +
+        "kind, title, raw_content, excerpt, status, error_message) VALUES " +
+        "(?, 'text', 'Old \"title\"', 'old\ntext', 'old', 'failed', 'boom')",
     )
-    .run();
+    .run(OWNER);
   const id = Number(result.lastInsertRowid);
   sqlite
     .prepare(
-      "INSERT INTO cards (source_id, card_type, front, back) " +
-        "VALUES (?, 'definition', 'stale', 'stale')",
+      "INSERT INTO cards (owner_id, source_id, card_type, front, back) " +
+        "VALUES (?, ?, 'definition', 'stale', 'stale')",
     )
-    .run(id);
+    .run(OWNER, id);
   return id;
 }
 
@@ -97,11 +104,11 @@ const HOUR_AGO = Date.now() - 60 * 60_000;
 function insertAbandonedSource(title = "Lost", claimedAt = HOUR_AGO): number {
   const result = sqlite
     .prepare(
-      "INSERT INTO sources (kind, title, raw_content, excerpt, status, " +
-        "created_at, claimed_at) VALUES ('text', ?, 'lost\ntext', 'lost', " +
-        "'pending', ?, ?)",
+      "INSERT INTO sources (owner_id, kind, title, raw_content, excerpt, " +
+        "status, created_at, claimed_at) VALUES (?, 'text', ?, 'lost\ntext', " +
+        "'lost', 'pending', ?, ?)",
     )
-    .run(title, HOUR_AGO, claimedAt);
+    .run(OWNER, title, HOUR_AGO, claimedAt);
   return Number(result.lastInsertRowid);
 }
 
@@ -146,11 +153,10 @@ describe("ingestExternal", () => {
 
 describe("syncIntegration", () => {
   it("stores every new highlight without calling the model", async () => {
-    sqlite
-      .prepare("INSERT INTO integration_tokens (provider, token) VALUES (?, ?)")
-      .run("readwise", "tok");
+    await setIntegrationToken(OWNER, "readwise", "tok-12345");
 
     const result = await syncIntegration(
+      OWNER,
       "readwise",
       readwiseSource([{ externalId: "a" }, { externalId: "b" }]),
     );
@@ -206,10 +212,10 @@ describe("processPendingSources", () => {
     const id = insertAbandonedSource();
     sqlite
       .prepare(
-        "INSERT INTO cards (source_id, card_type, front, back) " +
-          "VALUES (?, 'definition', 'half-written', 'x')",
+        "INSERT INTO cards (owner_id, source_id, card_type, front, back) " +
+          "VALUES (?, ?, 'definition', 'half-written', 'x')",
       )
-      .run(id);
+      .run(OWNER, id);
     processSource.mockResolvedValue(PROCESSED);
 
     await processPendingSources(5);
@@ -235,7 +241,7 @@ describe("processPendingSources", () => {
     processSource.mockReturnValueOnce(
       new Promise((resolve) => (finish = resolve)),
     );
-    const capture = ingest({ raw: "a note worth keeping" });
+    const capture = ingest({ ownerId: OWNER, raw: "a note worth keeping" });
     await vi.waitFor(() => expect(processSource).toHaveBeenCalledTimes(1));
 
     const results = await processPendingSources(5);
@@ -253,7 +259,7 @@ describe("processPendingSources", () => {
       new Promise((resolve) => (finish = resolve)),
     );
     processSource.mockResolvedValue(PROCESSED);
-    const capture = ingest({ raw: "a note worth keeping" });
+    const capture = ingest({ ownerId: OWNER, raw: "a note worth keeping" });
     await vi.waitFor(() => expect(processSource).toHaveBeenCalledTimes(1));
     sqlite.prepare("UPDATE sources SET claimed_at = ? WHERE id = 1").run(HOUR_AGO);
 
@@ -297,7 +303,7 @@ describe("retrySource", () => {
     const id = insertFailedSource();
     processSource.mockResolvedValue(PROCESSED);
 
-    const result = await retrySource(id);
+    const result = await retrySource(OWNER, id);
 
     expect(result).toEqual({ sourceId: id, status: "processed" });
     expect(sourceRow(id)).toEqual({ status: "processed", error_message: null });
@@ -309,7 +315,7 @@ describe("retrySource", () => {
     const id = insertFailedSource();
     processSource.mockResolvedValue(PROCESSED);
 
-    await retrySource(id);
+    await retrySource(OWNER, id);
 
     expect(processSource).toHaveBeenCalledWith({
       title: "Old  title",
@@ -321,7 +327,7 @@ describe("retrySource", () => {
     const id = insertFailedSource();
     processSource.mockRejectedValue(new Error("still down"));
 
-    const result = await retrySource(id);
+    const result = await retrySource(OWNER, id);
 
     expect(result).toEqual({ sourceId: id, status: "failed", error: PROCESSING_FAILED_MESSAGE });
     expect(sourceRow(id)).toEqual({ status: "failed", error_message: "still down" });
@@ -331,12 +337,12 @@ describe("retrySource", () => {
   it("refuses a source that is not in a failed state", async () => {
     await ingestExternal(READWISE_INPUT);
 
-    await expect(retrySource(1)).rejects.toThrow(
+    await expect(retrySource(OWNER, 1)).rejects.toThrow(
       "Source is not in a failed state (current status: pending).",
     );
   });
 
   it("refuses an unknown source", async () => {
-    await expect(retrySource(99)).rejects.toThrow("Source not found.");
+    await expect(retrySource(OWNER, 99)).rejects.toThrow("Source not found.");
   });
 });

@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server";
+import { apiUser, unauthorized } from "@/lib/auth/user";
 import { ingest, ingestPdf, MAX_PDF_BYTES } from "@/lib/services/ingest";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const user = apiUser(request);
+  if (!user) return unauthorized();
   const contentType = request.headers.get("content-type") ?? "";
   if (contentType.includes("multipart/form-data")) {
-    return handlePdfUpload(request);
+    return handlePdfUpload(request, user.id);
   }
-  return handleTextCapture(request);
+  return handleTextCapture(request, user.id);
 }
 
-async function handleTextCapture(request: Request) {
+async function handleTextCapture(request: Request, ownerId: string) {
   let body: unknown;
   try {
     body = await request.json();
@@ -37,14 +40,14 @@ async function handleTextCapture(request: Request) {
   }
 
   try {
-    const result = await ingest({ raw: input });
+    const result = await ingest({ ownerId, raw: input });
     return NextResponse.json(result);
   } catch (err) {
     return errorResponse(err, "[capture]");
   }
 }
 
-async function handlePdfUpload(request: Request) {
+async function handlePdfUpload(request: Request, ownerId: string) {
   let form: FormData;
   try {
     form = await request.formData();
@@ -85,7 +88,7 @@ async function handlePdfUpload(request: Request) {
 
   const filename = file.name && file.name.trim() ? file.name : "upload.pdf";
   try {
-    const result = await ingestPdf({ filename, bytes });
+    const result = await ingestPdf({ ownerId, filename, bytes });
     return NextResponse.json(result);
   } catch (err) {
     return errorResponse(err, "[capture:pdf]");

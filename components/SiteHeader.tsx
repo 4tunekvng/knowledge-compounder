@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AccountMenu, type Account } from "./AccountMenu";
 
 const NAV = [
   { href: "/", label: "Capture" },
@@ -18,13 +19,20 @@ const Wordmark = () => (
   </>
 );
 
-export function SiteHeader({ dueCount }: { dueCount: number }) {
+export function SiteHeader({
+  dueCount,
+  account,
+}: {
+  dueCount: number;
+  account: Account | null;
+}) {
   const pathname = usePathname();
-  // Public student deck pages (/d/<token>) get a chrome-free wordmark — no
-  // links into the owner's tools.
-  const isStudent = pathname?.startsWith("/d/") ?? false;
+  // Public student deck pages (/d/<token>) and the sign-in page get a
+  // chrome-free wordmark — no links into the owner's tools.
+  const isPublic =
+    !!pathname && (pathname.startsWith("/d/") || pathname === "/login");
 
-  if (isStudent) {
+  if (isPublic || !account) {
     return (
       <header className="border-b border-[color:var(--border)] bg-[color:var(--background)]">
         <div className="max-w-5xl mx-auto px-6 py-4">
@@ -44,18 +52,27 @@ export function SiteHeader({ dueCount }: { dueCount: number }) {
           "sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
         }
       >
-        <Link
-          href="/"
-          className="font-serif text-xl tracking-tight text-[color:var(--foreground)] no-underline shrink-0"
-          data-testid="brand-link"
-        >
-          <Wordmark />
-        </Link>
+        {/* Phone: wordmark and account share the top row. Wider: the row
+            dissolves and the account sits after the menu. */}
+        <div className="flex items-center justify-between gap-4 sm:contents">
+          <Link
+            href="/"
+            className={
+              "font-serif text-xl tracking-tight no-underline shrink-0 " +
+              "text-[color:var(--foreground)]"
+            }
+            data-testid="brand-link"
+          >
+            <Wordmark />
+          </Link>
+          <AccountMenu account={account} className="sm:order-last" />
+        </div>
         {/* One scrollable row on a phone; wraps to the right on wider screens. */}
         <nav
           className={
             "flex gap-x-6 gap-y-1 text-sm items-baseline whitespace-nowrap " +
-            "overflow-x-auto sm:flex-wrap sm:justify-end sm:overflow-visible"
+            "overflow-x-auto sm:ml-auto sm:flex-wrap sm:justify-end " +
+            "sm:overflow-visible"
           }
         >
           {NAV.map((item) => (

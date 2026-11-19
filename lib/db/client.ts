@@ -24,6 +24,8 @@ interface CloudflareEnv {
   ANTHROPIC_BASE_URL?: string;
   ANTHROPIC_MODEL?: string;
   VOYAGE_API_KEY?: string;
+  // Seals integration tokens at rest (lib/token-box.ts).
+  KC_TOKEN_KEY?: string;
 }
 
 export async function getDb() {

@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { apiUser, unauthorized } from "@/lib/auth/user";
 import { draftEssayForTheme } from "@/lib/services/themes";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const user = apiUser(request);
+  if (!user) return unauthorized();
   let body: unknown;
   try {
     body = await request.json();
@@ -20,7 +23,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const essay = await draftEssayForTheme(themeId);
+    const essay = await draftEssayForTheme(user.id, themeId);
     return NextResponse.json({ essay });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error.";

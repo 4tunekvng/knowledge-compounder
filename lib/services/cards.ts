@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { cards, sources, type Card } from "@/lib/db/schema";
 import { generateMoreCards } from "@/lib/ai/more-cards";
@@ -15,7 +15,10 @@ export interface AddMoreCardsResult {
  * source's existing fronts (both via the prompt and a final client-side guard)
  * and start life as New cards, so they surface in the next review session.
  */
-export async function addMoreCards(sourceId: number): Promise<AddMoreCardsResult> {
+export async function addMoreCards(
+  ownerId: string,
+  sourceId: number,
+): Promise<AddMoreCardsResult> {
   const db = await getDb();
 
   const source = await db
@@ -25,7 +28,7 @@ export async function addMoreCards(sourceId: number): Promise<AddMoreCardsResult
       status: sources.status,
     })
     .from(sources)
-    .where(eq(sources.id, sourceId))
+    .where(and(eq(sources.id, sourceId), eq(sources.ownerId, ownerId)))
     .get();
 
   if (!source) throw new Error("Source not found.");
@@ -61,6 +64,7 @@ export async function addMoreCards(sourceId: number): Promise<AddMoreCardsResult
     const rows = await db
       .insert(cards)
       .values({
+        ownerId,
         sourceId,
         cardType: card.type,
         front: card.front,

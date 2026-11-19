@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiUser, unauthorized } from "@/lib/auth/user";
 import { z } from "zod";
 import { setIntegrationToken } from "@/lib/services/ingest-orchestrator";
 
@@ -9,6 +10,8 @@ const BodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const user = apiUser(request);
+  if (!user) return unauthorized();
   let body: unknown;
   try {
     body = await request.json();
@@ -24,7 +27,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    await setIntegrationToken("readwise", parsed.data.token);
+    await setIntegrationToken(user.id, "readwise", parsed.data.token);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[integrations/readwise/token] setIntegrationToken failed:", err);

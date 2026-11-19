@@ -1,10 +1,12 @@
 import { ReviewQueue } from "@/components/ReviewQueue";
 import { listDueCards } from "@/lib/services/queries";
+import { requireUser } from "@/lib/auth/user";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReviewPage() {
-  const due = await listDueCards();
+  const user = await requireUser();
+  const due = await listDueCards(user.id);
   const cards = due.map(({ card, source }) => ({
     id: card.id,
     cardType: card.cardType,

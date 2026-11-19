@@ -28,7 +28,7 @@ describe("generateThemes", () => {
     });
     const { generateThemes } = await import("@/lib/services/themes");
 
-    const inserted = await generateThemes();
+    const inserted = await generateThemes("owner-1");
 
     expect(inserted.map((t) => t.label)).toEqual(["Real"]);
     expect(inserted[0]?.sourceIds).toBe("[1,2]");
@@ -45,7 +45,7 @@ describe("generateThemes", () => {
     const { generateThemes } = await import("@/lib/services/themes");
 
     // Act
-    const inserted = await generateThemes();
+    const inserted = await generateThemes("owner-1");
 
     // Assert
     expect(inserted.map((t) => t.label)).toEqual(["Sixth"]);
@@ -63,7 +63,7 @@ describe("generateThemes", () => {
     const { generateThemes } = await import("@/lib/services/themes");
 
     // Act
-    const inserted = await generateThemes();
+    const inserted = await generateThemes("owner-1");
 
     // Assert
     expect(inserted.map((t) => t.label)).toEqual(["A", "B", "C", "D", "E"]);

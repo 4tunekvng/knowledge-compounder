@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { SourceListItem } from "@/components/SourceListItem";
 import { listSources } from "@/lib/services/queries";
+import { requireUser } from "@/lib/auth/user";
 
 export const dynamic = "force-dynamic";
 
 export default async function LibraryPage() {
-  const sources = await listSources(200);
+  const user = await requireUser();
+  const sources = await listSources(user.id, 200);
 
   return (
     <div className="flex flex-col gap-6">

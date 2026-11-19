@@ -5,10 +5,14 @@
  * It calls POST /api/drain through the app's own fetch handler (in-process,
  * no network hop) instead of importing the drain directly. That way the
  * drain runs inside OpenNext's request context, where getDb() and getEnv()
- * find the D1 binding and secrets, and passes the same KC_API_SECRET check
- * as every other request. Importing the services here would also make
- * wrangler bundle the app's server code a second time, outside Next's build.
+ * find the D1 binding and secrets. The request skips the sign-in gate and
+ * carries the x-kc-cron header, which the gate strips from every outside
+ * request, so only this call can reach the drain. Importing the services
+ * here would also make wrangler bundle the app's server code a second time,
+ * outside Next's build.
  */
+
+import { CRON_HEADER } from "./auth/gate";
 
 type AppFetch = (
   request: Request,
@@ -21,14 +25,11 @@ export const DRAIN_URL = "https://knowledge-compounder.internal/api/drain";
 
 export async function drainThroughApp(
   appFetch: AppFetch,
-  env: { KC_API_SECRET?: string },
+  env: unknown,
   ctx: unknown,
 ): Promise<void> {
-  const headers: Record<string, string> = env.KC_API_SECRET
-    ? { Authorization: `Bearer ${env.KC_API_SECRET}` }
-    : {};
   const res = await appFetch(
-    new Request(DRAIN_URL, { method: "POST", headers }),
+    new Request(DRAIN_URL, { method: "POST", headers: { [CRON_HEADER]: "1" } }),
     env,
     ctx,
   );

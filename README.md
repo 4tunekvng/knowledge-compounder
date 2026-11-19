@@ -40,7 +40,8 @@ interface IngestSource {
 
 Implement that interface, register it in `lib/services/ingest-orchestrator.ts#getSource()`, add the provider to the `source_type` enum in `lib/db/schema.ts`, and you're done — the orchestrator, dedup, sync UI, and AI pipeline reuse for free. Kindle (send-to-Kindle email parsing) and Zotero (Web API) are the next two.
 
-Token storage is plaintext in the `integration_tokens` table — fine for single-user dev mode, **encrypt at rest before going multi-user**.
+Each person's token is sealed with AES-GCM (`lib/token-box.ts`, key in the
+`KC_TOKEN_KEY` Worker secret) before it is stored in `integration_tokens`.
 
 ## What's deliberately out of scope for v0
 
@@ -114,14 +115,16 @@ lib/
     cards.ts              Generate-more-cards for an existing source
     decks.ts              Create / list / fetch-by-token / delete decks
     ingest-source.ts      IngestSource interface + sanitizeForPrompt helper
-    ingest-orchestrator.ts  Drives sync for one provider, dedupes via (source_type, external_id)
+    ingest-orchestrator.ts  Drives sync for one person and provider, dedupes per person
     integrations/         Per-provider IngestSource impls (readwise.ts; kindle/zotero TBD)
     queries.ts            Read-side: list/get for sources, cards, themes, essays
     themes.ts             Theme clustering + essay drafting
     review.ts             FSRS grading
   sm2/                    Spaced repetition (FSRS-6 implementation; module name kept for compatibility)
   markdown.ts             Tiny dependency-free Markdown renderer
-worker.ts                 Worker entry: OpenNext app + the cron handler
+  auth/                   Sign-in gate (gate.ts) and the signed-in user for pages (user.ts)
+  token-box.ts            Seals integration tokens with AES-GCM before they are stored
+worker.ts                 Worker entry: sign-in gate, OpenNext app, cron handler
 tests/
   unit/                   Vitest — pure functions only
   e2e/                    Playwright — real browser, real DB, fake AI
@@ -135,10 +138,28 @@ CLOUDFLARE_ACCOUNT_ID=<id> npx wrangler d1 migrations apply knowledge-compounder
 CLOUDFLARE_ACCOUNT_ID=<id> npm run cf:deploy       # deploy the worker
 ```
 
+Requires the Cloudflare account that holds the `fortuneking-auth` Worker (the
+`AUTH` service binding) and these Worker secrets: `ANTHROPIC_API_KEY`,
+`ANTHROPIC_BASE_URL`, and `KC_TOKEN_KEY` (32 random bytes, base64:
+`openssl rand -base64 32 | npx wrangler secret put KC_TOKEN_KEY -c wrangler.jsonc`;
+it seals Readwise tokens, so changing it means everyone pastes theirs again).
+
 The deploy also registers the worker's cron trigger (`triggers.crons` in
-`wrangler.jsonc`), which drains pending sources every 5 minutes. To drain by hand
-in production, send `curl -X POST -H "Authorization: Bearer <KC_API_SECRET>"
-https://<your-worker-host>/api/drain`.
+`wrangler.jsonc`), which drains everyone's pending sources every 5 minutes.
+Only the cron can run the drain: `/api/drain` answers 404 to any request from
+outside.
+
+## Sign-in
+
+Everyone signs in with Google through `fortuneking-auth`
+(https://auth.fortuneking.dev), and every row is keyed by their Google account
+id (`owner_id`). `worker.ts` puts `lib/auth/gate.ts` in front of the app: it
+asks the sign-in service who the visitor is, sends signed-out pages to
+`/login` and answers signed-out API calls with 401, refuses posts from other
+sites, and hands the app the user in a header it deletes from every incoming
+request. Share links (`/d/<token>`) stay public. In `next dev` there is no
+gate, so local requests must send that header themselves
+(`playwright.config.ts` shows how).
 
 Production runs on Cloudflare D1 (real backend — nothing is stored in the
 browser). Local dev / preview / e2e use a `DATABASE_PATH` SQLite file via the

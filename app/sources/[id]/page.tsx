@@ -5,6 +5,7 @@ import {
   parseTakeaways,
   parseConcepts,
 } from "@/lib/services/queries";
+import { requireUser } from "@/lib/auth/user";
 import { RetrySourceButton } from "@/components/RetrySourceButton";
 import { GenerateCardsButton } from "@/components/GenerateCardsButton";
 
@@ -15,12 +16,13 @@ interface Params {
 }
 
 export default async function SourcePage({ params }: Params) {
+  const user = await requireUser();
   const { id: idStr } = await params;
   const id = Number(idStr);
   if (!Number.isInteger(id) || id <= 0) {
     notFound();
   }
-  const detail = await getSourceDetail(id);
+  const detail = await getSourceDetail(user.id, id);
   if (!detail) {
     notFound();
   }
@@ -56,7 +58,7 @@ export default async function SourcePage({ params }: Params) {
         >
           <p className="font-medium mb-1">Processing failed</p>
           {/* The raw error stays on the row and in the logs; it can name
-              gateway hosts, and this page is not behind the API secret. */}
+              gateway hosts, which no reader needs to see. */}
           <p>Something went wrong while processing this source.</p>
           <RetrySourceButton sourceId={source.id} />
         </div>

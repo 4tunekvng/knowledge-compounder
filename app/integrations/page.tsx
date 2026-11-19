@@ -1,10 +1,12 @@
 import { IntegrationsPanel } from "@/components/IntegrationsPanel";
 import { listIntegrationStatus } from "@/lib/services/ingest-orchestrator";
+import { requireUser } from "@/lib/auth/user";
 
 export const dynamic = "force-dynamic";
 
 export default async function IntegrationsPage() {
-  const providers = await listIntegrationStatus();
+  const user = await requireUser();
+  const providers = await listIntegrationStatus(user.id);
   const readwise = providers.find((p) => p.provider === "readwise");
 
   return (

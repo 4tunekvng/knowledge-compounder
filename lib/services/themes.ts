@@ -1,5 +1,5 @@
 import "server-only";
-import { eq, inArray, isNull, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { chunkForD1 } from "@/lib/db/chunk";
 import { sources, themes, essays, processings } from "@/lib/db/schema";
@@ -8,8 +8,8 @@ import { fitThemes } from "@/lib/ai/schemas";
 import { draftEssay as draftEssayAi } from "@/lib/ai/essay";
 import { getCorpusForThemes, getTheme, parseSourceIds } from "./queries";
 
-export async function generateThemes() {
-  const corpus = await getCorpusForThemes();
+export async function generateThemes(ownerId: string) {
+  const corpus = await getCorpusForThemes(ownerId);
   if (corpus.length < 2) {
     throw new Error(
       "Need at least 2 processed sources to surface themes. Capture more material first.",
@@ -38,7 +38,11 @@ export async function generateThemes() {
   // Insert new themes first so a mid-run failure leaves the existing themes
   // intact rather than leaving an empty table. Delete old rows only after all
   // inserts succeed (D1 doesn't support multi-statement transactions).
-  const oldRows = await db.select({ id: themes.id }).from(themes).all();
+  const oldRows = await db
+    .select({ id: themes.id })
+    .from(themes)
+    .where(eq(themes.ownerId, ownerId))
+    .all();
   const oldIds = oldRows.map((r) => r.id);
 
   const inserted = [];
@@ -46,6 +50,7 @@ export async function generateThemes() {
     const rows = await db
       .insert(themes)
       .values({
+        ownerId,
         label: t.label,
         summary: t.summary,
         sourceIds: JSON.stringify(t.source_ids),
@@ -66,24 +71,35 @@ export async function generateThemes() {
   // null-themeId orphans were silently skipped on the very first run and
   // any subsequent run where no prior themes existed.
   if (oldIds.length > 0) {
-    for (const part of chunkForD1(oldIds)) {
+    for (const part of chunkForD1(oldIds, 1)) {
       await db
         .delete(essays)
-        .where(or(inArray(essays.themeId, part), isNull(essays.themeId)))
+        .where(
+          and(
+            eq(essays.ownerId, ownerId),
+            or(inArray(essays.themeId, part), isNull(essays.themeId)),
+          ),
+        )
         .run();
-      await db.delete(themes).where(inArray(themes.id, part)).run();
+      await db
+        .delete(themes)
+        .where(and(eq(themes.ownerId, ownerId), inArray(themes.id, part)))
+        .run();
     }
   } else {
     // No old themes to delete, but still clean up any null-themeId orphans
     // that could accumulate from previous failed generation cycles.
-    await db.delete(essays).where(isNull(essays.themeId)).run();
+    await db
+      .delete(essays)
+      .where(and(eq(essays.ownerId, ownerId), isNull(essays.themeId)))
+      .run();
   }
 
   return inserted;
 }
 
-export async function draftEssayForTheme(themeId: number) {
-  const theme = await getTheme(themeId);
+export async function draftEssayForTheme(ownerId: string, themeId: number) {
+  const theme = await getTheme(ownerId, themeId);
   if (!theme) {
     throw new Error("Theme not found.");
   }
@@ -95,7 +111,7 @@ export async function draftEssayForTheme(themeId: number) {
   const db = await getDb();
   const themeSources = (
     await Promise.all(
-      chunkForD1(ids).map((part) =>
+      chunkForD1(ids, 1).map((part) =>
         db
           .select({
             source: sources,
@@ -103,7 +119,7 @@ export async function draftEssayForTheme(themeId: number) {
           })
           .from(sources)
           .innerJoin(processings, eq(processings.sourceId, sources.id))
-          .where(inArray(sources.id, part))
+          .where(and(eq(sources.ownerId, ownerId), inArray(sources.id, part)))
           .all(),
       ),
     )
@@ -129,6 +145,7 @@ export async function draftEssayForTheme(themeId: number) {
   const inserted = await db
     .insert(essays)
     .values({
+      ownerId,
       themeId,
       title: essay.title,
       draftMd: essay.draft_md,

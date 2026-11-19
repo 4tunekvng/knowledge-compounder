@@ -1,6 +1,6 @@
 /**
- * Orchestrates an auto-ingest run for one provider:
- *   1. Read the stored token + last sync cursor from `integration_tokens`.
+ * Orchestrates an auto-ingest run for one person and provider:
+ *   1. Read their sealed token + last sync cursor from `integration_tokens`.
  *   2. Iterate the IngestSource generator, skipping already-ingested items.
  *   3. Store each new item as a pending row. The scheduled drain
  *      (processPendingSources) does the AI work later, so this request is
@@ -16,9 +16,10 @@
  */
 
 import "server-only";
-import { eq } from "drizzle-orm";
-import { getDb } from "@/lib/db/client";
+import { and, eq } from "drizzle-orm";
+import { getDb, getEnv } from "@/lib/db/client";
 import { integrationTokens } from "@/lib/db/schema";
+import { openToken, sealToken } from "@/lib/token-box";
 import {
   InvalidTokenError,
   type IngestSource,
@@ -61,7 +62,15 @@ function getSource(provider: string): IngestSource {
   }
 }
 
+function ownedToken(ownerId: string, provider: string) {
+  return and(
+    eq(integrationTokens.ownerId, ownerId),
+    eq(integrationTokens.provider, provider),
+  );
+}
+
 export async function syncIntegration(
+  ownerId: string,
   provider: string,
   /** Override for tests — lets us inject a stubbed source without touching the registry. */
   sourceOverride?: IngestSource,
@@ -70,7 +79,7 @@ export async function syncIntegration(
   const row = await db
     .select()
     .from(integrationTokens)
-    .where(eq(integrationTokens.provider, provider))
+    .where(ownedToken(ownerId, provider))
     .get();
 
   if (!row) {
@@ -78,6 +87,12 @@ export async function syncIntegration(
       `No token configured for provider '${provider}'. Paste a token in /integrations first.`,
     );
   }
+
+  const token = await openToken(row.token, (await getEnv()).KC_TOKEN_KEY, {
+    ownerId,
+    provider,
+  });
+  if (token === null) throw new InvalidTokenError(provider);
 
   const source = sourceOverride ?? getSource(provider);
   const cursor = row.lastSyncedAt ?? undefined;
@@ -92,13 +107,14 @@ export async function syncIntegration(
   const errors: string[] = [];
 
   try {
-    for await (const capture of source.fetchNew(row.token, cursor)) {
+    for await (const capture of source.fetchNew(token, cursor)) {
       if (newCount >= MAX_PER_SYNC) {
         reachedLimit = true;
         break;
       }
       try {
         const input: ExternalIngestInput = {
+          ownerId,
           sourceType: provider as ExternalIngestInput["sourceType"],
           externalId: capture.externalId,
           title: capture.title,
@@ -151,7 +167,7 @@ export async function syncIntegration(
       lastSyncedAt: newCursor,
       updatedAt: new Date(),
     })
-    .where(eq(integrationTokens.provider, provider))
+    .where(ownedToken(ownerId, provider))
     .run();
 
   return {
@@ -173,9 +189,15 @@ export interface IntegrationStatus {
 
 const KNOWN_PROVIDERS = ["readwise"] as const;
 
-export async function listIntegrationStatus(): Promise<IntegrationStatus[]> {
+export async function listIntegrationStatus(
+  ownerId: string,
+): Promise<IntegrationStatus[]> {
   const db = await getDb();
-  const rows = await db.select().from(integrationTokens).all();
+  const rows = await db
+    .select()
+    .from(integrationTokens)
+    .where(eq(integrationTokens.ownerId, ownerId))
+    .all();
   const byProvider = new Map(rows.map((r) => [r.provider, r]));
   return KNOWN_PROVIDERS.map((p) => {
     const r = byProvider.get(p);
@@ -188,6 +210,7 @@ export async function listIntegrationStatus(): Promise<IntegrationStatus[]> {
 }
 
 export async function setIntegrationToken(
+  ownerId: string,
   provider: string,
   token: string,
 ): Promise<void> {
@@ -198,22 +221,26 @@ export async function setIntegrationToken(
   if (trimmed.length === 0) {
     throw new Error("Token cannot be empty.");
   }
+  const sealed = await sealToken(trimmed, (await getEnv()).KC_TOKEN_KEY, {
+    ownerId,
+    provider,
+  });
   const db = await getDb();
   const existing = await db
     .select({ id: integrationTokens.id })
     .from(integrationTokens)
-    .where(eq(integrationTokens.provider, provider))
+    .where(ownedToken(ownerId, provider))
     .get();
   if (existing) {
     await db
       .update(integrationTokens)
-      .set({ token: trimmed, updatedAt: new Date() })
-      .where(eq(integrationTokens.provider, provider))
+      .set({ token: sealed, updatedAt: new Date() })
+      .where(ownedToken(ownerId, provider))
       .run();
   } else {
     await db
       .insert(integrationTokens)
-      .values({ provider, token: trimmed })
+      .values({ ownerId, provider, token: sealed })
       .run();
   }
 }

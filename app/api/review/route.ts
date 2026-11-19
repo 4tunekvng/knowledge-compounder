@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { apiUser, unauthorized } from "@/lib/auth/user";
 import { gradeCard } from "@/lib/services/review";
 import type { Rating } from "@/lib/fsrs";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const user = apiUser(request);
+  if (!user) return unauthorized();
   let body: unknown;
   try {
     body = await request.json();
@@ -28,7 +31,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const next = await gradeCard(cardId, ratingValue as Rating);
+    const next = await gradeCard(user.id, cardId, ratingValue as Rating);
     return NextResponse.json({
       stability: next.stability,
       difficulty: next.difficulty,

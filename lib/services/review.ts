@@ -1,12 +1,13 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { cards } from "@/lib/db/schema";
 import { schedule, type Rating, type State } from "@/lib/fsrs";
 
-export async function gradeCard(cardId: number, rating: Rating) {
+export async function gradeCard(ownerId: string, cardId: number, rating: Rating) {
   const db = await getDb();
-  const card = await db.select().from(cards).where(eq(cards.id, cardId)).get();
+  const owned = and(eq(cards.id, cardId), eq(cards.ownerId, ownerId));
+  const card = await db.select().from(cards).where(owned).get();
   if (!card) {
     throw new Error("Card not found.");
   }
@@ -38,7 +39,7 @@ export async function gradeCard(cardId: number, rating: Rating) {
       dueAt: next.dueAt,
       lastReviewedAt: now,
     })
-    .where(eq(cards.id, cardId))
+    .where(owned)
     .run();
 
   return next;

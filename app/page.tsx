@@ -1,11 +1,13 @@
 import { CaptureForm } from "@/components/CaptureForm";
 import { SourceListItem } from "@/components/SourceListItem";
 import { listSources } from "@/lib/services/queries";
+import { requireUser } from "@/lib/auth/user";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const recent = await listSources(5);
+  const user = await requireUser();
+  const recent = await listSources(user.id, 5);
 
   return (
     <div className="flex flex-col gap-10">
