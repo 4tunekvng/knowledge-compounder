@@ -3,6 +3,7 @@
 import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUpRight, RefreshCw } from "lucide-react";
+import { useLocalTime } from "@/lib/use-local-time";
 
 interface ProviderStatus {
   provider: string;
@@ -99,6 +100,14 @@ export function IntegrationsPanel({ readwise }: { readwise: ProviderStatus }) {
   }
 
   const busy = savingToken || syncing;
+  const syncedLabel = useLocalTime(() =>
+    readwise.lastSyncedAt
+      ? new Date(readwise.lastSyncedAt).toLocaleString("en-GB", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })
+      : "",
+  );
 
   return (
     <section
@@ -122,12 +131,7 @@ export function IntegrationsPanel({ readwise }: { readwise: ProviderStatus }) {
             {readwise.lastSyncedAt && (
               <span className="text-ink-3">
                 {" · last synced "}
-                <span data-testid="readwise-last-synced" suppressHydrationWarning>
-                  {new Date(readwise.lastSyncedAt).toLocaleString("en-GB", {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}
-                </span>
+                <span data-testid="readwise-last-synced">{syncedLabel}</span>
               </span>
             )}
           </p>

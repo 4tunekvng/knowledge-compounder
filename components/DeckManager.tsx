@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Download, ExternalLink, Mail, Trash2 } from "lucide-react";
 import { CardStack, IndexCard } from "@/components/IndexCard";
-import { catalogNumber, countLabel, formatDay } from "@/lib/format";
+import { catalogNumber, countLabel } from "@/lib/format";
 
 interface SourceOption {
   id: number;
@@ -19,7 +19,8 @@ interface DeckView {
   shareToken: string;
   sourceIds: number[];
   cardCount: number;
-  createdAt: number;
+  // Formatted on the server, so the server and browser show the same text.
+  madeOn: string;
 }
 
 interface Props {
@@ -265,7 +266,7 @@ export function DeckManager({ sources, decks, origin }: Props) {
                     <p className="mt-2 text-meta text-ink-3">
                       {countLabel(deck.cardCount, "card")} from{" "}
                       {countLabel(deck.sourceIds.length, "capture")} · made{" "}
-                      {formatDay(deck.createdAt)}
+                      {deck.madeOn}
                     </p>
                   </div>
 

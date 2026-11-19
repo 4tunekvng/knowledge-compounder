@@ -17,7 +17,7 @@ A focused v0 of the [Knowledge Compounder PRD](./PRD.md): capture reading materi
 
 Connect your reading sources so highlights flow into the corpus automatically. Each new highlight gets the same Claude treatment as a manual capture: 100-word reflection, three flashcards, concept tags, cross-links.
 
-**Shipped: Readwise.** Generate a token at https://readwise.io/access_token, then in the app go to `/integrations`, paste the token, click **Save token**, then **Sync now**. The orchestrator pages the Readwise V2 export endpoint, dedupes against `(source_type, external_id)`, and stores `lastSyncedAt` so the next run is incremental.
+**Shipped: Readwise.** Generate a token at https://readwise.io/access_token, then in the app go to **Imports** (`/integrations`), paste the token, click **Save token**, then **Sync now**. The orchestrator pages the Readwise V2 export endpoint, dedupes against `(source_type, external_id)`, and stores `lastSyncedAt` so the next run is incremental.
 
 **Store first, process later.** Sync only stores each new highlight as a `pending`
 source; it never waits on Claude. A cron trigger on the worker (`worker.ts`, every 5
@@ -26,7 +26,7 @@ and processes them. A claim is a timestamp (`sources.claimed_at`), so two drains
 never take the same row, and a capture whose request died part-way is picked up once
 its claim is 35 minutes old. Only the worker holding a row's current claim writes its
 cards, so a slow request that was taken over writes nothing. After 3 tries a row is
-marked failed, so its page offers Retry. Under `next dev` there is no cron: run `curl
+marked failed, so its page offers Try again. Under `next dev` there is no cron: run `curl
 -X POST http://127.0.0.1:3000/api/drain` to process synced highlights.
 
 **Extending to more providers.** The integration lives behind an `IngestSource` interface (`lib/services/ingest-source.ts`):

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { CaptureForm } from "@/components/CaptureForm";
 import { SourceListItem } from "@/components/SourceListItem";
-import { formatDay } from "@/lib/format";
 import { listSources } from "@/lib/services/queries";
 import { requireUser } from "@/lib/auth/user";
 
@@ -20,7 +19,7 @@ export default async function Home() {
           on why it mattered to you, a set of flashcards and its main ideas,
           filed in your library.
         </p>
-        <CaptureForm today={formatDay(new Date())} />
+        <CaptureForm />
       </section>
 
       <section className="min-w-0 lg:pt-3">

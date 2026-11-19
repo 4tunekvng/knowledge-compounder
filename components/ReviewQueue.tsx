@@ -66,10 +66,11 @@ export function ReviewQueue({ cards }: Props) {
     return (
       <div data-testid="review-done">
         <IndexCard head="Queue cleared">
-          <h2 className="index-card__front">That&apos;s every card due now.</h2>
+          <h2 className="index-card__front">That&apos;s this round done.</h2>
           <p className="index-card__back">
             You graded {countLabel(completed.length, "card")}. Each one is filed
-            away until its next due date.
+            away until its next due date. Check for more to load any cards
+            still due.
           </p>
         </IndexCard>
         <button

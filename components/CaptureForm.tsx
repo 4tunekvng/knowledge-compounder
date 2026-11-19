@@ -10,6 +10,8 @@ import {
 } from "react";
 import { Check, FileText, FileUp } from "lucide-react";
 import { IndexCard } from "@/components/IndexCard";
+import { formatDay } from "@/lib/format";
+import { useLocalTime } from "@/lib/use-local-time";
 import { useRouter } from "next/navigation";
 
 const PROCESSING_STEPS = [
@@ -79,7 +81,10 @@ function ProcessingIndicator() {
   );
 }
 
-export function CaptureForm({ today }: { today: string }) {
+const todayLabel = () => formatDay(new Date());
+
+export function CaptureForm() {
+  const today = useLocalTime(todayLabel);
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -191,7 +196,7 @@ export function CaptureForm({ today }: { today: string }) {
       >
         <textarea
           id="capture-input"
-          aria-label="Paste a URL or text, or drop in a PDF"
+          aria-label="Paste a link or some text, or drop in a PDF"
           data-testid="capture-input"
           value={input}
           onChange={(e) => setInput(e.target.value)}

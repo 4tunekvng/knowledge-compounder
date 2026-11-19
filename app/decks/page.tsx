@@ -4,6 +4,7 @@ import { DeckManager } from "@/components/DeckManager";
 import { listSources } from "@/lib/services/queries";
 import { listDecks } from "@/lib/services/decks";
 import { requireUser } from "@/lib/auth/user";
+import { formatDay } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ export default async function DecksPage() {
     shareToken: d.deck.shareToken,
     sourceIds: d.sourceIds,
     cardCount: d.cardCount,
-    createdAt: d.deck.createdAt.valueOf(),
+    madeOn: formatDay(d.deck.createdAt),
   }));
 
   return (

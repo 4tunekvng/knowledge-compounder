@@ -43,11 +43,11 @@ export default async function EssayPage({ params }: Params) {
         </h1>
         {html.includes("<em>") && (
           <p className="mt-4 text-ui text-ink-2">
-            Claims marked{" "}
+            Notes marked{" "}
             <span className="rounded-sm bg-accent-wash px-1 text-accent">
               like this
             </span>{" "}
-            are the weakest. They are the places to push back or add your own
+            follow the weakest claims: the places to push back or add your own
             example.
           </p>
         )}
