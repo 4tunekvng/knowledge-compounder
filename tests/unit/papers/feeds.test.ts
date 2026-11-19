@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { parseArxivRss, parseHfDaily } from "@/lib/papers/feeds";
+import { parseArxivAtom, parseArxivRss, parseHfDaily } from "@/lib/papers/feeds";
 
 // Real responses saved on 2026-11-19 (trimmed to a few items).
 const fixture = (name: string) =>
@@ -69,5 +69,28 @@ describe("parseHfDaily", () => {
 
   it("skips entries without an arXiv id or title", () => {
     expect(parseHfDaily([{ paper: { id: "" } }, { nope: 1 }, null])).toEqual([]);
+  });
+});
+
+describe("parseArxivAtom", () => {
+  const papers = parseArxivAtom(fixture("arxiv-api.xml"));
+
+  it("reads each record by its id without the version", () => {
+    expect(papers.map((p) => p.arxivId).sort()).toEqual([
+      "2604.06425",
+      "2610.17062",
+    ]);
+  });
+
+  it("reads title, abstract, authors, categories and first-version date", () => {
+    const graft = papers.find((p) => p.arxivId === "2610.17062");
+
+    expect(graft).toMatchObject({
+      title: "Gradient Routing Localizes and Removes Unintended Behaviors in RL",
+      abstract: expect.stringMatching(/^We propose a mitigation to reward hacking/),
+      authors: expect.arrayContaining(["Jake Ward"]),
+      categories: expect.arrayContaining(["cs.LG"]),
+      publishedAt: Date.parse("2026-10-12T16:28:28Z"),
+    });
   });
 });

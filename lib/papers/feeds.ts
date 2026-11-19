@@ -105,3 +105,58 @@ export function parseHfDaily(entries: unknown): HarvestedPaper[] {
   }
   return papers;
 }
+
+/**
+ * Records from arXiv's query API (https://export.arxiv.org/api/query?id_list=),
+ * for papers no daily feed carried, such as ones read before the harvest began.
+ */
+export function parseArxivAtom(xml: string): HarvestedPaper[] {
+  const doc = new DOMParser().parseFromString(xml, "text/xml");
+  const papers: HarvestedPaper[] = [];
+  for (const entry of Array.from(doc.getElementsByTagName("entry"))) {
+    const id =
+      text(child(entry, "id")).split("/abs/")[1]?.replace(/v\d+$/, "") ?? "";
+    const title = text(child(entry, "title"));
+    if (!ARXIV_ID.test(id) || !title) continue;
+    const published = Date.parse(text(child(entry, "published")));
+    papers.push({
+      arxivId: id,
+      title,
+      authors: Array.from(entry.getElementsByTagName("name"), (n) =>
+        text(n as Element),
+      ).filter(Boolean),
+      abstract: text(child(entry, "summary")),
+      categories: Array.from(
+        entry.getElementsByTagName("category"),
+        (c) => (c as Element).getAttribute("term") ?? "",
+      ).filter(Boolean),
+      publishedAt: Number.isNaN(published) ? Date.now() : published,
+      hfUpvotes: null,
+      hfSummary: null,
+      githubUrl: null,
+      source: "arxiv",
+    });
+  }
+  return papers;
+}
+
+/** Join the same paper from several feeds into one row. */
+export function mergeHarvested(found: HarvestedPaper[]): HarvestedPaper[] {
+  const byId = new Map<string, HarvestedPaper>();
+  for (const paper of found) {
+    const seen = byId.get(paper.arxivId);
+    if (!seen) {
+      byId.set(paper.arxivId, { ...paper });
+      continue;
+    }
+    const fromArxiv = seen.source === "arxiv" ? seen : paper;
+    byId.set(paper.arxivId, {
+      ...fromArxiv,
+      categories: [...new Set([...seen.categories, ...paper.categories])],
+      hfUpvotes: seen.hfUpvotes ?? paper.hfUpvotes,
+      hfSummary: seen.hfSummary ?? paper.hfSummary,
+      githubUrl: seen.githubUrl ?? paper.githubUrl,
+    });
+  }
+  return [...byId.values()];
+}

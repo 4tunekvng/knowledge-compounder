@@ -3,7 +3,12 @@ import { desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { D1_MAX_BOUND_PARAMS } from "@/lib/db/chunk";
 import { paperHarvests, papers } from "@/lib/db/schema";
-import { type HarvestedPaper, parseArxivRss, parseHfDaily } from "./feeds";
+import {
+  type HarvestedPaper,
+  mergeHarvested,
+  parseArxivRss,
+  parseHfDaily,
+} from "./feeds";
 
 /**
  * Fill the shared paper pool. The cron calls this every 5 minutes; it does
@@ -56,27 +61,6 @@ export function dayStart(now: number): number {
 
 function utcDate(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
-}
-
-/** Join the same paper from several feeds into one row. */
-export function mergeHarvested(found: HarvestedPaper[]): HarvestedPaper[] {
-  const byId = new Map<string, HarvestedPaper>();
-  for (const paper of found) {
-    const seen = byId.get(paper.arxivId);
-    if (!seen) {
-      byId.set(paper.arxivId, { ...paper });
-      continue;
-    }
-    const fromArxiv = seen.source === "arxiv" ? seen : paper;
-    byId.set(paper.arxivId, {
-      ...fromArxiv,
-      categories: [...new Set([...seen.categories, ...paper.categories])],
-      hfUpvotes: seen.hfUpvotes ?? paper.hfUpvotes,
-      hfSummary: seen.hfSummary ?? paper.hfSummary,
-      githubUrl: seen.githubUrl ?? paper.githubUrl,
-    });
-  }
-  return [...byId.values()];
 }
 
 async function collect(
