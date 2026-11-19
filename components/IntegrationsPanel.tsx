@@ -80,7 +80,12 @@ export function IntegrationsPanel({ readwise }: { readwise: ProviderStatus }) {
           kind: "success",
           text: `Synced — ${data.added} new, ${data.skipped} already known${
             data.errors.length ? `, ${data.errors.length} errors` : ""
-          }.`,
+          }.${
+            data.added
+              ? " New highlights get their notes and cards in the" +
+                " background, a few at a time."
+              : ""
+          }`,
         });
         router.refresh();
       } catch (err) {

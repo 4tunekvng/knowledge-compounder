@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lt, or } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { cards, processings, sources } from "@/lib/db/schema";
 import { processSource } from "@/lib/ai/process";
@@ -11,6 +11,14 @@ import {
 } from "@/lib/extract/url";
 import { extractFromPdf } from "@/lib/extract/pdf";
 import { sanitizeForPrompt } from "./ingest-source";
+
+/**
+ * How long a claim on a pending row holds before the drain may take the row
+ * again. It must outlast the slowest live worker: a manual capture's request
+ * has no time cap, and one model call can take three 10-minute attempts (the
+ * SDK's default timeout and two retries). Past this, the worker is dead.
+ */
+export const CLAIM_TIMEOUT_MS = 35 * 60_000;
 
 // 10 MB upload ceiling for PDFs — large enough for a book chapter or paper,
 // small enough to stay within Worker memory/time limits during extraction.
@@ -147,6 +155,8 @@ export async function ingest({ raw }: IngestInput): Promise<IngestResult> {
       rawContent: extracted.text,
       excerpt: extracted.excerpt,
       status: "pending",
+      // This request processes the row itself; the claim keeps the drain off.
+      claimedAt: new Date(),
     })
     .returning({ id: sources.id })
     .all();
@@ -200,6 +210,7 @@ export async function ingestPdf({
       excerpt: extracted.excerpt,
       status: "pending",
       sourceType: "pdf",
+      claimedAt: new Date(),
     })
     .returning({ id: sources.id })
     .all();
@@ -218,17 +229,17 @@ export async function ingestPdf({
 }
 
 /**
- * Ingest a capture that originated from an external provider (Readwise,
- * Kindle, etc.). Skips URL extraction — the provider has already given us
- * clean text. Title/text are sanitized before being interpolated into the
- * LLM prompt (defense in depth — a malicious highlight note can't jailbreak
- * the processor).
+ * Store a capture that originated from an external provider (Readwise,
+ * Kindle, etc.) as an unclaimed pending row. Skips URL extraction — the
+ * provider has already given us clean text. The AI work happens later in
+ * processPendingSources, so a sync of hundreds of highlights is only
+ * database writes and cannot leave rows half-processed when its request ends.
  *
  * Returns `{ status: "skipped" }` if `(sourceType, externalId)` already
  * exists, so re-syncing is idempotent.
  */
 export type ExternalIngestResult =
-  | { sourceId: number; status: "processed" | "failed"; error?: string }
+  | { sourceId: number; status: "pending" }
   | { sourceId: number; status: "skipped"; reason: "duplicate" };
 
 export async function ingestExternal(
@@ -253,12 +264,8 @@ export async function ingestExternal(
     return { sourceId: existing.id, status: "skipped", reason: "duplicate" };
   }
 
-  // Sanitize before we let title/text/url anywhere near a Claude prompt.
   // We store the *original* text (raw_content + excerpt) so the user sees
-  // their highlight verbatim — only the values we pass to processSource()
-  // are sanitized.
-  const safeTitle = sanitizeForPrompt(input.title) || "Untitled";
-  const safeText = sanitizeForPrompt(input.text);
+  // their highlight verbatim; the drain sanitizes what it sends to Claude.
   const excerpt =
     input.text.length <= 280 ? input.text : input.text.slice(0, 277) + "…";
 
@@ -283,9 +290,86 @@ export async function ingestExternal(
       "INSERT into sources returned no rows — database may be read-only or schema mismatch.",
     );
   }
-  const sourceId = inserted[0].id;
+  return { sourceId: inserted[0].id, status: "pending" };
+}
 
-  return processAndPersist(db, sourceId, { title: safeTitle, text: safeText });
+type StoredSource = { id: number; title: string; rawContent: string };
+
+/**
+ * Process a row from what is already stored: drop any processing or cards a
+ * previous attempt left behind, then run the pipeline on the sanitized
+ * title and text (defense in depth: a malicious highlight can't jailbreak
+ * the processor).
+ */
+async function reprocessStored(
+  db: Awaited<ReturnType<typeof getDb>>,
+  row: StoredSource,
+): Promise<IngestResult> {
+  let prompt: { title: string; text: string };
+  try {
+    await db.delete(processings).where(eq(processings.sourceId, row.id)).run();
+    await db.delete(cards).where(eq(cards.sourceId, row.id)).run();
+    prompt = {
+      title: sanitizeForPrompt(row.title) || "Untitled",
+      text: sanitizeForPrompt(row.rawContent),
+    };
+  } catch (err) {
+    return markFailed(db, row.id, err);
+  }
+  return processAndPersist(db, row.id, prompt);
+}
+
+/**
+ * Atomically claim the oldest pending row nobody is working on: never
+ * claimed (stored by sync) or claimed so long ago its worker must be dead.
+ * One UPDATE picks and stamps the row, so two drains running at once can
+ * never both get it.
+ */
+async function claimNextPending(
+  db: Awaited<ReturnType<typeof getDb>>,
+): Promise<StoredSource | undefined> {
+  const now = new Date();
+  const staleBefore = new Date(now.getTime() - CLAIM_TIMEOUT_MS);
+  const oldestFree = db
+    .select({ id: sources.id })
+    .from(sources)
+    .where(
+      and(
+        eq(sources.status, "pending"),
+        or(isNull(sources.claimedAt), lt(sources.claimedAt, staleBefore)),
+      ),
+    )
+    .orderBy(asc(sources.id))
+    .limit(1);
+  const [row] = await db
+    .update(sources)
+    .set({ claimedAt: now })
+    .where(inArray(sources.id, oldestFree))
+    .returning({
+      id: sources.id,
+      title: sources.title,
+      rawContent: sources.rawContent,
+    })
+    .all();
+  return row;
+}
+
+/**
+ * The drain: process up to `limit` pending rows, one claim at a time, so a
+ * drain that is cut off strands at most the row it was working on. Run by
+ * the scheduled worker (worker.ts → POST /api/drain).
+ */
+export async function processPendingSources(
+  limit: number,
+): Promise<IngestResult[]> {
+  const db = await getDb();
+  const results: IngestResult[] = [];
+  while (results.length < limit) {
+    const row = await claimNextPending(db);
+    if (!row) break;
+    results.push(await reprocessStored(db, row));
+  }
+  return results;
 }
 
 /**
@@ -313,7 +397,12 @@ export async function retrySource(sourceId: number): Promise<IngestResult> {
   // in a failed state, so we surface the same error the explicit check would have.
   const resetResult = await db
     .update(sources)
-    .set({ status: "pending", errorMessage: null, processedAt: null })
+    .set({
+      status: "pending",
+      errorMessage: null,
+      processedAt: null,
+      claimedAt: new Date(),
+    })
     .where(and(eq(sources.id, sourceId), eq(sources.status, "failed")))
     .run();
 
@@ -337,16 +426,5 @@ export async function retrySource(sourceId: number): Promise<IngestResult> {
       `Source is not in a failed state (current status: ${current.status}). Only failed sources can be retried.`,
     );
   }
-  let prompt: { title: string; text: string };
-  try {
-    await db.delete(processings).where(eq(processings.sourceId, sourceId)).run();
-    await db.delete(cards).where(eq(cards.sourceId, sourceId)).run();
-    prompt = {
-      title: sanitizeForPrompt(row.title) || "Untitled",
-      text: sanitizeForPrompt(row.rawContent),
-    };
-  } catch (err) {
-    return markFailed(db, sourceId, err);
-  }
-  return processAndPersist(db, sourceId, prompt);
+  return reprocessStored(db, { id: sourceId, ...row });
 }

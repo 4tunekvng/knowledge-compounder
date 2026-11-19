@@ -20,10 +20,7 @@ const ingestCalls: Array<{ externalId: string; sourceType: string }> = [];
 // Map of externalId → behavior for the mocked ingest pipeline.
 const ingestBehavior = new Map<
   string,
-  | { kind: "added" }
-  | { kind: "skipped" }
-  | { kind: "failed"; reason: string }
-  | { kind: "throw"; reason: string }
+  { kind: "added" } | { kind: "skipped" } | { kind: "throw"; reason: string }
 >();
 
 vi.mock("@/lib/db/client", () => ({
@@ -69,7 +66,6 @@ vi.mock("@/lib/db/client", () => ({
 }));
 
 vi.mock("@/lib/services/ingest", () => ({
-  PROCESSING_FAILED_MESSAGE: "Processing failed. Open the source to retry.",
   ingestExternal: async (input: { sourceType: string; externalId: string }) => {
     ingestCalls.push({
       externalId: input.externalId,
@@ -77,10 +73,9 @@ vi.mock("@/lib/services/ingest", () => ({
     });
     const behavior = ingestBehavior.get(input.externalId) ?? { kind: "added" };
     if (behavior.kind === "throw") throw new Error(behavior.reason);
-    if (behavior.kind === "added") return { sourceId: 1, status: "processed" };
     if (behavior.kind === "skipped")
       return { sourceId: 1, status: "skipped", reason: "duplicate" };
-    return { sourceId: 1, status: "failed", error: behavior.reason };
+    return { sourceId: 1, status: "pending" };
   },
 }));
 
@@ -172,18 +167,18 @@ describe("syncIntegration", () => {
     });
     ingestBehavior.set("good", { kind: "added" });
     ingestBehavior.set("bad", { kind: "throw", reason: "boom" });
-    ingestBehavior.set("oops", { kind: "failed", reason: "processing failed" });
+    ingestBehavior.set("fine", { kind: "added" });
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const captures = [
       makeCapture("good"),
       makeCapture("bad"),
-      makeCapture("oops"),
+      makeCapture("fine"),
     ];
     const { syncIntegration } = await importOrchestrator();
     const result = await syncIntegration("readwise", fakeSource(captures));
-    expect(result.added).toBe(1);
-    expect(result.errors).toHaveLength(2);
+    expect(result.added).toBe(2);
+    expect(result.errors).toHaveLength(1);
     expect(result.errors.join(" ")).toContain("bad");
-    expect(result.errors.join(" ")).toContain("oops");
   });
 
   it("keeps raw item errors out of the sync summary", async () => {
@@ -197,16 +192,14 @@ describe("syncIntegration", () => {
       reason: "502 from https://gateway.internal/v1",
     });
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const { syncIntegration } = await importOrchestrator();
+    const { syncIntegration, SAVE_FAILED_MESSAGE } = await importOrchestrator();
 
     const result = await syncIntegration(
       "readwise",
       fakeSource([makeCapture("bad")]),
     );
 
-    expect(result.errors).toEqual([
-      "bad: Processing failed. Open the source to retry.",
-    ]);
+    expect(result.errors).toEqual([`bad: ${SAVE_FAILED_MESSAGE}`]);
   });
 
   it("keeps raw fetch errors out of the sync summary", async () => {
