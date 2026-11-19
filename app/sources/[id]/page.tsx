@@ -7,11 +7,11 @@ import {
   parseConcepts,
 } from "@/lib/services/queries";
 import { requireUser } from "@/lib/auth/user";
+import { FlashcardGrid } from "@/components/FlashcardGrid";
 import { IndexCard } from "@/components/IndexCard";
 import { RetrySourceButton } from "@/components/RetrySourceButton";
 import { GenerateCardsButton } from "@/components/GenerateCardsButton";
 import {
-  cardTypeLabel,
   catalogNumber,
   displayTitle,
   formatDay,
@@ -123,78 +123,34 @@ export default async function SourcePage({ params }: Params) {
       ) : null}
 
       {hasNotes ? (
-        <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-16">
-          <div className="flex min-w-0 flex-col gap-12">
-            {processing && (
-              <section data-testid="why-i-cared" aria-label="Why I cared">
-                <IndexCard head="Why I cared">
-                  <p>{processing.whyICared}</p>
-                </IndexCard>
-              </section>
-            )}
-
-            {takeaways.length > 0 && (
-              <section data-testid="takeaways">
-                <h2 className="section-title mb-4">Key takeaways</h2>
-                <ol className="flex flex-col gap-4">
-                  {takeaways.map((t, i) => (
-                    <li key={i} className="grid grid-cols-[24px_1fr] text-ui">
-                      <span className="text-ink-3">{i + 1}</span>
-                      <span>{t}</span>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            )}
-
-            {source.status === "processed" && (
-              <section data-testid="cards-section">
-                <div
-                  className={
-                    "mb-6 flex flex-wrap items-start justify-between gap-4"
-                  }
-                >
-                  <div>
-                    <h2 className="section-title">
-                      Flashcards{" "}
-                      <span className="font-normal text-ink-3">{cards.length}</span>
-                    </h2>
-                    {cards.length > 0 && (
-                      <p className="mt-1 text-ui text-ink-2">
-                        Filed for review.{" "}
-                        <Link href="/review">Review due cards</Link>
-                      </p>
-                    )}
-                  </div>
-                  <GenerateCardsButton sourceId={source.id} />
-                </div>
-                {cards.length > 0 ? (
-                  <ul className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
-                    {cards.map((card) => (
-                      <IndexCard
-                        as="li"
-                        size="small"
-                        key={card.id}
-                        head={cardTypeLabel(card.cardType)}
-                        data-testid={`card-${card.id}`}
-                      >
-                        <p className="index-card__front">{card.front}</p>
-                        <p className="index-card__back">{card.back}</p>
-                      </IndexCard>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-ui text-ink-2">
-                    No cards yet. Generate some from the captured text.
-                  </p>
-                )}
-              </section>
-            )}
-            {captured}
-          </div>
+        // One grid, so a phone reads the note, then its main ideas and
+        // related captures, then the rest; from 1024px up the ideas and
+        // related captures stand in a column beside the note.
+        <div
+          className={
+            "grid items-start gap-12 " +
+            "lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-x-16"
+          }
+        >
+          {processing && (
+            <section
+              data-testid="why-i-cared"
+              aria-label="Why I cared"
+              className="min-w-0 lg:col-start-1"
+            >
+              <IndexCard head="Why I cared">
+                <p>{processing.whyICared}</p>
+              </IndexCard>
+            </section>
+          )}
 
           {(concepts.length > 0 || related.length > 0) && (
-            <aside className="flex flex-col gap-10 lg:pt-1">
+            <aside
+              className={
+                "flex flex-col gap-10 lg:col-start-2 lg:row-span-4 " +
+                "lg:row-start-1 lg:pt-1"
+              }
+            >
               {concepts.length > 0 && (
                 <section>
                   <h2 className="text-ui font-semibold">Main ideas</h2>
@@ -224,11 +180,11 @@ export default async function SourcePage({ params }: Params) {
                         <Link
                           href={`/sources/${r.id}`}
                           className={
-                            "line-clamp-2 text-meta text-ink no-underline " +
+                            "text-meta text-ink no-underline " +
                             "hover:text-accent"
                           }
                         >
-                          {displayTitle(r.title)}
+                          {displayTitle(r.title, 80)}
                         </Link>
                       </li>
                     ))}
@@ -237,6 +193,60 @@ export default async function SourcePage({ params }: Params) {
               )}
             </aside>
           )}
+
+          {takeaways.length > 0 && (
+            <section data-testid="takeaways" className="min-w-0 lg:col-start-1">
+              <h2 className="section-title mb-4">Key takeaways</h2>
+              <ol className="flex flex-col gap-4">
+                {takeaways.map((t, i) => (
+                  <li key={i} className="grid grid-cols-[24px_1fr] text-ui">
+                    <span className="text-ink-3">{i + 1}</span>
+                    <span>{t}</span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          {source.status === "processed" && (
+            <section
+              data-testid="cards-section"
+              className="min-w-0 lg:col-start-1"
+            >
+              <div
+                className={
+                  "mb-6 flex flex-wrap items-start justify-between gap-4"
+                }
+              >
+                <div>
+                  <h2 className="section-title">
+                    Flashcards{" "}
+                    <span className="font-normal text-ink-3">{cards.length}</span>
+                  </h2>
+                  {cards.length > 0 && (
+                    <p className="mt-1 text-ui text-ink-2">
+                      Filed for review.{" "}
+                      <Link href="/review">Review due cards</Link>
+                    </p>
+                  )}
+                </div>
+                <GenerateCardsButton sourceId={source.id} />
+              </div>
+              {cards.length > 0 ? (
+                <FlashcardGrid
+                  cards={cards}
+                  phonePreview
+                  testIdPrefix="card-"
+                />
+              ) : (
+                <p className="text-ui text-ink-2">
+                  No cards yet. Generate some from the captured text.
+                </p>
+              )}
+            </section>
+          )}
+
+          <div className="min-w-0 lg:col-start-1">{captured}</div>
         </div>
       ) : (
         <div className="max-w-[760px]">{captured}</div>

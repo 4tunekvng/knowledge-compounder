@@ -202,11 +202,14 @@
 @layer components {
   /*
    * The index card: card stock, a red rule under the heading band and blue
-   * rules below it. Text in the body sits on the rules because its line
-   * height is the rule spacing.
+   * rules below it. Text in the body sits on the rules: its line height is
+   * the rule spacing, and the rules are shifted up so each falls about 4px
+   * under the baseline (Courier Prime at 17px sits 19px into a 32px line,
+   * at 15px 15px into a 24px line; measured, see the pull request).
    */
   .index-card {
     --rule-gap: 32px;
+    --rule-shift: -8px;
     --head: 48px;
     --pad-x: 32px;
     position: relative;
@@ -225,27 +228,31 @@
       100% calc(100% - var(--head));
     background-position:
       0 calc(var(--head) - 2px),
-      0 var(--head);
+      0 calc(var(--head) + var(--rule-shift));
     background-clip: padding-box;
     box-shadow: var(--card-shadow), inset 0 0 0 1px var(--line);
   }
 
   .index-card--small {
     --rule-gap: 24px;
+    --rule-shift: -4px;
     --head: 40px;
     --pad-x: 20px;
   }
 
   @media (max-width: 639px) {
     .index-card {
-      --rule-gap: 28px;
       --head: 44px;
       --pad-x: 20px;
     }
     .index-card--small {
-      --rule-gap: 24px;
       --head: 40px;
     }
+  }
+
+  /* A card with a button at its foot ends on its last written line. */
+  .index-card--footed .index-card__body {
+    padding-bottom: 0;
   }
 
   .index-card__head {
@@ -401,10 +408,25 @@
     line-height: 0;
   }
 
+  /* Each footnote marker is a 44 x 44 target: 44 wide in the line, and
+     44 tall through an invisible box that leaves the line height alone. */
   .prose-essay sup a {
+    position: relative;
+    display: inline-block;
+    min-width: 44px;
+    text-align: center;
     color: var(--accent);
     text-decoration: none;
-    padding: 0 2px;
+  }
+
+  .prose-essay sup a::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 44px;
+    transform: translateY(-50%);
   }
 
   /* The drafter marks its weakest claims; show them as an editor's mark. */

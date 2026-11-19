@@ -27,8 +27,11 @@ const LINK = /https?:\/\/\S+/g;
 // a digit or a closing bracket or quote (so "U.S. law" is not two sentences).
 const FIRST_SENTENCE = /^(.*?[a-z0-9)'"’”][.!?])\s/;
 
-/** Cut at the last whole word that fits in max characters, then add "…". */
-function cutAtWord(text: string, max: number): string {
+/**
+ * Cut at the last whole word that fits in max characters, then add "…".
+ * Used instead of CSS line clamping, which can cut a word in half.
+ */
+export function cutAtWord(text: string, max: number): string {
   if (text.length <= max) return text;
   const cut = text.slice(0, max + 1);
   const lastSpace = cut.lastIndexOf(" ");

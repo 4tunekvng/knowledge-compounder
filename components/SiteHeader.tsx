@@ -139,8 +139,10 @@ export function SiteHeader({
                     {showDue && (
                       <span
                         className={
-                          "absolute right-2 top-2 text-label text-accent " +
-                          "sm:static"
+                          // Beside the icon's top right corner on a phone,
+                          // clear of the icon itself; after the label above.
+                          "absolute left-1/2 top-1.5 ml-3.5 text-label " +
+                          "text-accent sm:static sm:ml-0"
                         }
                         data-testid="review-due-badge"
                         aria-label={`${dueCount} cards due for review`}

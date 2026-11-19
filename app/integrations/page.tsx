@@ -29,8 +29,6 @@ export default async function IntegrationsPage() {
           }
         }
       />
-
-      <p className="text-ui text-ink-3">Kindle and Zotero imports are next.</p>
     </div>
   );
 }

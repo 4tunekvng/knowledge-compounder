@@ -3,11 +3,14 @@ import type { Source } from "@/lib/db/schema";
 import {
   catalogNumber,
   countLabel,
+  cutAtWord,
   displayTitle,
   formatDay,
   originLabel,
 } from "@/lib/format";
+import { failureReason } from "@/lib/error-copy";
 import { parseConcepts } from "@/lib/services/queries";
+import { RetrySourceButton } from "@/components/RetrySourceButton";
 
 interface Props {
   source: Source;
@@ -64,11 +67,7 @@ export function SourceListItem({
         </span>
       )}
       <div className="min-w-0 flex-1">
-        <h3
-          className={
-            "break-words text-ui font-medium " + (compact ? "line-clamp-3" : "")
-          }
-        >
+        <h3 className="break-words text-ui font-medium">
           {/* The link covers the whole entry, so the row is one target. */}
           <Link
             href={`/sources/${source.id}`}
@@ -77,7 +76,7 @@ export function SourceListItem({
               "group-hover:text-accent"
             }
           >
-            {displayTitle(source.title)}
+            {displayTitle(source.title, compact ? 90 : undefined)}
           </Link>
         </h3>
         <p className="mt-1 text-meta text-ink-3">
@@ -98,9 +97,17 @@ export function SourceListItem({
             {status}
           </span>
         </p>
+        {!compact && failed && (
+          <>
+            <p className="mt-3 max-w-[44rem] text-meta text-ink-2">
+              {failureReason(source.errorMessage)}
+            </p>
+            <RetrySourceButton sourceId={source.id} small />
+          </>
+        )}
         {!compact && whyICared && (
-          <p className="mt-3 line-clamp-2 max-w-[44rem] text-meta text-ink-2">
-            {whyICared}
+          <p className="mt-3 max-w-[44rem] text-meta text-ink-2">
+            {cutAtWord(whyICared, 170)}
           </p>
         )}
         {!compact && concepts.length > 0 && (

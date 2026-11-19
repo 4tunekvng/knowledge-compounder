@@ -3,7 +3,15 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-export function RetrySourceButton({ sourceId }: { sourceId: number }) {
+export function RetrySourceButton({
+  sourceId,
+  small = false,
+}: {
+  sourceId: number;
+  // The library row's version: a smaller button that sits above the row's
+  // whole-row link.
+  small?: boolean;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -30,13 +38,17 @@ export function RetrySourceButton({ sourceId }: { sourceId: number }) {
   }
 
   return (
-    <div className="mt-4 flex flex-col gap-2">
+    <div
+      className={
+        "flex flex-col gap-2 " + (small ? "relative z-10 mt-3" : "mt-4")
+      }
+    >
       <button
         type="button"
         onClick={retry}
         disabled={pending}
         data-testid="retry-source"
-        className="btn btn-secondary self-start"
+        className={"btn btn-secondary self-start " + (small ? "btn-sm" : "")}
       >
         {pending ? "Trying again…" : "Try again"}
       </button>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Download, Shuffle } from "lucide-react";
+import { FlashcardGrid } from "@/components/FlashcardGrid";
 import { CardStack, IndexCard } from "@/components/IndexCard";
 import { cardTypeLabel, countLabel, displayTitle } from "@/lib/format";
 
@@ -79,7 +80,7 @@ export function StudyDeck({ cards, exportBase }: Props) {
       data-testid={`mode-${value}`}
       aria-pressed={mode === value}
       className={
-        "btn btn-sm min-h-10 rounded-box " +
+        "btn btn-sm min-h-10 w-full rounded-box " +
         (mode === value ? "bg-stock text-ink ring-1 ring-line" : "btn-quiet")
       }
     >
@@ -87,29 +88,35 @@ export function StudyDeck({ cards, exportBase }: Props) {
     </button>
   );
 
+  // On a phone: the two modes share one full-width row, and the actions
+  // share the next as equal buttons. From 640px up it is one row.
   const toolbar = (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="inline-flex rounded-control bg-raised p-1">
+    <div
+      className={
+        "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+      }
+    >
+      <div className="grid grid-cols-2 rounded-control bg-raised p-1 sm:w-64">
         {modeButton("study", "Study")}
         {modeButton("browse", "Browse all")}
       </div>
-      {mode === "study" && (
-        <button
-          type="button"
-          onClick={shuffle}
-          data-testid="shuffle"
-          className="btn btn-quiet btn-sm"
-        >
-          <Shuffle aria-hidden size={16} strokeWidth={1.5} />
-          Shuffle
-        </button>
-      )}
-      <div className="flex gap-1 sm:ml-auto">
-        <a href={`${exportBase}/pdf`} className="btn btn-quiet btn-sm">
+      <div className="grid auto-cols-fr grid-flow-col gap-2">
+        {mode === "study" && (
+          <button
+            type="button"
+            onClick={shuffle}
+            data-testid="shuffle"
+            className="btn btn-secondary px-3"
+          >
+            <Shuffle aria-hidden size={16} strokeWidth={1.5} />
+            Shuffle
+          </button>
+        )}
+        <a href={`${exportBase}/pdf`} className="btn btn-secondary px-3">
           <Download aria-hidden size={16} strokeWidth={1.5} />
           PDF
         </a>
-        <a href={`${exportBase}/anki`} className="btn btn-quiet btn-sm">
+        <a href={`${exportBase}/anki`} className="btn btn-secondary px-3">
           <Download aria-hidden size={16} strokeWidth={1.5} />
           Anki
         </a>
@@ -247,19 +254,7 @@ function BrowseList({ cards }: { cards: StudyCard[] }) {
       {grouped.map(([sourceTitle, group]) => (
         <section key={sourceTitle} className="flex flex-col gap-4">
           <h3 className="text-ui font-semibold">{displayTitle(sourceTitle)}</h3>
-          <ul className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {group.map((c) => (
-              <IndexCard
-                as="li"
-                size="small"
-                key={c.id}
-                head={cardTypeLabel(c.cardType)}
-              >
-                <p className="index-card__front">{c.front}</p>
-                <p className="index-card__back">{c.back}</p>
-              </IndexCard>
-            ))}
-          </ul>
+          <FlashcardGrid cards={group} />
         </section>
       ))}
     </div>

@@ -43,8 +43,9 @@ export function DeckManager({ sources, decks, origin }: Props) {
   const [showAll, setShowAll] = useState(false);
   // The picker is never a box that scrolls inside the page: it shows the
   // newest captures, and the rest on request.
-  const shownSources = showAll ? sources : sources.slice(0, PICKER_ROWS);
-  const hiddenCount = sources.length - shownSources.length;
+  // A phone shows the newest few and the rest on request; from 640px up the
+  // whole list scrolls inside a frame of its own.
+  const hiddenOnPhone = showAll ? 0 : Math.max(0, sources.length - PICKER_ROWS);
 
   function toggle(id: number) {
     setSelected((prev) => {
@@ -164,17 +165,23 @@ export function DeckManager({ sources, decks, origin }: Props) {
         />
       </div>
       <fieldset className="flex min-w-0 flex-col gap-2">
-        <legend className="text-ui font-medium">Captures</legend>
+        <legend className="text-ui font-medium">Captures with flashcards</legend>
         {/* On a phone the rows sit straight in the panel, divided by
             hairlines; from 640px up the list gets its own frame. */}
         <ul
-          className="sm:rounded-box sm:border sm:border-line-strong"
+          className={
+            "sm:max-h-[420px] sm:overflow-y-auto sm:rounded-box sm:border " +
+            "sm:border-line-strong"
+          }
           data-testid="deck-source-list"
         >
-          {shownSources.map((s) => (
+          {sources.map((s, i) => (
             <li
               key={s.id}
-              className="border-t border-line sm:first:border-t-0"
+              className={
+                "border-t border-line sm:first:border-t-0 " +
+                (hiddenOnPhone > 0 && i >= PICKER_ROWS ? "hidden sm:block" : "")
+              }
             >
               <label
                 className={
@@ -201,13 +208,13 @@ export function DeckManager({ sources, decks, origin }: Props) {
             </li>
           ))}
         </ul>
-        {hiddenCount > 0 && (
+        {hiddenOnPhone > 0 && (
           <button
             type="button"
             onClick={() => setShowAll(true)}
-            className="btn btn-quiet btn-sm -ml-3 self-start"
+            className="btn btn-quiet btn-sm -ml-3 self-start sm:hidden"
           >
-            Show all {sources.length} captures
+            Show all {sources.length}
           </button>
         )}
         <p className="text-meta text-ink-3" aria-live="polite">
@@ -310,26 +317,26 @@ export function DeckManager({ sources, decks, origin }: Props) {
                     </button>
                   </div>
 
-                  <div className="-ml-3 flex flex-wrap items-center gap-x-1 gap-y-1">
+                  <div className="grid grid-cols-2 gap-2">
                     <a
                       href={`/d/${deck.shareToken}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="btn btn-quiet btn-sm"
+                      className="btn btn-secondary px-3"
                     >
                       <ExternalLink aria-hidden size={16} strokeWidth={1.5} />
-                      Open as student
+                      Student view
                     </a>
                     <a
                       href={`/d/${deck.shareToken}/pdf`}
-                      className="btn btn-quiet btn-sm"
+                      className="btn btn-secondary px-3"
                     >
                       <Download aria-hidden size={16} strokeWidth={1.5} />
                       PDF
                     </a>
                     <a
                       href={`/d/${deck.shareToken}/anki`}
-                      className="btn btn-quiet btn-sm"
+                      className="btn btn-secondary px-3"
                     >
                       <Download aria-hidden size={16} strokeWidth={1.5} />
                       Anki
@@ -340,17 +347,20 @@ export function DeckManager({ sources, decks, origin }: Props) {
                       )}&body=${encodeURIComponent(
                         `Here's a flashcard deck to study:\n\n${shareUrl(deck.shareToken)}\n\nOpen it in your browser to study, or download it for Anki.`,
                       )}`}
-                      className="btn btn-quiet btn-sm"
+                      className="btn btn-secondary px-3"
                     >
                       <Mail aria-hidden size={16} strokeWidth={1.5} />
                       Email
                     </a>
+                  </div>
+                  {/* Delete stands apart from the everyday actions. */}
+                  <div className="border-t border-line pt-3">
                     <button
                       type="button"
                       onClick={() => removeDeck(deck)}
                       disabled={deletingId === deck.id}
                       data-testid={`delete-deck-${deck.id}`}
-                      className="btn btn-danger btn-sm"
+                      className="btn btn-danger btn-sm -ml-3"
                     >
                       <Trash2 aria-hidden size={16} strokeWidth={1.5} />
                       {deletingId === deck.id ? "Deleting…" : "Delete"}

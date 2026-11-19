@@ -24,7 +24,9 @@ export function IndexCard({
   children,
   ...rest
 }: Props) {
-  const sizeClass = size === "small" ? " index-card--small" : "";
+  const sizeClass =
+    (size === "small" ? " index-card--small" : "") +
+    (footer ? " index-card--footed" : "");
   return (
     <Tag className={`index-card${sizeClass} ${className}`} {...rest}>
       <div className="index-card__head">
@@ -33,7 +35,7 @@ export function IndexCard({
       </div>
       <div className="index-card__body">{children}</div>
       {footer && (
-        <div className="rounded-b-box bg-stock px-[var(--pad-x)] pb-6">
+        <div className="rounded-b-box bg-stock px-[var(--pad-x)] pt-2 pb-6">
           {footer}
         </div>
       )}

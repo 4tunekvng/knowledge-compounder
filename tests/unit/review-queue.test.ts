@@ -26,7 +26,7 @@ describe("ReviewQueue", () => {
     // Arrange: grade the only due card, so the queue is cleared.
     const host = document.createElement("div");
     const root = createRoot(host);
-    await act(async () => root.render(createElement(ReviewQueue, { cards: [card(9)] })));
+    await act(async () => root.render(createElement(ReviewQueue, { cards: [card(9)], dueTotal: 1 })));
     vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ ok: true })));
     const click = (selector: string) => host.querySelector<HTMLElement>(selector)!.click();
     await act(async () => click('[data-testid="reveal-button"]'));
@@ -35,7 +35,7 @@ describe("ReviewQueue", () => {
 
     // Act: the refresh brings in three newly due cards.
     await act(async () =>
-      root.render(createElement(ReviewQueue, { cards: [card(1), card(2), card(3)] })),
+      root.render(createElement(ReviewQueue, { cards: [card(1), card(2), card(3)], dueTotal: 3 })),
     );
 
     // Assert
@@ -47,7 +47,7 @@ describe("ReviewQueue", () => {
     const host = document.createElement("div");
     const root = createRoot(host);
     await act(async () =>
-      root.render(createElement(ReviewQueue, { cards: [card(4)] })),
+      root.render(createElement(ReviewQueue, { cards: [card(4)], dueTotal: 1 })),
     );
 
     // Act
@@ -58,5 +58,29 @@ describe("ReviewQueue", () => {
     // Assert
     const good = host.querySelector('[data-testid="grade-3"]')!.textContent;
     expect(good).toBe("Goodin 1 day");
+  });
+
+  it("ends a round with when the graded cards come back", async () => {
+    // Arrange: two due cards, both graded Good (back in 1 day).
+    const host = document.createElement("div");
+    const root = createRoot(host);
+    await act(async () =>
+      root.render(
+        createElement(ReviewQueue, { cards: [card(5), card(6)], dueTotal: 2 }),
+      ),
+    );
+    vi.stubGlobal("fetch", async () => new Response("{}"));
+    const click = (selector: string) =>
+      host.querySelector<HTMLElement>(selector)!.click();
+
+    // Act
+    await act(async () => click('[data-testid="reveal-button"]'));
+    await act(async () => click('[data-testid="grade-3"]'));
+    await act(async () => click('[data-testid="reveal-button"]'));
+    await act(async () => click('[data-testid="grade-3"]'));
+
+    // Assert
+    const done = host.querySelector('[data-testid="review-done"]')!.textContent;
+    expect(done).toContain("Back in 1 day2 cards");
   });
 });

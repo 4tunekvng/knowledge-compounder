@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CAPTURE_ACTION, EmptyCard } from "@/components/EmptyCard";
@@ -24,6 +24,8 @@ interface ReviewCard {
 
 interface Props {
   cards: ReviewCard[];
+  // Every card due when the page loaded; a round loads at most 50 of them.
+  dueTotal: number;
 }
 
 // FSRS-6 ratings: 1=Again 2=Hard 3=Good 4=Easy
@@ -34,19 +36,55 @@ const GRADE_BUTTONS: { grade: number; label: string; description: string }[] = [
   { grade: 4, label: "Easy", description: "Perfect recall" },
 ];
 
+/** Graded cards grouped by when they come back, soonest first. */
+function returnSchedule(waits: number[]): { when: string; count: number }[] {
+  const groups = new Map<string, number>();
+  for (const ms of [...waits].sort((a, b) => a - b)) {
+    const when = formatInterval(ms);
+    groups.set(when, (groups.get(when) ?? 0) + 1);
+  }
+  return Array.from(groups, ([when, count]) => ({ when, count }));
+}
+
 // One neutral style for every grade; the accent marks the expected answer.
 const GOOD_GRADE = 3;
 
-export function ReviewQueue({ cards }: Props) {
+export function ReviewQueue({ cards, dueTotal }: Props) {
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // How long each graded card was put away for, in milliseconds.
   const [completed, setCompleted] = useState<number[]>([]);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  if (cards.length === 0) {
-    return (
+  // Counts down as cards are graded, so it never claims cards are due that
+  // this round already put away.
+  const stillDue = Math.max(0, dueTotal - completed.length);
+  const dueLine = (
+    <p className="-mt-5 text-ui text-ink-2">
+      {stillDue === 0
+        ? "No cards due now"
+        : `${countLabel(stillDue, "card")} due now`}
+      {stillDue > cards.length - completed.length &&
+        cards.length > completed.length &&
+        `, the first ${cards.length - completed.length} in this round`}
+    </p>
+  );
+
+  const withDueLine = (node: ReactNode) => (
+    <>
+      {dueLine}
+      {node}
+    </>
+  );
+
+  // A finished round stays on screen even after the refresh below brings
+  // in an empty (or new) list, until the reader asks for more.
+  const allDone = completed.length > 0 && index >= cards.length;
+
+  if (cards.length === 0 && !allDone) {
+    return withDueLine(
       <EmptyCard
         head="Nothing due"
         action={CAPTURE_ACTION}
@@ -58,33 +96,44 @@ export function ReviewQueue({ cards }: Props) {
     );
   }
 
-  const allDone = index >= cards.length;
   if (allDone) {
-    return (
+    return withDueLine(
       <div data-testid="review-done">
-        <IndexCard head="Queue cleared">
-          <h2 className="index-card__front">That&apos;s this round done.</h2>
-          <p className="index-card__back">
-            You graded {countLabel(completed.length, "card")}. Each one is filed
-            away until its next due date. Check for more to load any cards
-            still due.
-          </p>
-        </IndexCard>
-        <button
-          onClick={() =>
-            // Client state outlives router.refresh(), so restart the queue in
-            // the same transition that brings in the newly due cards.
-            startTransition(() => {
-              setIndex(0);
-              setCompleted([]);
-              setRevealed(false);
-              router.refresh();
-            })
+        <IndexCard
+          head="Round done"
+          aside={countLabel(completed.length, "card")}
+          footer={
+            <button
+              onClick={() =>
+                // Client state outlives router.refresh(), so restart the
+                // queue in the same transition that brings in the newly due
+                // cards.
+                startTransition(() => {
+                  setIndex(0);
+                  setCompleted([]);
+                  setRevealed(false);
+                  router.refresh();
+                })
+              }
+              className="btn btn-secondary"
+            >
+              Check for more
+            </button>
           }
-          className="btn btn-secondary mt-8"
         >
-          Check for more
-        </button>
+          <h2 className="index-card__front">
+            You graded {countLabel(completed.length, "card")}.
+          </h2>
+          {/* When they come back, soonest first: the spacing at work. */}
+          <ul className="index-card__back">
+            {returnSchedule(completed).map(({ when, count }) => (
+              <li key={when} className="flex justify-between gap-4">
+                <span>Back {when}</span>
+                <span>{countLabel(count, "card")}</span>
+              </li>
+            ))}
+          </ul>
+        </IndexCard>
       </div>
     );
   }
@@ -105,16 +154,19 @@ export function ReviewQueue({ cards }: Props) {
           setError(data.error ?? "Failed to grade card.");
           return;
         }
-        setCompleted((prev) => [...prev, card.id]);
+        setCompleted((prev) => [...prev, card.nextIn[value - 1]]);
         setRevealed(false);
         setIndex((i) => i + 1);
+        // The last card of the round: refresh the server's counts (the
+        // menu's due number) so the page agrees with the finished round.
+        if (index + 1 >= cards.length) router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Network error.");
       }
     });
   }
 
-  return (
+  return withDueLine(
     <div className="flex flex-col gap-8" data-testid="review-card">
       <div>
         <CardStack under={cards.length - index - 1}>

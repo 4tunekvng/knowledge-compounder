@@ -81,15 +81,12 @@ export function ThemesPanel({
 
   // Which other themes each source is also filed under: the links between
   // ideas that only show up when the same reading feeds two themes.
-  const lettersBySource = new Map<number, string[]>();
-  themes.forEach((theme, i) => {
+  const themesBySource = new Map<number, ThemeView[]>();
+  for (const theme of themes) {
     for (const sid of theme.sourceIds) {
-      lettersBySource.set(sid, [
-        ...(lettersBySource.get(sid) ?? []),
-        guideLetter(i),
-      ]);
+      themesBySource.set(sid, [...(themesBySource.get(sid) ?? []), theme]);
     }
-  });
+  }
 
   return (
     <div className="flex flex-col gap-10">
@@ -101,7 +98,7 @@ export function ThemesPanel({
       >
         <p className="text-ui text-ink-2">
           {hasEnoughSources
-            ? `Across your ${countLabel(sourceCount, "capture")}`
+            ? `Across your ${countLabel(sourceCount, "capture")} with notes`
             : "Themes need at least 2 captures with notes. " +
               `You have ${sourceCount}.`}
         </p>
@@ -145,11 +142,13 @@ export function ThemesPanel({
                 }
                 data-testid={`theme-${theme.id}`}
               >
-                {/* The guide card's tab, standing up above its top edge. */}
+                {/* The guide card's tab, standing up from its top edge. It
+                    reaches 1px into the card so it covers the card's top
+                    border and the two read as one piece of card. */}
                 <span
                   aria-hidden
                   className={
-                    "absolute -top-8 left-6 flex h-[33px] items-center " +
+                    "absolute -top-[33px] left-6 flex h-[34px] items-center " +
                     "rounded-t-box border border-b-0 border-line bg-guide px-4 " +
                     "font-typed text-ui"
                   }
@@ -157,11 +156,13 @@ export function ThemesPanel({
                   {letter}
                 </span>
                 {/* On a phone the button follows the filed captures, so it is
-                    read last and sits near the thumb. */}
+                    read last and sits near the thumb. From 640px up it
+                    spans the title and summary rows, so the gap between
+                    those two is the same in every theme. */}
                 <div
                   className={
                     "flex flex-col p-6 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] " +
-                    "sm:gap-x-8 sm:p-8"
+                    "sm:grid-rows-[auto_auto] sm:gap-x-8 sm:p-8"
                   }
                 >
                   <h3 className="max-w-[36rem] text-lead font-medium">
@@ -174,22 +175,27 @@ export function ThemesPanel({
                     data-testid={`draft-essay-${theme.id}`}
                     className={
                       "btn btn-secondary order-last mt-6 self-start " +
-                      "sm:order-none sm:col-start-2 sm:row-start-1 sm:mt-0"
+                      "sm:order-none sm:col-start-2 sm:row-span-2 " +
+                      "sm:row-start-1 sm:mt-0"
                     }
                   >
                     {draftingId === theme.id ? "Drafting…" : "Draft an essay"}
                   </button>
-                  <p className="mt-4 max-w-[44rem] text-ui text-ink-2 sm:col-span-2">
+                  <p
+                    className={
+                      "mt-4 max-w-[44rem] text-ui text-ink-2 sm:col-start-1"
+                    }
+                  >
                     {theme.summary}
                   </p>
                   <div className="sm:col-span-2">
                     <h4 className="mt-8 text-meta text-ink-3">
-                      Filed under {letter}
+                      Captures in this theme
                     </h4>
                     <ul className="mt-2">
                       {theme.sourceIds.map((sid) => {
-                        const also = (lettersBySource.get(sid) ?? []).filter(
-                          (l) => l !== letter,
+                        const also = (themesBySource.get(sid) ?? []).filter(
+                          (t) => t.id !== theme.id,
                         );
                         return (
                           <li
@@ -200,20 +206,25 @@ export function ThemesPanel({
                             }
                           >
                             <CatalogNo id={sid} />
-                            <Link
-                              href={`/sources/${sid}`}
-                              className={
-                                "min-w-0 flex-1 text-ui text-ink " +
-                                "no-underline hover:text-accent"
-                              }
-                            >
-                              {displayTitle(sourceTitlesById[sid] ?? "A capture")}
-                            </Link>
-                            {also.length > 0 && (
-                              <span className="shrink-0 text-label text-accent">
-                                Also under {also.join(", ")}
-                              </span>
-                            )}
+                            <div className="min-w-0 flex-1">
+                              <Link
+                                href={`/sources/${sid}`}
+                                className={
+                                  "text-ui text-ink no-underline " +
+                                  "hover:text-accent"
+                                }
+                              >
+                                {displayTitle(sourceTitlesById[sid] ?? "A capture")}
+                              </Link>
+                              {also.length > 0 && (
+                                <p className="mt-1 text-meta text-accent">
+                                  Also in{" "}
+                                  {also
+                                    .map((t) => `“${displayTitle(t.label, 60)}”`)
+                                    .join(" and ")}
+                                </p>
+                              )}
+                            </div>
                           </li>
                         );
                       })}

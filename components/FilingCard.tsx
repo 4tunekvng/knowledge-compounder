@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IndexCard } from "@/components/IndexCard";
 
 const STEPS = [
@@ -24,6 +24,7 @@ export function FilingCard({
   className?: string;
 }) {
   const [step, setStep] = useState(0);
+  const card = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const timer = setInterval(
@@ -33,26 +34,33 @@ export function FilingCard({
     return () => clearInterval(timer);
   }, []);
 
+  // Keep the whole card in view above the phone's bottom menu as it grows.
+  // A copy that is display: none (the other layout's) doesn't scroll.
+  useEffect(() => {
+    card.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [step]);
+
   return (
-    <IndexCard
-      size="small"
-      head="Filing now"
-      className={className}
-      aria-live="polite"
-    >
-      <p className="index-card__front line-clamp-2">{title}</p>
-      <ol className="mt-[var(--rule-gap)] text-ink-2">
-        {STEPS.slice(0, step + 1).map((s, i) => (
-          <li key={s} className="flex justify-between gap-4">
-            <span className="min-w-0 truncate">{s}</span>
-            <span
-              className={"shrink-0 " + (i < step ? "text-ink-3" : "text-accent")}
-            >
-              {i < step ? "done" : "now"}
-            </span>
-          </li>
-        ))}
-      </ol>
-    </IndexCard>
+    <div ref={card} className={"scroll-mb-24 " + className}>
+      <IndexCard
+        size="small"
+        head="Filing now"
+        aria-live="polite"
+      >
+        <p className="index-card__front">{title}</p>
+        <ol className="mt-[var(--rule-gap)] text-ink-2">
+          {STEPS.slice(0, step + 1).map((s, i) => (
+            <li key={s} className="flex justify-between gap-4">
+              <span className="min-w-0 truncate">{s}</span>
+              <span
+                className={"shrink-0 " + (i < step ? "text-ink-3" : "text-accent")}
+              >
+                {i < step ? "done" : "now"}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </IndexCard>
+    </div>
   );
 }
