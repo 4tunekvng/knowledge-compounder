@@ -201,6 +201,25 @@ function scheduleNew(card: CardState, rating: Rating, now: Date): ScheduleResult
   };
 }
 
+// A passing review: schedule the card by its new stability, in whole days.
+function graduateToReview(
+  card: CardState,
+  s: number,
+  d: number,
+  now: Date,
+): ScheduleResult {
+  const days = Math.max(1, Math.round(s));
+  return {
+    stability: s,
+    difficulty: d,
+    scheduledDays: days,
+    reps: card.reps + 1,
+    lapses: card.lapses,
+    state: State.Review,
+    dueAt: new Date(now.getTime() + days * DAYS),
+  };
+}
+
 function scheduleReview(
   card: CardState,
   rating: Rating,
@@ -224,16 +243,7 @@ function scheduleReview(
   }
 
   const s = stabilityAfterRecall(card.difficulty, card.stability, r, rating);
-  const days = Math.max(1, Math.round(s));
-  return {
-    stability: s,
-    difficulty: d,
-    scheduledDays: days,
-    reps: card.reps + 1,
-    lapses: card.lapses,
-    state: State.Review,
-    dueAt: new Date(now.getTime() + days * DAYS),
-  };
+  return graduateToReview(card, s, d, now);
 }
 
 // The same-day formula applies only within a day of the last review, as in the
@@ -279,14 +289,5 @@ function scheduleRelearning(
   }
 
   // Good or Easy: graduate back to Review.
-  const days = Math.max(1, Math.round(s));
-  return {
-    stability: s,
-    difficulty: d,
-    scheduledDays: days,
-    reps: card.reps + 1,
-    lapses: card.lapses,
-    state: State.Review,
-    dueAt: new Date(now.getTime() + days * DAYS),
-  };
+  return graduateToReview(card, s, d, now);
 }
