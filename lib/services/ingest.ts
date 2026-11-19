@@ -130,6 +130,7 @@ async function processAndPersist(
   db: Db,
   claim: Claim,
   prompt: { title: string; text: string },
+  options: { replaceExisting?: boolean } = {},
 ): Promise<IngestResult> {
   const { sourceId, ownerId } = claim;
   let held = claim;
@@ -139,6 +140,11 @@ async function processAndPersist(
     const renewed = await renewClaim(db, held);
     if (!renewed) return currentResult(db, sourceId);
     held = renewed;
+
+    if (options.replaceExisting) {
+      await db.delete(processings).where(eq(processings.sourceId, sourceId)).run();
+      await db.delete(cards).where(eq(cards.sourceId, sourceId)).run();
+    }
 
     await db
       .insert(processings)
@@ -173,7 +179,7 @@ async function processAndPersist(
 
     return { sourceId, status: "processed" };
   } catch (err) {
-    return markFailed(db, held, err);
+    return markFailed(db, held, err, options);
   }
 }
 
@@ -191,6 +197,7 @@ async function markFailed(
   db: Db,
   claim: Claim,
   err: unknown,
+  options: { replaceExisting?: boolean } = {},
 ): Promise<IngestResult> {
   const { sourceId } = claim;
   const message = err instanceof Error ? err.message : String(err);
@@ -204,6 +211,10 @@ async function markFailed(
       )
       .run();
     if (changedRows(result) === 0) return currentResult(db, sourceId);
+    if (options.replaceExisting) {
+      await db.delete(processings).where(eq(processings.sourceId, sourceId)).run();
+      await db.delete(cards).where(eq(cards.sourceId, sourceId)).run();
+    }
   } catch (updateErr) {
     console.error(`Failed to mark source ${sourceId} as failed:`, updateErr);
   }
@@ -401,18 +412,11 @@ async function reprocessStored(
   claim: Claim,
   row: StoredSource,
 ): Promise<IngestResult> {
-  let prompt: { title: string; text: string };
-  try {
-    await db.delete(processings).where(eq(processings.sourceId, row.id)).run();
-    await db.delete(cards).where(eq(cards.sourceId, row.id)).run();
-    prompt = {
-      title: sanitizeForPrompt(row.title) || "Untitled",
-      text: sanitizeForPrompt(row.rawContent),
-    };
-  } catch (err) {
-    return markFailed(db, claim, err);
-  }
-  return processAndPersist(db, claim, prompt);
+  const prompt = {
+    title: sanitizeForPrompt(row.title) || "Untitled",
+    text: sanitizeForPrompt(row.rawContent),
+  };
+  return processAndPersist(db, claim, prompt, { replaceExisting: true });
 }
 
 /** Pending rows nobody is working on: never claimed, or claimed too long ago. */

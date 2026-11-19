@@ -345,4 +345,25 @@ describe("retrySource", () => {
   it("refuses an unknown source", async () => {
     await expect(retrySource(OWNER, 99)).rejects.toThrow("Source not found.");
   });
+
+  it("keeps the replacement worker's cards when a retried capture is taken over mid-flight", async () => {
+    const id = insertFailedSource();
+    let finishFirst: (value: typeof PROCESSED) => void = () => {};
+    processSource.mockReturnValueOnce(
+      new Promise((resolve) => (finishFirst = resolve)),
+    );
+    processSource.mockResolvedValue(PROCESSED);
+
+    const first = retrySource(OWNER, id);
+    await vi.waitFor(() => expect(processSource).toHaveBeenCalledTimes(1));
+    sqlite.prepare("UPDATE sources SET claimed_at = ? WHERE id = ?").run(HOUR_AGO, id);
+
+    await processPendingSources(5);
+    finishFirst(PROCESSED);
+    const result = await first;
+
+    expect(result).toEqual({ sourceId: id, status: "processed" });
+    expect(processingCount(id)).toBe(1);
+    expect(cardFronts(id)).toEqual(["Q1", "Q2"]);
+  });
 });
