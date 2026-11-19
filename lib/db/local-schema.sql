@@ -96,3 +96,21 @@ CREATE TABLE IF NOT EXISTS decks (
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE INDEX IF NOT EXISTS decks_share_token_idx ON decks(share_token);
+
+-- One row per card review, so cards can be replayed into a newer scheduler.
+CREATE TABLE IF NOT EXISTS review_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  card_id INTEGER NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+  rating INTEGER NOT NULL,
+  reviewed_at INTEGER NOT NULL,
+  state_before INTEGER NOT NULL,
+  stability_before REAL NOT NULL,
+  difficulty_before REAL NOT NULL,
+  last_reviewed_at_before INTEGER,
+  state_after INTEGER NOT NULL,
+  stability_after REAL NOT NULL,
+  difficulty_after REAL NOT NULL,
+  scheduled_days REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS review_logs_card_idx
+  ON review_logs(card_id, reviewed_at);
