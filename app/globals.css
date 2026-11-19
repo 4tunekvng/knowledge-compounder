@@ -1,102 +1,448 @@
 @import "tailwindcss";
 
+/*
+ * A reader's slip box. The page is paper, the things you file are ruled index
+ * cards, and one stamp red marks the action that matters. Every colour, size
+ * and curve in the app comes from this block.
+ */
 :root {
-  --background: #f8f5ee;
-  --foreground: #1a1a1a;
-  --muted: #6b6b6b;
-  --accent: #b54e1d;
-  --border: #d8d2c2;
-  --card: #ffffff;
+  --paper: #f6f3ec;
+  --stock: #fffdf8;
+  --raised: #efeae0;
+  --ink: #1f1b16;
+  --ink-2: #5a5147;
+  --ink-3: #6e6559;
+  --line: rgb(31 27 22 / 0.1);
+  --line-strong: #8f8578;
+  --accent: #a3401b;
+  --accent-hover: #8a3517;
+  --accent-wash: rgb(163 64 27 / 0.08);
+  --danger: #b42318;
+  --danger-wash: #fbefec;
+  --ok: #2f6b3f;
+  /* Buff card stock, the colour of a catalogue drawer's guide cards. */
+  --guide: #f3ead8;
+  /* The two printed rules of a 3 x 5 index card. */
+  --card-rule: #cbdae8;
+  --card-head: #e19580;
+  --card-shadow: 0 1px 2px rgb(31 27 22 / 0.06), 0 8px 24px rgb(31 27 22 / 0.06);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  color-scheme: light;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
+  --color-paper: var(--paper);
+  --color-stock: var(--stock);
+  --color-guide: var(--guide);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
   --color-accent: var(--accent);
-  --color-border: var(--border);
-  --color-card: var(--card);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-serif: Georgia, "Times New Roman", serif;
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-wash: var(--accent-wash);
+  --color-danger: var(--danger);
+  --color-danger-wash: var(--danger-wash);
+  --color-ok: var(--ok);
+  --shadow-card: var(--card-shadow);
+  --font-serif: var(--font-source-serif), Georgia, serif;
+  --font-typed: var(--font-courier-prime), "Courier New", monospace;
+  /* Two corner radii: boxes and cards, then buttons and inputs. */
+  --radius-box: 4px;
+  --radius-control: 8px;
+  /* The whole type scale: five sizes, the same on every screen width. */
+  --text-label: 13px;
+  --text-label--line-height: 18px;
+  --text-meta: 15px;
+  --text-meta--line-height: 22px;
+  --text-ui: 17px;
+  --text-ui--line-height: 26px;
+  --text-lead: 22px;
+  --text-lead--line-height: 30px;
+  --text-title: 36px;
+  --text-title--line-height: 40px;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+@layer base {
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-serif);
+    font-optical-sizing: auto;
+    font-variant-numeric: tabular-nums;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: text-decoration-color 150ms var(--ease), color 150ms var(--ease);
+  }
+
+  a:hover {
+    text-decoration-color: var(--accent);
+  }
+
+  :where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-box);
+  }
 }
 
-a {
-  color: inherit;
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--accent) 55%, transparent);
-  text-underline-offset: 3px;
-  text-decoration-thickness: 1px;
+/* Buttons. One radius, one height per size, colour changes only. */
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 20px;
+    border-radius: var(--radius-control);
+    border: 1px solid transparent;
+    font-size: var(--text-ui);
+    line-height: var(--text-ui--line-height);
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    font-family: var(--font-serif);
+    /* Colour changes are instant, so no frame shows a half-faded label
+       between disabled and active; only the press animates. */
+    transition: transform 120ms var(--ease);
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  .btn-sm {
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: var(--text-meta);
+    line-height: var(--text-meta--line-height);
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--stock);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+
+  .btn-secondary {
+    background: var(--stock);
+    border-color: var(--line);
+    box-shadow: 0 1px 2px rgb(31 27 22 / 0.05);
+    color: var(--ink);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    border-color: var(--line-strong);
+    background: var(--raised);
+  }
+  .btn-quiet {
+    color: var(--ink-2);
+  }
+  .btn-quiet:hover:not(:disabled) {
+    background: var(--raised);
+    color: var(--ink);
+  }
+  .btn-danger {
+    color: var(--danger);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: var(--danger-wash);
+  }
+
+  /* One disabled look for every kind of button: flat, readable, inert. */
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    cursor: not-allowed;
+    background: var(--raised);
+    border-color: transparent;
+    box-shadow: none;
+    color: var(--ink-3);
+  }
+
+  .field {
+    font-family: var(--font-serif);
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 12px;
+    border-radius: var(--radius-control);
+    border: 1px solid var(--line-strong);
+    background: var(--stock);
+    color: var(--ink);
+    font-size: var(--text-ui);
+    line-height: var(--text-ui--line-height);
+  }
+  .field::placeholder {
+    color: var(--ink-3);
+  }
+  .field:disabled {
+    opacity: 0.5;
+  }
+
+  .section-title {
+    font-size: var(--text-ui);
+    line-height: var(--text-ui--line-height);
+    font-weight: 600;
+  }
+
+  /* A panel for forms and notices; flat, with a hairline. */
+  .panel {
+    border-radius: var(--radius-box);
+    border: 1px solid var(--line);
+    background: var(--stock);
+  }
 }
 
-a:hover {
-  text-decoration-color: var(--accent);
+@layer components {
+  /*
+   * The index card: card stock, a red rule under the heading band and blue
+   * rules below it. Text in the body sits on the rules: its line height is
+   * the rule spacing, and the rules are shifted up so each falls about 4px
+   * under the baseline (Courier Prime at 17px sits 19px into a 32px line,
+   * at 15px 15px into a 24px line; measured, see the pull request).
+   */
+  .index-card {
+    --rule-gap: 32px;
+    --rule-shift: -8px;
+    --head: 48px;
+    --pad-x: 32px;
+    position: relative;
+    border-radius: var(--radius-box);
+    background-color: var(--stock);
+    background-image:
+      linear-gradient(var(--card-head), var(--card-head)),
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0 calc(var(--rule-gap) - 1px),
+        var(--card-rule) calc(var(--rule-gap) - 1px) var(--rule-gap)
+      );
+    background-repeat: no-repeat;
+    background-size:
+      100% 2px,
+      100% calc(100% - var(--head));
+    background-position:
+      0 calc(var(--head) - 2px),
+      0 calc(var(--head) + var(--rule-shift));
+    background-clip: padding-box;
+    box-shadow: var(--card-shadow), inset 0 0 0 1px var(--line);
+  }
+
+  .index-card--small {
+    --rule-gap: 24px;
+    --rule-shift: -4px;
+    --head: 40px;
+    --pad-x: 20px;
+  }
+
+  @media (max-width: 639px) {
+    .index-card {
+      --head: 44px;
+      --pad-x: 20px;
+    }
+    .index-card--small {
+      --head: 40px;
+    }
+  }
+
+  /* A card with a button at its foot ends on its last written line. */
+  .index-card--footed .index-card__body {
+    padding-bottom: 0;
+  }
+
+  .index-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    height: var(--head);
+    padding: 0 var(--pad-x);
+    font-family: var(--font-typed);
+    font-size: var(--text-label);
+    color: var(--ink-3);
+  }
+
+  .index-card__body {
+    padding: 0 var(--pad-x) var(--rule-gap);
+    font-family: var(--font-typed);
+    font-size: var(--text-ui);
+    line-height: var(--rule-gap);
+    overflow-wrap: anywhere;
+  }
+
+  .index-card--small .index-card__body {
+    font-size: var(--text-meta);
+  }
+
+  .index-card__front {
+    font-size: var(--text-lead);
+    color: var(--ink);
+  }
+
+  @media (max-width: 639px) {
+    .index-card__body {
+      font-size: var(--text-ui);
+    }
+    .index-card__front {
+      font-size: var(--text-ui);
+    }
+  }
+
+  .index-card--small .index-card__front {
+    font-size: var(--text-meta);
+  }
+
+  .index-card__back {
+    margin-top: var(--rule-gap);
+    color: var(--ink-2);
+  }
+
+  /* Cards still to come peek out from under the top one. */
+  .card-stack {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .card-stack__under {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: var(--radius-box);
+    background: var(--stock);
+    box-shadow: var(--card-shadow), inset 0 0 0 1px var(--line);
+  }
+
+  .card-stack__under:nth-child(1) {
+    transform: translate(6px, 8px) rotate(0.8deg);
+  }
+
+  .card-stack__under:nth-child(2) {
+    transform: translate(-4px, 14px) rotate(-0.9deg);
+  }
+
+  /* One entrance: the answer arrives on the card. */
+  .reveal {
+    animation: reveal 320ms var(--ease) both;
+  }
+
+  @keyframes reveal {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal {
+      animation: none;
+    }
+    .btn {
+      transition: none;
+    }
+  }
 }
 
-/* Markdown container styling — used on the essay viewer */
-.prose-essay {
-  font-family: var(--font-serif);
-  line-height: 1.7;
-  color: var(--foreground);
+/* The phone menu is a bar at the bottom of the screen, in thumb reach. */
+@media (max-width: 639px) {
+  body:has([data-tabbar]) {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
 }
 
-.prose-essay h1 {
-  font-size: 1.875rem;
-  font-weight: 700;
-  margin-top: 2rem;
-  margin-bottom: 1rem;
-  letter-spacing: -0.01em;
-}
+@layer components {
+  /* The drafted essay, set for reading. */
+  .prose-essay {
+    font-size: var(--text-ui);
+    line-height: 28px;
+    color: var(--ink);
+  }
 
-.prose-essay h2 {
-  font-size: 1.375rem;
-  font-weight: 700;
-  margin-top: 2rem;
-  margin-bottom: 0.75rem;
-  letter-spacing: -0.005em;
-}
+  .prose-essay > :first-child {
+    margin-top: 0;
+  }
 
-.prose-essay h3 {
-  font-size: 1.125rem;
-  font-weight: 700;
-  margin-top: 1.5rem;
-  margin-bottom: 0.5rem;
-}
+  .prose-essay h1 {
+    font-size: var(--text-lead);
+    line-height: var(--text-lead--line-height);
+    font-weight: 600;
+    margin-top: 40px;
+    margin-bottom: 12px;
+  }
 
-.prose-essay p {
-  margin-bottom: 1rem;
-}
+  .prose-essay h2,
+  .prose-essay h3 {
+    font-size: var(--text-ui);
+    line-height: var(--text-ui--line-height);
+    font-weight: 600;
+    margin-top: 32px;
+    margin-bottom: 8px;
+  }
 
-.prose-essay ul,
-.prose-essay ol {
-  margin-left: 1.25rem;
-  margin-bottom: 1rem;
-  list-style: disc outside;
-}
+  .prose-essay p {
+    margin-bottom: 20px;
+  }
 
-.prose-essay ol {
-  list-style: decimal outside;
-}
+  .prose-essay ul,
+  .prose-essay ol {
+    margin-left: 24px;
+    margin-bottom: 20px;
+    list-style: disc outside;
+  }
 
-.prose-essay li {
-  margin-bottom: 0.25rem;
-}
+  .prose-essay ol {
+    list-style: decimal outside;
+  }
 
-.prose-essay em {
-  font-style: italic;
-  color: var(--accent);
-}
+  .prose-essay li {
+    margin-bottom: 4px;
+  }
 
-.prose-essay code {
-  font-family: var(--font-geist-mono), monospace;
-  background: rgba(0, 0, 0, 0.05);
-  padding: 0.1em 0.3em;
-  border-radius: 3px;
-  font-size: 0.9em;
+  .prose-essay sup {
+    font-family: var(--font-typed);
+    font-size: var(--text-label);
+    line-height: 0;
+  }
+
+  /* Each footnote marker is a 44 x 44 target: 44 wide in the line, and
+     44 tall through an invisible box that leaves the line height alone. */
+  .prose-essay sup a {
+    position: relative;
+    display: inline-block;
+    min-width: 44px;
+    text-align: center;
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .prose-essay sup a::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 44px;
+    transform: translateY(-50%);
+  }
+
+  /* The drafter marks its weakest claims; show them as an editor's mark. */
+  .prose-essay em {
+    font-style: normal;
+    color: var(--accent);
+    background: var(--accent-wash);
+    border-radius: var(--radius-box);
+    padding: 0 4px;
+  }
+
+  .prose-essay code {
+    font-family: var(--font-typed);
+    background: var(--raised);
+    padding: 0 4px;
+    border-radius: var(--radius-box);
+    font-size: var(--text-meta);
+  }
 }

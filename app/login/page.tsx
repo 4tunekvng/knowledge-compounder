@@ -1,24 +1,11 @@
 import type { Metadata } from "next";
+import { IndexCard } from "@/components/IndexCard";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Sign in · Knowledge Compounder",
 };
-
-// Colours name the redesign's tokens first and today's second, so the page
-// reads right on either stylesheet.
-const STOCK = "var(--stock, var(--card))";
-const INK = "var(--ink, var(--foreground))";
-const INK_2 = "var(--ink-2, var(--muted))";
-const LINE = "var(--line, var(--border))";
-const RULE = "var(--card-rule, #cbdae8)";
-const HEAD_RULE = "var(--card-head, #e19580)";
-const TYPED = "var(--font-typed, ui-monospace)";
-// The blue rules of a 3 x 5 card, one every 32px, under the text lines.
-const RULED =
-  "repeating-linear-gradient(to bottom, transparent 0, transparent 31px, " +
-  `${RULE} 31px, ${RULE} 32px)`;
 
 function GoogleMark() {
   return (
@@ -68,72 +55,42 @@ export default async function LoginPage({
   const href = `/auth/start?next=${encodeURIComponent(next ?? "/")}`;
 
   return (
-    <div className="flex justify-center py-6 sm:py-16">
+    <div className="mx-auto flex max-w-[560px] flex-col gap-8 sm:pt-8">
+      <div>
+        <h1 className="text-title font-medium">Knowledge Compounder</h1>
+        <p className="mt-3 text-ui text-ink-2">
+          Save what you read. Get flashcards that make it stick, links to what
+          you read before, and themes worth writing about.
+        </p>
+      </div>
       {/* A ruled index card, the object everything here is filed on. */}
-      <section
-        className="w-full max-w-md rounded-md border shadow-sm"
-        style={{ background: STOCK, borderColor: LINE, color: INK }}
+      <IndexCard
+        head="Sign in"
         data-testid="login-card"
-      >
-        <div
-          className="px-6 pt-5 pb-3 border-b-2"
-          style={{ borderColor: HEAD_RULE }}
-        >
-          <p
-            className="text-xs uppercase tracking-wide"
-            style={{ color: INK_2, fontFamily: TYPED }}
-          >
-            Sign in
-          </p>
-        </div>
-        <div
-          className="px-6 pt-4 pb-6 flex flex-col gap-5"
-          style={{ backgroundImage: RULED }}
-        >
-          <h1 className="font-serif text-3xl tracking-tight leading-8">
-            Knowledge{" "}
-            <span className="italic" style={{ color: "var(--accent)" }}>
-              Compounder
-            </span>
-          </h1>
-          <p className="leading-8" style={{ color: INK_2 }}>
-            Save what you read. Get flashcards that make it stick, links to
-            what you read before, and themes worth writing about.
-          </p>
-          {error && (
-            <p
-              role="alert"
-              className="text-sm rounded-md border px-3 py-2"
-              style={{
-                borderColor: "#e3a08c",
-                background: "var(--danger-wash, #fbefec)",
-                color: "#8a2a14",
-              }}
-              data-testid="login-error"
-            >
-              Sign-in didn&apos;t finish. Try again.
-            </p>
-          )}
+        footer={
           <a
             href={href}
-            className={
-              "inline-flex min-h-11 items-center justify-center gap-3 " +
-              "rounded-md px-5 font-medium no-underline"
-            }
-            style={{ background: "var(--accent)", color: STOCK }}
+            className="btn btn-primary w-full sm:w-auto"
             data-testid="google-sign-in"
           >
-            <span className="inline-flex rounded-sm bg-white p-0.5">
+            {/* Google's mark keeps its own colours, on a white chip. */}
+            <span className="inline-flex rounded-box bg-white p-0.5">
               <GoogleMark />
             </span>
             Continue with Google
           </a>
-          <p className="text-sm leading-8" style={{ color: INK_2 }}>
-            Your library is yours alone. Decks you share stay open to anyone
-            with the link.
+        }
+      >
+        {error && (
+          <p role="alert" className="text-danger" data-testid="login-error">
+            Sign-in didn&apos;t finish. Try again.
           </p>
-        </div>
-      </section>
+        )}
+        <p className="text-ink-2">
+          Your library is yours alone. Decks you share stay open to anyone
+          with the link.
+        </p>
+      </IndexCard>
     </div>
   );
 }

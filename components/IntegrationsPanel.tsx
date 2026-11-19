@@ -2,6 +2,8 @@
 
 import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowUpRight, RefreshCw } from "lucide-react";
+import { useLocalTime } from "@/lib/use-local-time";
 
 interface ProviderStatus {
   provider: string;
@@ -35,7 +37,7 @@ export function IntegrationsPanel({ readwise }: { readwise: ProviderStatus }) {
     setMessage(null);
     const trimmed = token.trim();
     if (!trimmed) {
-      setMessage({ kind: "error", text: "Paste a Readwise token first." });
+      setMessage({ kind: "error", text: "Paste a Readwise token first" });
       return;
     }
     startSaveTransition(async () => {
@@ -51,7 +53,7 @@ export function IntegrationsPanel({ readwise }: { readwise: ProviderStatus }) {
           return;
         }
         setToken("");
-        setMessage({ kind: "success", text: "Readwise token saved." });
+        setMessage({ kind: "success", text: "Token saved. Readwise is connected." });
         router.refresh();
       } catch (err) {
         setMessage({
@@ -78,8 +80,8 @@ export function IntegrationsPanel({ readwise }: { readwise: ProviderStatus }) {
         setLastSync(data as SyncResult);
         setMessage({
           kind: "success",
-          text: `Synced — ${data.added} new, ${data.skipped} already known${
-            data.errors.length ? `, ${data.errors.length} errors` : ""
+          text: `Synced: ${data.added} new, ${data.skipped} already in your library${
+            data.errors.length ? `, ${data.errors.length} failed` : ""
           }.${
             data.added
               ? " New highlights get their notes and cards in the" +
@@ -98,32 +100,39 @@ export function IntegrationsPanel({ readwise }: { readwise: ProviderStatus }) {
   }
 
   const busy = savingToken || syncing;
+  const syncedLabel = useLocalTime(() =>
+    readwise.lastSyncedAt
+      ? new Date(readwise.lastSyncedAt).toLocaleString("en-GB", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })
+      : "",
+  );
 
   return (
     <section
-      className="border border-[color:var(--border)] bg-[color:var(--card)] rounded-md p-6 flex flex-col gap-5"
+      className="panel flex flex-col gap-8 p-6 sm:p-8"
       data-testid="integration-readwise"
     >
-      <header className="flex flex-wrap items-baseline justify-between gap-3">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="font-serif text-xl tracking-tight">Readwise</h2>
-          <p className="text-xs text-[color:var(--muted)] mt-1">
-            Status:{" "}
+          <h2 className="section-title">Readwise</h2>
+          <p className="mt-1 flex items-center gap-2 text-ui text-ink-2">
             <span
-              data-testid="readwise-status"
+              aria-hidden
               className={
-                readwise.configured ? "text-[color:var(--accent)]" : ""
+                "size-2 rounded-full " +
+                (readwise.configured ? "bg-ok" : "bg-line-strong")
               }
-            >
-              {readwise.configured ? "connected" : "not configured"}
+            />
+            <span data-testid="readwise-status">
+              {readwise.configured ? "Connected" : "Not connected"}
             </span>
             {readwise.lastSyncedAt && (
-              <>
+              <span className="text-ink-3">
                 {" · last synced "}
-                <span data-testid="readwise-last-synced">
-                  {new Date(readwise.lastSyncedAt).toLocaleString()}
-                </span>
-              </>
+                <span data-testid="readwise-last-synced">{syncedLabel}</span>
+              </span>
             )}
           </p>
         </div>
@@ -131,9 +140,10 @@ export function IntegrationsPanel({ readwise }: { readwise: ProviderStatus }) {
           href="https://readwise.io/access_token"
           target="_blank"
           rel="noreferrer"
-          className="text-xs text-[color:var(--accent)] underline"
+          className="inline-flex items-center gap-1 text-ui text-ink-2"
         >
           Get your token
+          <ArrowUpRight aria-hidden size={16} strokeWidth={1.5} />
         </a>
       </header>
 
@@ -142,73 +152,78 @@ export function IntegrationsPanel({ readwise }: { readwise: ProviderStatus }) {
         className="flex flex-col gap-2"
         data-testid="readwise-token-form"
       >
-        <label
-          htmlFor="readwise-token"
-          className="text-sm font-medium text-[color:var(--foreground)]"
-        >
-          {readwise.configured ? "Replace token" : "Readwise API token"}
+        <label htmlFor="readwise-token" className="text-ui font-medium">
+          {readwise.configured ? "Replace token" : "Readwise access token"}
         </label>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <input
             id="readwise-token"
             data-testid="readwise-token-input"
             type="password"
             autoComplete="off"
-            placeholder="Paste your Readwise token"
+            placeholder="Paste your token"
             value={token}
             onChange={(e) => setToken(e.target.value)}
             disabled={busy}
-            className="flex-1 min-w-[260px] rounded-md border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm font-mono text-[color:var(--foreground)] placeholder:text-[color:var(--muted)] focus:border-[color:var(--accent)] focus:outline-none disabled:opacity-50"
+            className="field min-w-0 flex-1"
           />
           <button
             type="submit"
             disabled={busy || token.trim().length === 0}
             data-testid="readwise-token-save"
-            className="rounded-md bg-[color:var(--accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
+            className="btn btn-secondary"
           >
             {savingToken ? "Saving…" : "Save token"}
           </button>
         </div>
       </form>
 
-      <div className="border-t border-[color:var(--border)] pt-5">
+      <div
+        className={
+          "flex flex-col gap-3 border-t border-line pt-8 sm:flex-row " +
+          "sm:items-center sm:justify-between"
+        }
+      >
+        <p className="text-ui text-ink-2">
+          {readwise.configured
+            ? "Sync fetches highlights added since the last sync."
+            : "Save a token first to start syncing."}
+        </p>
         <button
           type="button"
           onClick={handleSync}
           disabled={busy || !readwise.configured}
           data-testid="readwise-sync-button"
-          className="rounded-md border border-[color:var(--accent)] px-4 py-2 text-sm font-medium text-[color:var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[color:var(--accent)] hover:text-white"
+          className="btn btn-primary"
         >
+          <RefreshCw aria-hidden size={16} strokeWidth={1.5} />
           {syncing ? "Syncing…" : "Sync now"}
         </button>
-        {!readwise.configured && (
-          <p className="text-xs text-[color:var(--muted)] mt-2">
-            Save a token first to enable syncing.
-          </p>
-        )}
       </div>
 
       {message && (
-        <div
+        <p
           role="status"
           data-testid="integration-message"
-          className={`text-sm rounded-md border px-3 py-2 ${
-            message.kind === "error"
-              ? "border-red-300 bg-red-50 text-red-800"
-              : "border-emerald-300 bg-emerald-50 text-emerald-800"
-          }`}
+          className={
+            "rounded-box px-4 py-3 text-ui " +
+            (message.kind === "error"
+              ? "bg-danger-wash text-danger"
+              : "bg-raised text-ok")
+          }
         >
           {message.text}
-        </div>
+        </p>
       )}
 
       {lastSync && (
-        <details
-          className="text-xs text-[color:var(--muted)]"
-          data-testid="sync-details"
-        >
+        <details className="text-meta text-ink-3" data-testid="sync-details">
           <summary className="cursor-pointer">Sync details</summary>
-          <pre className="mt-2 whitespace-pre-wrap rounded bg-[color:var(--background)] p-3 font-mono">
+          <pre
+            className={
+              "mt-2 whitespace-pre-wrap rounded-box bg-raised p-4"
+            }
+          >
             {JSON.stringify(lastSync, null, 2)}
           </pre>
         </details>

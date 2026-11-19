@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ThemesPanel } from "@/components/ThemesPanel";
+import { essayHeading, formatDay } from "@/lib/format";
 import {
   getCorpusForThemes,
   listEssays,
@@ -29,12 +30,12 @@ export default async function ThemesPage() {
   }
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-16">
       <section>
-        <h1 className="font-serif text-3xl tracking-tight mb-2">Emergent themes</h1>
-        <p className="text-[color:var(--muted)] mb-6 max-w-2xl">
-          The agent reads across your processed corpus and surfaces patterns that recur in
-          two or more sources. Pick one and draft an essay from it.
+        <h1 className="text-title font-medium">Themes</h1>
+        <p className="mt-3 mb-8 max-w-[40rem] text-ui text-ink-2">
+          Ideas that come up in two or more of your captures, each filed with
+          the captures it came from. Draft an essay from any of them.
         </p>
         <ThemesPanel
           themes={themeViews}
@@ -46,23 +47,29 @@ export default async function ThemesPage() {
 
       {essays.length > 0 && (
         <section>
-          <h2 className="font-serif text-xl mb-3">Drafted essays</h2>
-          <ul className="flex flex-col gap-2" data-testid="essays-list">
+          <h2 className="section-title mb-2">Drafted essays</h2>
+          <ul data-testid="essays-list">
             {essays.map((e) => (
               <li
                 key={e.id}
-                className="border border-[color:var(--border)] bg-[color:var(--card)] rounded-md p-4"
+                className={
+                  "flex flex-col gap-1 border-t border-line py-4 sm:flex-row " +
+                  "sm:items-baseline sm:justify-between sm:gap-6"
+                }
               >
                 <Link
                   href={`/essays/${e.id}`}
-                  className="font-serif text-lg text-[color:var(--foreground)] no-underline hover:text-[color:var(--accent)]"
+                  className="text-ui text-ink no-underline hover:text-accent"
                   data-testid={`essay-link-${e.id}`}
                 >
-                  {e.title}
+                  {essayHeading(
+                    e.title,
+                    themes.find((t) => t.id === e.themeId)?.label ?? null,
+                  )}
                 </Link>
-                <p className="text-xs text-[color:var(--muted)] mt-1">
-                  {new Date(e.createdAt).toLocaleString()}
-                </p>
+                <span className="shrink-0 text-meta text-ink-3">
+                  {formatDay(e.createdAt)}
+                </span>
               </li>
             ))}
           </ul>

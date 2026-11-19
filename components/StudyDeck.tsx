@@ -1,6 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowLeft, ArrowRight, Download, Shuffle } from "lucide-react";
+import { FlashcardGrid } from "@/components/FlashcardGrid";
+import { CardStack, IndexCard } from "@/components/IndexCard";
+import { cardTypeLabel, countLabel, displayTitle } from "@/lib/format";
 
 interface StudyCard {
   id: number;
@@ -69,164 +73,144 @@ export function StudyDeck({ cards, exportBase }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [mode, atEnd, next, prev]);
 
+  const modeButton = (value: "study" | "browse", label: string) => (
+    <button
+      type="button"
+      onClick={() => setMode(value)}
+      data-testid={`mode-${value}`}
+      aria-pressed={mode === value}
+      className={
+        "btn btn-sm min-h-10 w-full rounded-box " +
+        (mode === value ? "bg-stock text-ink ring-1 ring-line" : "btn-quiet")
+      }
+    >
+      {label}
+    </button>
+  );
+
+  // On a phone: the two modes share one full-width row, and the actions
+  // share the next as equal buttons. From 640px up it is one row.
   const toolbar = (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="inline-flex rounded-md border border-[color:var(--border)] overflow-hidden">
-        <button
-          type="button"
-          onClick={() => setMode("study")}
-          data-testid="mode-study"
-          className={`px-3 py-1.5 text-xs font-medium ${
-            mode === "study"
-              ? "bg-[color:var(--accent)] text-white"
-              : "text-[color:var(--foreground)] hover:bg-[color:var(--card)]"
-          }`}
-        >
-          Study
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("browse")}
-          data-testid="mode-browse"
-          className={`px-3 py-1.5 text-xs font-medium ${
-            mode === "browse"
-              ? "bg-[color:var(--accent)] text-white"
-              : "text-[color:var(--foreground)] hover:bg-[color:var(--card)]"
-          }`}
-        >
-          Browse all
-        </button>
+    <div
+      className={
+        "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+      }
+    >
+      <div className="grid grid-cols-2 rounded-control bg-raised p-1 sm:w-64">
+        {modeButton("study", "Study")}
+        {modeButton("browse", "Browse all")}
       </div>
-      {mode === "study" && (
-        <button
-          type="button"
-          onClick={shuffle}
-          data-testid="shuffle"
-          className="rounded-md border border-[color:var(--border)] px-3 py-1.5 text-xs font-medium hover:border-[color:var(--accent)] hover:text-[color:var(--accent)]"
-        >
-          🔀 Shuffle
-        </button>
-      )}
-      <a
-        href={`${exportBase}/pdf`}
-        className="ml-auto rounded-md border border-[color:var(--border)] px-3 py-1.5 text-xs font-medium no-underline text-[color:var(--foreground)] hover:border-[color:var(--accent)] hover:text-[color:var(--accent)]"
-      >
-        ⬇ PDF
-      </a>
-      <a
-        href={`${exportBase}/anki`}
-        className="rounded-md border border-[color:var(--border)] px-3 py-1.5 text-xs font-medium no-underline text-[color:var(--foreground)] hover:border-[color:var(--accent)] hover:text-[color:var(--accent)]"
-      >
-        ⬇ Anki
-      </a>
+      <div className="grid auto-cols-fr grid-flow-col gap-2">
+        {mode === "study" && (
+          <button
+            type="button"
+            onClick={shuffle}
+            data-testid="shuffle"
+            className="btn btn-secondary px-3"
+          >
+            <Shuffle aria-hidden size={16} strokeWidth={1.5} />
+            Shuffle
+          </button>
+        )}
+        <a href={`${exportBase}/pdf`} className="btn btn-secondary px-3">
+          <Download aria-hidden size={16} strokeWidth={1.5} />
+          PDF
+        </a>
+        <a href={`${exportBase}/anki`} className="btn btn-secondary px-3">
+          <Download aria-hidden size={16} strokeWidth={1.5} />
+          Anki
+        </a>
+      </div>
     </div>
   );
 
   if (cards.length === 0) {
     return (
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-6">
         {toolbar}
-        <div
-          className="border border-dashed border-[color:var(--border)] rounded-md p-10 text-center text-[color:var(--muted)]"
-          data-testid="deck-empty"
-        >
-          This deck has no cards yet.
+        <div data-testid="deck-empty">
+          <IndexCard head="Empty deck">
+            <p className="index-card__front">This deck has no cards yet.</p>
+          </IndexCard>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-8">
       {toolbar}
       {mode === "browse" ? (
         <BrowseList cards={cards} />
       ) : atEnd ? (
-        <div
-          className="border border-[color:var(--border)] bg-[color:var(--card)] rounded-md p-10 text-center"
-          data-testid="study-done"
-        >
-          <h2 className="font-serif text-2xl mb-2">You finished the deck</h2>
-          <p className="text-[color:var(--muted)] mb-5">
-            You went through all {order.length}{" "}
-            {order.length === 1 ? "card" : "cards"}.
-          </p>
-          <div className="flex justify-center gap-2">
-            <button
-              type="button"
-              onClick={reset}
-              className="rounded-md bg-[color:var(--accent)] text-white px-5 py-2 text-sm font-medium"
-            >
+        <div className="flex flex-col gap-8" data-testid="study-done">
+          <IndexCard head="Finished">
+            <h2 className="index-card__front">You finished the deck.</h2>
+            <p className="index-card__back">
+              You went through all {countLabel(order.length, "card")}.
+            </p>
+          </IndexCard>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button type="button" onClick={reset} className="btn btn-primary">
               Study again
             </button>
-            <button
-              type="button"
-              onClick={shuffle}
-              className="rounded-md border border-[color:var(--border)] px-5 py-2 text-sm font-medium hover:border-[color:var(--accent)]"
-            >
-              Shuffle &amp; restart
+            <button type="button" onClick={shuffle} className="btn btn-secondary">
+              <Shuffle aria-hidden size={16} strokeWidth={1.5} />
+              Shuffle and restart
             </button>
           </div>
         </div>
       ) : (
         card && (
-          <div className="flex flex-col gap-4" data-testid="study-card">
-            <div className="flex items-center justify-between text-sm text-[color:var(--muted)]">
-              <span data-testid="study-progress">
-                Card {pos + 1} of {order.length}
-              </span>
-              <span className="truncate ml-4 max-w-[60%] text-right">
-                {card.sourceTitle}
-              </span>
-            </div>
-            <div className="h-1 w-full rounded-full bg-[color:var(--border)] overflow-hidden">
-              <div
-                className="h-full bg-[color:var(--accent)] transition-all"
-                style={{ width: `${(pos / order.length) * 100}%` }}
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setRevealed((r) => !r)}
-              className="text-left border border-[color:var(--border)] bg-[color:var(--card)] rounded-md p-8 min-h-[220px] flex flex-col justify-center transition hover:border-[color:var(--accent)]"
-            >
-              <p className="text-xs capitalize text-[color:var(--accent)] mb-3">
-                {card.cardType}
-              </p>
-              <p className="font-serif text-2xl leading-snug" data-testid="study-front">
-                {card.front}
-              </p>
-              {revealed ? (
-                <p
-                  className="mt-5 pt-5 border-t border-[color:var(--border)] text-base leading-relaxed text-[color:var(--foreground)]"
-                  data-testid="study-back"
+          <div className="flex flex-col gap-8" data-testid="study-card">
+            <div>
+              <CardStack under={order.length - pos - 1}>
+                <IndexCard
+                  key={card.id}
+                  head={cardTypeLabel(card.cardType)}
+                  aside={
+                    <span data-testid="study-progress">
+                      Card {pos + 1} of {order.length}
+                    </span>
+                  }
+                  className="min-h-[196px] cursor-pointer sm:min-h-[264px]"
+                  onClick={() => setRevealed((r) => !r)}
                 >
-                  {card.back}
-                </p>
-              ) : (
-                <p className="mt-5 text-sm text-[color:var(--muted)]">
-                  Click to reveal the answer · or press Space
-                </p>
-              )}
-            </button>
+                  <p className="index-card__front" data-testid="study-front">
+                    {card.front}
+                  </p>
+                  {revealed && (
+                    <p className="index-card__back reveal" data-testid="study-back">
+                      {card.back}
+                    </p>
+                  )}
+                </IndexCard>
+              </CardStack>
+              <p className="mt-6 text-meta text-ink-3">
+                From {displayTitle(card.sourceTitle)}
+              </p>
+            </div>
 
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={prev}
                 disabled={pos === 0}
                 data-testid="study-prev"
-                className="rounded-md border border-[color:var(--border)] px-4 py-2 text-sm font-medium disabled:opacity-40 hover:border-[color:var(--accent)]"
+                aria-label="Previous card"
+                className={
+                  "btn btn-secondary h-16 w-16 px-0 sm:h-11 sm:w-auto sm:px-5"
+                }
               >
-                ← Previous
+                <ArrowLeft aria-hidden size={16} strokeWidth={1.5} />
+                <span className="hidden sm:inline">Previous</span>
               </button>
               {!revealed ? (
                 <button
                   type="button"
                   onClick={() => setRevealed(true)}
                   data-testid="study-reveal"
-                  className="flex-1 rounded-md bg-[color:var(--foreground)] text-[color:var(--background)] px-4 py-2 text-sm font-medium hover:opacity-80"
+                  className="btn btn-primary h-16 flex-1 sm:h-11"
                 >
                   Show answer
                 </button>
@@ -235,12 +219,18 @@ export function StudyDeck({ cards, exportBase }: Props) {
                   type="button"
                   onClick={next}
                   data-testid="study-next"
-                  className="flex-1 rounded-md bg-[color:var(--accent)] text-white px-4 py-2 text-sm font-medium hover:opacity-90"
+                  className="btn btn-primary h-16 flex-1 sm:h-11"
                 >
-                  {pos + 1 === order.length ? "Finish" : "Next card →"}
+                  {pos + 1 === order.length ? "Finish" : "Next card"}
+                  {pos + 1 < order.length && (
+                    <ArrowRight aria-hidden size={16} strokeWidth={1.5} />
+                  )}
                 </button>
               )}
             </div>
+            <p className="hidden text-meta text-ink-3 sm:block">
+              Space turns the card over. The arrow keys move between cards.
+            </p>
           </div>
         )
       )}
@@ -260,24 +250,11 @@ function BrowseList({ cards }: { cards: StudyCard[] }) {
   }, [cards]);
 
   return (
-    <div className="flex flex-col gap-6" data-testid="browse-list">
+    <div className="flex flex-col gap-12" data-testid="browse-list">
       {grouped.map(([sourceTitle, group]) => (
-        <section key={sourceTitle} className="flex flex-col gap-3">
-          <h3 className="font-serif text-lg text-[color:var(--muted)]">{sourceTitle}</h3>
-          <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {group.map((c) => (
-              <li
-                key={c.id}
-                className="border border-[color:var(--border)] bg-[color:var(--card)] rounded-md p-4"
-              >
-                <p className="text-xs capitalize text-[color:var(--accent)] mb-2">
-                  {c.cardType}
-                </p>
-                <p className="font-medium text-sm mb-2">{c.front}</p>
-                <p className="text-sm text-[color:var(--muted)] leading-relaxed">{c.back}</p>
-              </li>
-            ))}
-          </ul>
+        <section key={sourceTitle} className="flex flex-col gap-4">
+          <h3 className="text-ui font-semibold">{displayTitle(sourceTitle)}</h3>
+          <FlashcardGrid cards={group} />
         </section>
       ))}
     </div>

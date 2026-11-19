@@ -3,21 +3,55 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AccountMenu, type Account } from "./AccountMenu";
+import {
+  Import,
+  Layers,
+  Library,
+  Network,
+  PenLine,
+  Share2,
+  type LucideIcon,
+} from "lucide-react";
 
-const NAV = [
-  { href: "/", label: "Capture" },
-  { href: "/library", label: "Library" },
-  { href: "/review", label: "Review" },
-  { href: "/themes", label: "Themes" },
-  { href: "/decks", label: "Decks" },
-  { href: "/integrations", label: "Integrations" },
+interface NavItem {
+  href: string;
+  label: string;
+  id: string;
+  icon: LucideIcon;
+  // Detail pages that belong to this section.
+  owns?: string[];
+}
+
+const NAV: NavItem[] = [
+  { href: "/", label: "Capture", id: "capture", icon: PenLine },
+  {
+    href: "/library",
+    label: "Library",
+    id: "library",
+    icon: Library,
+    owns: ["/sources/"],
+  },
+  { href: "/review", label: "Review", id: "review", icon: Layers },
+  {
+    href: "/themes",
+    label: "Themes",
+    id: "themes",
+    icon: Network,
+    owns: ["/essays/"],
+  },
+  { href: "/decks", label: "Decks", id: "decks", icon: Share2 },
+  { href: "/integrations", label: "Imports", id: "integrations", icon: Import },
 ];
 
-const Wordmark = () => (
-  <>
-    Knowledge <span className="italic text-[color:var(--accent)]">Compounder</span>
-  </>
-);
+function isActive(item: NavItem, pathname: string): boolean {
+  if (item.href === "/") return pathname === "/";
+  return (
+    pathname.startsWith(item.href) ||
+    (item.owns ?? []).some((prefix) => pathname.startsWith(prefix))
+  );
+}
+
+const Wordmark = () => <>Knowledge Compounder</>;
 
 export function SiteHeader({
   dueCount,
@@ -26,17 +60,20 @@ export function SiteHeader({
   dueCount: number;
   account: Account | null;
 }) {
-  const pathname = usePathname();
-  // Public student deck pages (/d/<token>) and the sign-in page get a
-  // chrome-free wordmark — no links into the owner's tools.
-  const isPublic =
-    !!pathname && (pathname.startsWith("/d/") || pathname === "/login");
+  const pathname = usePathname() ?? "/";
+  // Public student deck pages (/d/<token>) and the sign-in page get the
+  // wordmark alone, with no links into the owner's tools.
+  const isPublic = pathname.startsWith("/d/") || pathname === "/login";
 
   if (isPublic || !account) {
     return (
-      <header className="border-b border-[color:var(--border)] bg-[color:var(--background)]">
-        <div className="max-w-5xl mx-auto px-6 py-4">
-          <span className="font-serif text-lg tracking-tight text-[color:var(--foreground)]">
+      <header className="border-b border-line">
+        <div
+          className={
+            "mx-auto flex h-14 max-w-[1120px] items-center px-4 sm:h-16 sm:px-8"
+          }
+        >
+          <span className="text-ui font-semibold">
             <Wordmark />
           </span>
         </div>
@@ -45,60 +82,81 @@ export function SiteHeader({
   }
 
   return (
-    <header className="border-b border-[color:var(--border)] bg-[color:var(--background)]">
+    <header className="border-b border-line">
       <div
         className={
-          "max-w-5xl mx-auto px-6 py-5 flex flex-col gap-3 " +
-          "sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
+          "mx-auto flex h-14 max-w-[1120px] items-center gap-6 " +
+          "px-4 sm:h-16 sm:px-8"
         }
       >
-        {/* Phone: wordmark and account share the top row. Wider: the row
-            dissolves and the account sits after the menu. */}
-        <div className="flex items-center justify-between gap-4 sm:contents">
-          <Link
-            href="/"
-            className={
-              "font-serif text-xl tracking-tight no-underline shrink-0 " +
-              "text-[color:var(--foreground)]"
-            }
-            data-testid="brand-link"
-          >
-            <Wordmark />
-          </Link>
-          <AccountMenu account={account} className="sm:order-last" />
-        </div>
-        {/* One scrollable row on a phone; wraps to the right on wider screens. */}
+        <Link
+          href="/"
+          className="shrink-0 text-ui font-semibold text-ink no-underline"
+          data-testid="brand-link"
+        >
+          <Wordmark />
+        </Link>
+        {/* One menu. On a phone it is a bar along the bottom edge, in thumb
+            reach; from 640px up it sits in the header, before the account. */}
         <nav
+          aria-label="Main"
+          data-tabbar
           className={
-            "flex gap-x-6 gap-y-1 text-sm items-baseline whitespace-nowrap " +
-            "overflow-x-auto sm:ml-auto sm:flex-wrap sm:justify-end " +
-            "sm:overflow-visible"
+            "fixed inset-x-0 bottom-0 z-10 border-t border-line bg-stock " +
+            "pb-[env(safe-area-inset-bottom)] " +
+            "sm:static sm:ml-auto sm:border-0 sm:bg-transparent sm:pb-0"
           }
         >
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="text-[color:var(--foreground)] no-underline hover:text-[color:var(--accent)] inline-flex items-center gap-1.5"
-              data-testid={`nav-${item.label.toLowerCase()}`}
-            >
-              {item.label}
-              {item.label === "Review" && dueCount > 0 && (
-                <span
-                  className="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold"
-                  style={{
-                    background: "var(--accent)",
-                    color: "var(--background)",
-                  }}
-                  data-testid="review-due-badge"
-                  aria-label={`${dueCount} cards due for review`}
-                >
-                  {dueCount > 99 ? "99+" : dueCount}
-                </span>
-              )}
-            </Link>
-          ))}
+          <ul className="grid grid-cols-6 sm:flex sm:items-center sm:gap-1">
+            {NAV.map((item) => {
+              const active = isActive(item, pathname);
+              const Icon = item.icon;
+              const showDue = item.id === "review" && dueCount > 0;
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    data-testid={`nav-${item.id}`}
+                    className={
+                      "relative flex h-16 flex-col items-center justify-center " +
+                      "gap-1 text-label no-underline transition-colors " +
+                      "sm:h-9 sm:flex-row sm:gap-2 sm:rounded-control sm:px-3 " +
+                      "sm:text-meta " +
+                      (active
+                        ? "font-medium text-ink sm:bg-raised"
+                        : "text-ink-3 hover:text-ink sm:text-ink-2 " +
+                          "sm:hover:bg-raised")
+                    }
+                  >
+                    <Icon
+                      aria-hidden
+                      size={20}
+                      strokeWidth={1.5}
+                      className="sm:hidden"
+                    />
+                    {item.label}
+                    {showDue && (
+                      <span
+                        className={
+                          // Beside the icon's top right corner on a phone,
+                          // clear of the icon itself; after the label above.
+                          "absolute left-1/2 top-1.5 ml-3.5 text-label " +
+                          "text-accent sm:static sm:ml-0"
+                        }
+                        data-testid="review-due-badge"
+                        aria-label={`${dueCount} cards due for review`}
+                      >
+                        {dueCount > 99 ? "99+" : dueCount}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </nav>
+        <AccountMenu account={account} className="ml-auto sm:ml-0" />
       </div>
     </header>
   );

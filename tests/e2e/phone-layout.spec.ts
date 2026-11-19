@@ -1,7 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 
 // At phone width nothing may push the page wider than the screen: a long
-// unbroken title and the status label must both stay inside it.
+// unbroken title and the status label must both stay inside it. The menu is
+// one row along the bottom edge, where a thumb reaches it.
 
 const PHONE = { width: 390, height: 844 };
 const BODY =
@@ -37,18 +38,19 @@ test.describe("phone layout", () => {
 
   test("the status label stays on screen", async ({ page }) => {
     await page.goto("/library");
-    const status = page.getByText("processed", { exact: true }).first();
+    const status = page.getByTestId(/^source-status-/).first();
     const box = await status.boundingBox();
     expect(box!.x + box!.width).toBeLessThanOrEqual(PHONE.width);
   });
 
-  test("the menu is one row under the wordmark", async ({ page }) => {
+  test("the menu is one row along the bottom of the screen", async ({ page }) => {
     await page.goto("/");
     const capture = await page.getByTestId("nav-capture").boundingBox();
     const integrations = await page
       .getByTestId("nav-integrations")
       .boundingBox();
     expect(integrations!.y).toBe(capture!.y);
+    expect(capture!.y + capture!.height).toBe(PHONE.height);
   });
 
   test("the source page does not scroll sideways", async ({ page }) => {

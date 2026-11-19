@@ -17,7 +17,7 @@ export function AccountMenu({
   const firstName = label.split(/\s+/)[0];
   return (
     <div
-      className={`flex items-center gap-2 text-sm shrink-0 ${className}`}
+      className={`flex shrink-0 items-center gap-2 ${className}`}
       data-testid="account-menu"
       title={account.email}
     >
@@ -27,29 +27,31 @@ export function AccountMenu({
         <img
           src={account.picture}
           alt=""
-          width={24}
-          height={24}
+          width={28}
+          height={28}
           referrerPolicy="no-referrer"
-          className="h-6 w-6 rounded-full"
+          className="size-7 rounded-full ring-1 ring-line"
         />
       ) : (
         <span
           aria-hidden
           className={
-            "inline-flex h-6 w-6 items-center justify-center rounded-full " +
-            "text-xs"
+            "inline-flex size-7 items-center justify-center rounded-full " +
+            "bg-guide font-typed text-label text-ink ring-1 ring-line"
           }
-          style={{ background: "var(--accent)", color: "var(--background)" }}
         >
           {firstName.charAt(0).toUpperCase()}
         </span>
       )}
-      <span className="hidden sm:inline" data-testid="account-name">
+      <span
+        className="hidden text-meta text-ink-2 lg:inline"
+        data-testid="account-name"
+      >
         {firstName}
       </span>
       <a
         href={account.signOutUrl}
-        className="text-[color:var(--muted)] hover:text-[color:var(--accent)]"
+        className="btn btn-quiet btn-sm min-h-11 sm:min-h-9"
         data-testid="sign-out"
       >
         Sign out

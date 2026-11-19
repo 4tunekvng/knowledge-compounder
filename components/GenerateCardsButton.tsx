@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
+import { countLabel } from "@/lib/format";
 
 export function GenerateCardsButton({ sourceId }: { sourceId: number }) {
   const router = useRouter();
@@ -31,23 +33,24 @@ export function GenerateCardsButton({ sourceId }: { sourceId: number }) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-1.5">
+    <div className="flex flex-col items-start gap-2 sm:items-end">
       <button
         type="button"
         onClick={generate}
         disabled={pending}
         data-testid="generate-more-cards"
-        className="rounded-md border border-[color:var(--border)] px-3 py-1.5 text-xs font-medium text-[color:var(--foreground)] transition hover:border-[color:var(--accent)] hover:text-[color:var(--accent)] disabled:cursor-not-allowed disabled:opacity-60"
+        className="btn btn-secondary"
       >
-        {pending ? "Generating…" : "+ Generate more cards"}
+        <Plus aria-hidden size={16} strokeWidth={1.5} />
+        {pending ? "Writing cards…" : "Generate more cards"}
       </button>
       {added !== null && added > 0 && (
-        <p className="text-xs text-[color:var(--accent)]" data-testid="cards-added">
-          Added {added} new {added === 1 ? "card" : "cards"}.
+        <p className="text-meta text-ok" data-testid="cards-added" role="status">
+          Added {countLabel(added, "new card")}
         </p>
       )}
       {error && (
-        <p className="text-xs text-red-700" role="alert">
+        <p className="text-meta text-danger" role="alert">
           {error}
         </p>
       )}

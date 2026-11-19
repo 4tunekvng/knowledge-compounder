@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderMarkdown } from "@/lib/markdown";
+import { essayBodyMarkdown, renderMarkdown } from "@/lib/markdown";
 
 describe("renderMarkdown", () => {
   it("renders headings", () => {
@@ -35,5 +35,39 @@ describe("renderMarkdown", () => {
     const html = renderMarkdown("Try <script>alert('x')</script> now");
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
+  });
+});
+
+describe("essayBodyMarkdown", () => {
+  const draft = [
+    "## Habits compound",
+    "",
+    "Small habits add up.[^1]",
+    "",
+    "## Footnotes",
+    "",
+    "[^1]: Atomic Habits — \"You do not rise to the level of your goals.\"",
+  ].join("\n");
+
+  it("drops the footnote definitions and their heading", () => {
+    // Act
+    const body = essayBodyMarkdown(draft, ["Something else"]);
+
+    // Assert
+    expect(body).not.toMatch(/Footnotes|\[\^1\]:/);
+  });
+
+  it("keeps the footnote markers in the text", () => {
+    expect(essayBodyMarkdown(draft, [])).toContain("Small habits add up.[^1]");
+  });
+
+  it("drops a first heading that repeats the page title", () => {
+    expect(essayBodyMarkdown(draft, ["Draft: Habits compound"]))
+      .not.toContain("## Habits compound");
+  });
+
+  it("keeps a first heading that says something new", () => {
+    expect(essayBodyMarkdown(draft, ["Draft: Why habits matter"]))
+      .toContain("## Habits compound");
   });
 });

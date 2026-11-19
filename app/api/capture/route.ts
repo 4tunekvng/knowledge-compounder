@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiUser, unauthorized } from "@/lib/auth/user";
+import { captureErrorCopy } from "@/lib/error-copy";
 import { ingest, ingestPdf, MAX_PDF_BYTES } from "@/lib/services/ingest";
 
 export const runtime = "nodejs";
@@ -43,7 +44,7 @@ async function handleTextCapture(request: Request, ownerId: string) {
     const result = await ingest({ ownerId, raw: input });
     return NextResponse.json(result);
   } catch (err) {
-    return errorResponse(err, "[capture]");
+    return errorResponse(err, "[capture]", "url");
   }
 }
 
@@ -91,12 +92,12 @@ async function handlePdfUpload(request: Request, ownerId: string) {
     const result = await ingestPdf({ ownerId, filename, bytes });
     return NextResponse.json(result);
   } catch (err) {
-    return errorResponse(err, "[capture:pdf]");
+    return errorResponse(err, "[capture:pdf]", "pdf");
   }
 }
 
 // Shared error → HTTP status mapping for both capture paths.
-function errorResponse(err: unknown, tag: string) {
+function errorResponse(err: unknown, tag: string, kind: "url" | "pdf") {
   const message = err instanceof Error ? err.message : "Unknown error.";
   const isUserActionable422 =
     message.startsWith("Failed to extract content") ||
@@ -106,11 +107,18 @@ function errorResponse(err: unknown, tag: string) {
     message.startsWith("URL returned non-HTML") ||
     message.startsWith("Response body too large");
   const isBadGateway = message.startsWith("Failed to fetch");
+  // The status still follows the raw text; the reader gets plain copy.
   if (isUserActionable422) {
-    return NextResponse.json({ error: message }, { status: 422 });
+    return NextResponse.json(
+      { error: captureErrorCopy(message, kind) },
+      { status: 422 },
+    );
   }
   if (isBadGateway) {
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json(
+      { error: captureErrorCopy(message, kind) },
+      { status: 502 },
+    );
   }
   console.error(`${tag} ingest failed:`, err);
   return NextResponse.json({ error: "Internal server error." }, { status: 500 });
