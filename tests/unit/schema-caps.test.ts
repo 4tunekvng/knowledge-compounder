@@ -82,7 +82,9 @@ describe("model output schemas sent to the API", () => {
   // could write a value outside the list and messages.parse then threw.
   it("keep every enum and const as a constraint, not a hint", () => {
     const schemas = Object.values(MODEL_SCHEMAS);
-    const declared = schemas.flatMap((s) => choices(z.toJSONSchema(s, { io: "input" })));
+    const declared = schemas.flatMap((s) =>
+      choices(z.toJSONSchema(s, { io: "input" })),
+    );
 
     const sent = schemas.flatMap((s) => choices(zodOutputFormat(s).schema));
 
