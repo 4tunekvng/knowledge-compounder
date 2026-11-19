@@ -58,6 +58,13 @@ export function getLocalDb(dbPath: string): DrizzleD1Database<typeof schema> {
     "utf8",
   );
   sqlite.exec(schemaSql);
+  // CREATE TABLE IF NOT EXISTS never adds a column to an existing table, so a
+  // dev database made before migration 0004 gets its columns here instead.
+  const sourceColumns = sqlite.pragma("table_info(sources)") as { name: string }[];
+  if (!sourceColumns.some((c) => c.name === "claimed_at")) {
+    const migration = path.join(process.cwd(), "migrations", "0004_claimed_at.sql");
+    sqlite.exec(readFileSync(migration, "utf8"));
+  }
 
   const db = drizzle(sqlite, { schema }) as unknown as DrizzleD1Database<
     typeof schema

@@ -1,6 +1,6 @@
 -- Full local-dev schema for the better-sqlite3 adapter (lib/db/local.ts).
 -- Mirrors the current state of lib/db/schema.ts AFTER all migrations
--- (0001_init + 0002_auto_ingest) are applied. Used only for local dev /
+-- (0001_init through 0004_claimed_at) are applied. Used only for local dev /
 -- preview / Playwright e2e — production runs on Cloudflare D1 and is
 -- migrated via `wrangler d1 migrations apply`. Everything is IF NOT EXISTS
 -- so applying it repeatedly on an existing dev DB is a no-op.
@@ -22,7 +22,9 @@ CREATE TABLE IF NOT EXISTS sources (
   external_id TEXT,
   external_updated_at INTEGER,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
-  processed_at INTEGER
+  processed_at INTEGER,
+  claimed_at INTEGER,
+  attempts INTEGER NOT NULL DEFAULT 0
 );
 CREATE UNIQUE INDEX IF NOT EXISTS sources_source_type_external_id_idx
   ON sources(source_type, external_id);

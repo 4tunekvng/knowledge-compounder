@@ -19,6 +19,16 @@ Connect your reading sources so highlights flow into the corpus automatically. E
 
 **Shipped: Readwise.** Generate a token at https://readwise.io/access_token, then in the app go to `/integrations`, paste the token, click **Save token**, then **Sync now**. The orchestrator pages the Readwise V2 export endpoint, dedupes against `(source_type, external_id)`, and stores `lastSyncedAt` so the next run is incremental.
 
+**Store first, process later.** Sync only stores each new highlight as a `pending`
+source; it never waits on Claude. A cron trigger on the worker (`worker.ts`, every 5
+minutes) calls `POST /api/drain`, which claims up to 5 pending sources one at a time
+and processes them. A claim is a timestamp (`sources.claimed_at`), so two drains
+never take the same row, and a capture whose request died part-way is picked up once
+its claim is 35 minutes old. Only the worker holding a row's current claim writes its
+cards, so a slow request that was taken over writes nothing. After 3 tries a row is
+marked failed, so its page offers Retry. Under `next dev` there is no cron: run `curl
+-X POST http://127.0.0.1:3000/api/drain` to process synced highlights.
+
 **Extending to more providers.** The integration lives behind an `IngestSource` interface (`lib/services/ingest-source.ts`):
 
 ```ts
@@ -84,6 +94,7 @@ app/                      Next.js App Router
     capture/              POST: ingest a URL/text (JSON) or a PDF (multipart)
     sources/[id]/cards/   POST: generate additional flashcards for a source
     sources/[id]/retry/   POST: retry a failed source
+    drain/                POST: process pending sources (called by the cron)
     review/               POST: grade a card
     themes/               POST: regenerate themes from current corpus
     essay/                POST: draft an essay from a theme
@@ -97,8 +108,9 @@ lib/
   embeddings/             Voyage REST client + lexical fallback + cosine similarity
   extract/                url.ts (Readability) + pdf.ts (unpdf, Workers-compatible)
   parsers.ts              Pure JSON parsers (DB stores arrays/objects as TEXT)
+  scheduled.ts            Cron handler: asks the app to run the drain
   services/
-    ingest.ts             Manual + PDF + external capture pipeline
+    ingest.ts             Manual + PDF capture pipeline, sync storage, drain
     cards.ts              Generate-more-cards for an existing source
     decks.ts              Create / list / fetch-by-token / delete decks
     ingest-source.ts      IngestSource interface + sanitizeForPrompt helper
@@ -109,6 +121,7 @@ lib/
     review.ts             FSRS grading
   sm2/                    Spaced repetition (FSRS-6 implementation; module name kept for compatibility)
   markdown.ts             Tiny dependency-free Markdown renderer
+worker.ts                 Worker entry: OpenNext app + the cron handler
 tests/
   unit/                   Vitest — pure functions only
   e2e/                    Playwright — real browser, real DB, fake AI
@@ -121,6 +134,11 @@ npm run cf:build                                   # OpenNext build
 CLOUDFLARE_ACCOUNT_ID=<id> npx wrangler d1 migrations apply knowledge-compounder --remote
 CLOUDFLARE_ACCOUNT_ID=<id> npm run cf:deploy       # deploy the worker
 ```
+
+The deploy also registers the worker's cron trigger (`triggers.crons` in
+`wrangler.jsonc`), which drains pending sources every 5 minutes. To drain by hand
+in production, send `curl -X POST -H "Authorization: Bearer <KC_API_SECRET>"
+https://<your-worker-host>/api/drain`.
 
 Production runs on Cloudflare D1 (real backend — nothing is stored in the
 browser). Local dev / preview / e2e use a `DATABASE_PATH` SQLite file via the

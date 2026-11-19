@@ -2,11 +2,13 @@
  * Orchestrates an auto-ingest run for one provider:
  *   1. Read the stored token + last sync cursor from `integration_tokens`.
  *   2. Iterate the IngestSource generator, skipping already-ingested items.
- *   3. Feed each new item through the existing AI processing pipeline.
+ *   3. Store each new item as a pending row. The scheduled drain
+ *      (processPendingSources) does the AI work later, so this request is
+ *      only database writes and never ends with rows half-processed.
  *   4. Update lastSyncedAt on success.
  *
  * Bounded by `MAX_PER_SYNC` new items so a wildly-large backlog can't blow the
- * worker's runtime budget or burn through the Claude budget unattended. The
+ * request's time or queue an unbounded amount of Claude work at once. The
  * provider stream is not sorted by update time, so the cursor only advances
  * after a complete run; a run cut short (or with an item that threw) keeps the
  * old cursor, and the next "Sync now" skips what it already ingested
@@ -21,15 +23,18 @@ import {
   InvalidTokenError,
   type IngestSource,
 } from "./ingest-source";
-import {
-  ingestExternal,
-  PROCESSING_FAILED_MESSAGE,
-  type ExternalIngestInput,
-} from "./ingest";
+import { ingestExternal, type ExternalIngestInput } from "./ingest";
 import { ReadwiseSource } from "./integrations/readwise";
 import { ZoteroSource } from "./integrations/zotero";
 
 export const MAX_PER_SYNC = 200;
+
+/**
+ * Fixed text for an item sync could not store. The cursor stays put, so the
+ * next sync fetches it again.
+ */
+export const SAVE_FAILED_MESSAGE =
+  "Saving this highlight failed. The next sync tries again.";
 
 /** Fixed text for the sync summary; the raw fetch error is only logged. */
 export const FETCH_FAILED_MESSAGE =
@@ -79,7 +84,7 @@ export async function syncIntegration(
 
   let added = 0;
   let skipped = 0;
-  let processedCount = 0;
+  let newCount = 0;
   let latestSeen: Date | null = null;
   let reachedLimit = false;
   let fetchFailed = false;
@@ -88,7 +93,7 @@ export async function syncIntegration(
 
   try {
     for await (const capture of source.fetchNew(row.token, cursor)) {
-      if (processedCount >= MAX_PER_SYNC) {
+      if (newCount >= MAX_PER_SYNC) {
         reachedLimit = true;
         break;
       }
@@ -104,15 +109,9 @@ export async function syncIntegration(
         const result = await ingestExternal(input);
         if (result.status === "skipped") {
           skipped++;
-        } else if (result.status === "processed") {
-          processedCount++;
-          added++;
         } else {
-          processedCount++;
-          // status === "failed" — surface the message but keep going.
-          errors.push(
-            `${capture.externalId}: ${result.error ?? "processing failed"}`,
-          );
+          newCount++;
+          added++;
         }
 
         if (
@@ -124,9 +123,9 @@ export async function syncIntegration(
       } catch (err) {
         // The summary goes to the browser; the raw error can name hosts.
         console.error(`Sync item ${capture.externalId} failed:`, err);
-        processedCount++;
+        newCount++;
         itemThrew = true;
-        errors.push(`${capture.externalId}: ${PROCESSING_FAILED_MESSAGE}`);
+        errors.push(`${capture.externalId}: ${SAVE_FAILED_MESSAGE}`);
       }
     }
   } catch (err) {
@@ -140,8 +139,8 @@ export async function syncIntegration(
   // was a dup, we still want to record that we successfully checked. A run cut
   // short by the limit or a fetch error keeps the prior cursor: items after the
   // stop can be older than the newest one seen, and would be skipped for good.
-  // So does an item that threw (a database error, say): unlike a "failed"
-  // result it may never have been stored, so only a rerun can pick it up.
+  // So does an item that threw (a database error, say): it may never have
+  // been stored, so only a rerun can pick it up.
   const complete = !reachedLimit && !fetchFailed && !itemThrew;
   const newCursor = !complete
     ? row.lastSyncedAt

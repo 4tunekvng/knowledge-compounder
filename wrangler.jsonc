@@ -1,7 +1,9 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "knowledge-compounder",
-	"main": ".open-next/worker.js",
+	// worker.ts wraps the OpenNext build (.open-next/worker.js) and adds the
+	// cron handler that drains pending sources.
+	"main": "worker.ts",
 	"compatibility_date": "2025-04-01",
 	"compatibility_flags": [
 		"nodejs_compat",
@@ -10,6 +12,11 @@
 	"assets": {
 		"binding": "ASSETS",
 		"directory": ".open-next/assets"
+	},
+	// Every 5 minutes: process sources stored but not yet processed (see
+	// worker.ts and app/api/drain/route.ts).
+	"triggers": {
+		"crons": ["*/5 * * * *"]
 	},
 	"observability": {
 		"enabled": true

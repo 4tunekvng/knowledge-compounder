@@ -62,7 +62,8 @@ export default async function SourcePage({ params }: Params) {
         </div>
       ) : source.status === "pending" ? (
         <div className="border border-amber-300 bg-amber-50 rounded-md p-4 text-sm text-amber-800">
-          Still processing…
+          Waiting to be processed. Its notes and cards appear here once
+          that is done; refresh to check.
         </div>
       ) : null}
 

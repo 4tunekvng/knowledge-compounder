@@ -39,6 +39,12 @@ export const sources = sqliteTable(
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
     processedAt: integer("processed_at", { mode: "timestamp_ms" }),
+    // When a worker last took this row to process it. A pending row with no
+    // claim, or a claim too old to still be running, is free for the
+    // scheduled drain (lib/services/ingest.ts#processPendingSources).
+    claimedAt: integer("claimed_at", { mode: "timestamp_ms" }),
+    // Tries so far; the drain gives up at MAX_ATTEMPTS (lib/services/ingest.ts).
+    attempts: integer("attempts").notNull().default(0),
   },
   (table) => ({
     // Prevents duplicate captures when re-syncing the same external item.

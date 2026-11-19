@@ -3,12 +3,9 @@ import { syncIntegration } from "@/lib/services/ingest-orchestrator";
 import { InvalidTokenError } from "@/lib/services/ingest-source";
 
 export const runtime = "nodejs";
-// A Readwise sync can take a while when a backlog is being processed —
-// 200 captures × ~3s/process is ~10 min. Cloudflare Workers cap at 30s by
-// default, so the orchestrator's MAX_PER_SYNC=200 plus per-item AI calls
-// will need to be tuned downward in prod or the route refactored to a queue.
-// For now, single-user dev mode + small backlog → fine.
-export const maxDuration = 300;
+// Sync only fetches highlights and stores them as pending rows; the cron
+// drain (worker.ts → /api/drain) does the AI work, so this request never
+// waits on Claude.
 
 export async function POST() {
   try {
