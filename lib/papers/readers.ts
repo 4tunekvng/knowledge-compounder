@@ -216,15 +216,13 @@ export async function todaysPicks(
   const already = new Set(shownToday.map((s) => s.arxivId));
   const fresh = ids.filter((id) => !already.has(id));
   if (fresh.length) {
-    await db
-      .insert(readerEvents)
-      .values(
-        fresh.map((arxivId) => ({
-          ownerId: userId,
-          arxivId,
-          kind: "shown" as const,
-        })),
-      );
+    await db.insert(readerEvents).values(
+      fresh.map((arxivId) => ({
+        ownerId: userId,
+        arxivId,
+        kind: "shown" as const,
+      })),
+    );
   }
 
   const rows = await db.select().from(papers).where(inArray(papers.arxivId, ids));
