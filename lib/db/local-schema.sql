@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS sources (
   external_updated_at INTEGER,
   created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
   processed_at INTEGER,
-  claimed_at INTEGER
+  claimed_at INTEGER,
+  attempts INTEGER NOT NULL DEFAULT 0
 );
 CREATE UNIQUE INDEX IF NOT EXISTS sources_source_type_external_id_idx
   ON sources(source_type, external_id);

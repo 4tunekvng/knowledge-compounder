@@ -247,6 +247,36 @@ describe("processPendingSources", () => {
     expect(cardFronts(1)).toEqual(["Q1", "Q2"]);
   });
 
+  it("writes cards once when the drain takes over a running capture", async () => {
+    let finish: (value: typeof PROCESSED) => void = () => {};
+    processSource.mockReturnValueOnce(
+      new Promise((resolve) => (finish = resolve)),
+    );
+    processSource.mockResolvedValue(PROCESSED);
+    const capture = ingest({ raw: "a note worth keeping" });
+    await vi.waitFor(() => expect(processSource).toHaveBeenCalledTimes(1));
+    sqlite.prepare("UPDATE sources SET claimed_at = ? WHERE id = 1").run(HOUR_AGO);
+
+    await processPendingSources(5);
+    finish(PROCESSED);
+    const result = await capture;
+
+    expect(result).toEqual({ sourceId: 1, status: "processed" });
+    expect(processingCount(1)).toBe(1);
+    expect(cardFronts(1)).toEqual(["Q1", "Q2"]);
+  });
+
+  it("gives up on a row after three attempts so Retry appears", async () => {
+    const id = insertAbandonedSource();
+    sqlite.prepare("UPDATE sources SET attempts = 3 WHERE id = ?").run(id);
+
+    const results = await processPendingSources(5);
+
+    expect(results).toEqual([]);
+    expect(processSource).not.toHaveBeenCalled();
+    expect(sourceRow(id).status).toBe("failed");
+  });
+
   it("processes a row once when two drains run at the same time", async () => {
     const id = insertAbandonedSource();
     processSource.mockResolvedValue(PROCESSED);

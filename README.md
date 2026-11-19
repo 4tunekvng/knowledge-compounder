@@ -24,8 +24,10 @@ source; it never waits on Claude. A cron trigger on the worker (`worker.ts`, eve
 minutes) calls `POST /api/drain`, which claims up to 5 pending sources one at a time
 and processes them. A claim is a timestamp (`sources.claimed_at`), so two drains
 never take the same row, and a capture whose request died part-way is picked up once
-its claim is 35 minutes old. Under `next dev` there is no cron: run `curl -X POST
-http://127.0.0.1:3000/api/drain` to process synced highlights.
+its claim is 35 minutes old. Only the worker holding a row's current claim writes its
+cards, so a slow request that was taken over writes nothing. After 3 tries a row is
+marked failed, so its page offers Retry. Under `next dev` there is no cron: run `curl
+-X POST http://127.0.0.1:3000/api/drain` to process synced highlights.
 
 **Extending to more providers.** The integration lives behind an `IngestSource` interface (`lib/services/ingest-source.ts`):
 
