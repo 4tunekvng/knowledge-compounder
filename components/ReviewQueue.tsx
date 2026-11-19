@@ -3,6 +3,13 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { CardStack, IndexCard } from "@/components/IndexCard";
+import {
+  cardTypeLabel,
+  catalogNumber,
+  countLabel,
+  formatInterval,
+} from "@/lib/format";
 
 interface ReviewCard {
   id: number;
@@ -10,6 +17,8 @@ interface ReviewCard {
   front: string;
   back: string;
   source: { id: number; title: string };
+  // Milliseconds until the card is due again for each grade, Again..Easy.
+  nextIn: number[];
 }
 
 interface Props {
@@ -37,11 +46,17 @@ export function ReviewQueue({ cards }: Props) {
 
   if (cards.length === 0) {
     return (
-      <div
-        className="border border-dashed border-[color:var(--border)] rounded-md p-8 text-center text-[color:var(--muted)]"
-        data-testid="review-empty"
-      >
-        No cards due. Capture more material or come back tomorrow.
+      <div data-testid="review-empty">
+        <IndexCard head="Nothing due">
+          <p className="index-card__front">Nothing to review.</p>
+          <p className="index-card__back">
+            Each card comes back on the day it is due. Capture something new
+            to add more.
+          </p>
+        </IndexCard>
+        <Link href="/" className="btn btn-secondary mt-8">
+          Capture something
+        </Link>
       </div>
     );
   }
@@ -49,14 +64,14 @@ export function ReviewQueue({ cards }: Props) {
   const allDone = index >= cards.length;
   if (allDone) {
     return (
-      <div
-        className="border border-[color:var(--border)] bg-[color:var(--card)] rounded-md p-8 text-center"
-        data-testid="review-done"
-      >
-        <h2 className="font-serif text-2xl mb-2">Queue cleared</h2>
-        <p className="text-[color:var(--muted)] mb-4">
-          You graded {completed.length} {completed.length === 1 ? "card" : "cards"}
-        </p>
+      <div data-testid="review-done">
+        <IndexCard head="Queue cleared">
+          <h2 className="index-card__front">That&apos;s every card due now.</h2>
+          <p className="index-card__back">
+            You graded {countLabel(completed.length, "card")}. Each one is filed
+            away until its next due date.
+          </p>
+        </IndexCard>
         <button
           onClick={() =>
             // Client state outlives router.refresh(), so restart the queue in
@@ -68,9 +83,9 @@ export function ReviewQueue({ cards }: Props) {
               router.refresh();
             })
           }
-          className="rounded-md bg-[color:var(--accent)] px-5 py-2 text-sm font-medium text-white"
+          className="btn btn-secondary mt-8"
         >
-          Refresh queue
+          Check for more
         </button>
       </div>
     );
@@ -102,69 +117,79 @@ export function ReviewQueue({ cards }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-5" data-testid="review-card">
-      <div className="flex items-baseline justify-between gap-4 text-sm text-[color:var(--muted)]">
-        <span className="shrink-0">
-          Card {index + 1} of {cards.length}
-        </span>
-        <span className="min-w-0 truncate">
+    <div className="flex flex-col gap-8" data-testid="review-card">
+      <div>
+        <CardStack under={cards.length - index - 1}>
+          <IndexCard
+            key={card.id}
+            head={cardTypeLabel(card.cardType)}
+            aside={`${index + 1} of ${cards.length}`}
+            className="min-h-[264px]"
+          >
+            <p className="index-card__front" data-testid="card-front">
+              {card.front}
+            </p>
+            {revealed && (
+              <p className="index-card__back reveal" data-testid="card-back">
+                {card.back}
+              </p>
+            )}
+          </IndexCard>
+        </CardStack>
+        <p className="mt-6 truncate text-meta text-ink-3">
           From{" "}
-          <Link href={`/sources/${card.source.id}`}>{card.source.title}</Link>
-        </span>
+          <Link
+            href={`/sources/${card.source.id}`}
+            className="text-ink-2 no-underline hover:underline"
+          >
+            <span className="font-typed">{catalogNumber(card.source.id)}</span>{" "}
+            {card.source.title}
+          </Link>
+        </p>
       </div>
 
-      <div className="border border-[color:var(--border)] bg-[color:var(--card)] rounded-md p-8">
-        <p className="text-xs capitalize text-[color:var(--accent)] mb-3">
-          {card.cardType}
-        </p>
-        <p
-          className="font-serif text-2xl leading-snug mb-6"
-          data-testid="card-front"
+      {revealed ? (
+        // On a phone the grades stay pinned above the menu, so a long answer
+        // never pushes them off screen.
+        <div
+          className={
+            "sticky bottom-[calc(64px+env(safe-area-inset-bottom))] -mx-4 " +
+            "grid grid-cols-2 gap-3 bg-paper px-4 py-3 " +
+            "sm:static sm:mx-0 sm:grid-cols-4 sm:p-0"
+          }
+          data-testid="grade-buttons"
         >
-          {card.front}
-        </p>
-        {revealed ? (
-          <p
-            className="text-base leading-relaxed text-[color:var(--foreground)]"
-            data-testid="card-back"
-          >
-            {card.back}
-          </p>
-        ) : (
-          <button
-            onClick={() => setRevealed(true)}
-            data-testid="reveal-button"
-            className="border border-[color:var(--border)] rounded-md px-5 py-2 text-sm hover:bg-[color:var(--background)]"
-          >
-            Reveal answer
-          </button>
-        )}
-      </div>
-
-      {revealed && (
-        <div className="flex flex-wrap gap-2" data-testid="grade-buttons">
           {GRADE_BUTTONS.map((b) => (
             <button
               key={b.grade}
               onClick={() => grade(b.grade)}
               disabled={isPending}
               data-testid={`grade-${b.grade}`}
-              className={`flex-1 min-w-[110px] rounded-md border px-4 py-3 text-sm font-medium disabled:opacity-50 ${
-                b.grade === GOOD_GRADE
-                  ? "border-[color:var(--accent)] bg-[color:var(--accent)] text-white"
-                  : "border-[color:var(--border)] hover:bg-[color:var(--background)]"
-              }`}
+              className={
+                "btn h-16 flex-col gap-0 " +
+                (b.grade === GOOD_GRADE ? "btn-primary" : "btn-secondary")
+              }
               title={b.description}
             >
-              <div>{b.label}</div>
-              <div className="text-xs font-normal opacity-80">{b.description}</div>
+              <span>{b.label}</span>
+              <span className="text-meta font-normal opacity-80">
+                {formatInterval(card.nextIn[b.grade - 1])}
+              </span>
             </button>
           ))}
         </div>
+      ) : (
+        <button
+          onClick={() => setRevealed(true)}
+          data-testid="reveal-button"
+          className="btn btn-primary h-16 w-full sm:h-11 sm:w-auto sm:self-start"
+        >
+          Show answer
+        </button>
       )}
 
       {error && (
-        <p className="text-sm text-red-700" role="alert">
+        <p className="text-ui text-danger" role="alert">
           {error}
         </p>
       )}

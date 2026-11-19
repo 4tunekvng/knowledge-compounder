@@ -2,6 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Copy, Download, ExternalLink, Mail, Trash2 } from "lucide-react";
+import { CardStack, IndexCard } from "@/components/IndexCard";
+import { catalogNumber, countLabel, formatDay } from "@/lib/format";
 
 interface SourceOption {
   id: number;
@@ -51,11 +54,11 @@ export function DeckManager({ sources, decks, origin }: Props) {
   function createDeck() {
     setCreateError(null);
     if (!title.trim()) {
-      setCreateError("Give the deck a title.");
+      setCreateError("Give the deck a title");
       return;
     }
     if (selected.size === 0) {
-      setCreateError("Pick at least one source.");
+      setCreateError("Pick at least one capture");
       return;
     }
     startCreating(async () => {
@@ -113,186 +116,234 @@ export function DeckManager({ sources, decks, origin }: Props) {
     });
   }
 
-  return (
-    <div className="flex flex-col gap-10">
-      {/* Create form */}
-      <section className="border border-[color:var(--border)] bg-[color:var(--card)] rounded-md p-6">
-        <h2 className="font-serif text-xl mb-4">Create a shareable deck</h2>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="deck-title" className="text-sm font-medium">
-              Deck title
-            </label>
-            <input
-              id="deck-title"
-              data-testid="deck-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Competitive Moats — Week 3"
-              className="rounded-md border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm focus:border-[color:var(--accent)] focus:outline-none"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="deck-desc" className="text-sm font-medium">
-              Description <span className="text-[color:var(--muted)] font-normal">(optional)</span>
-            </label>
-            <input
-              id="deck-desc"
-              data-testid="deck-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="A note for your students about what to focus on."
-              className="rounded-md border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm focus:border-[color:var(--accent)] focus:outline-none"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">
-              Sources{" "}
-              <span className="text-[color:var(--muted)] font-normal">
-                ({selected.size} selected · {selectedCardCount} cards)
-              </span>
-            </span>
-            <ul
-              className="max-h-64 overflow-auto rounded-md border border-[color:var(--border)] divide-y divide-[color:var(--border)]"
-              data-testid="deck-source-list"
-            >
-              {sources.map((s) => (
-                <li key={s.id}>
-                  <label className="flex items-center gap-3 px-3 py-2.5 text-sm cursor-pointer hover:bg-[color:var(--background)]">
-                    <input
-                      type="checkbox"
-                      data-testid={`deck-source-${s.id}`}
-                      checked={selected.has(s.id)}
-                      onChange={() => toggle(s.id)}
-                      className="size-4 accent-[color:var(--accent)]"
-                    />
-                    <span className="flex-1 truncate">{s.title}</span>
-                    <span className="text-xs text-[color:var(--muted)] shrink-0">
-                      {s.cardCount} {s.cardCount === 1 ? "card" : "cards"}
-                    </span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </div>
-          {createError && (
-            <p className="text-sm text-red-700" role="alert" data-testid="deck-error">
-              {createError}
-            </p>
-          )}
-          <div>
-            <button
-              type="button"
-              onClick={createDeck}
-              disabled={creating}
-              data-testid="create-deck"
-              className="rounded-md bg-[color:var(--accent)] text-white px-5 py-2.5 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
-            >
-              {creating && deletingId === null ? "Creating…" : "Create shareable deck"}
-            </button>
-          </div>
-        </div>
-      </section>
+  const form = (
+    <section
+      className="panel flex flex-col gap-6 p-6 lg:col-start-2 lg:row-start-1"
+      aria-labelledby="new-deck-heading"
+    >
+      <div>
+        <h2 id="new-deck-heading" className="section-title">
+          Make a deck
+        </h2>
+        <p className="mt-1 text-ui text-ink-2">
+          Pick the captures whose cards go in it.
+        </p>
+      </div>
+      <div className="flex flex-col gap-2">
+        <label htmlFor="deck-title" className="text-ui font-medium">
+          Title
+        </label>
+        <input
+          id="deck-title"
+          data-testid="deck-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Moats, week 3"
+          className="field"
+        />
+      </div>
+      <div className="flex flex-col gap-2">
+        <label htmlFor="deck-desc" className="text-ui font-medium">
+          Note for students <span className="font-normal text-ink-3">optional</span>
+        </label>
+        <input
+          id="deck-desc"
+          data-testid="deck-description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="What to focus on"
+          className="field"
+        />
+      </div>
+      <fieldset className="flex min-w-0 flex-col gap-2">
+        <legend className="text-ui font-medium">Captures</legend>
+        <ul
+          className="max-h-80 overflow-auto rounded-lg border border-line-strong"
+          data-testid="deck-source-list"
+        >
+          {sources.map((s) => (
+            <li key={s.id} className="border-t border-line first:border-t-0">
+              <label
+                className={
+                  "flex min-h-11 cursor-pointer items-center gap-3 px-3 py-2 " +
+                  "text-ui hover:bg-raised"
+                }
+              >
+                <input
+                  type="checkbox"
+                  data-testid={`deck-source-${s.id}`}
+                  checked={selected.has(s.id)}
+                  onChange={() => toggle(s.id)}
+                  className="size-[18px] shrink-0 accent-accent"
+                />
+                <span className="min-w-0 flex-1 truncate">
+                  <span className="font-typed text-meta text-ink-3">
+                    {catalogNumber(s.id)}
+                  </span>{" "}
+                  {s.title}
+                </span>
+                <span className="shrink-0 text-meta text-ink-3">
+                  {s.cardCount}
+                </span>
+              </label>
+            </li>
+          ))}
+        </ul>
+        <p className="text-meta text-ink-3" aria-live="polite">
+          {selected.size === 0
+            ? "None picked yet"
+            : `${countLabel(selected.size, "capture")}, ` +
+              `${countLabel(selectedCardCount, "card")}`}
+        </p>
+      </fieldset>
+      {createError && (
+        <p className="text-ui text-danger" role="alert" data-testid="deck-error">
+          {createError}
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={createDeck}
+        disabled={creating}
+        data-testid="create-deck"
+        className="btn btn-primary"
+      >
+        {creating && deletingId === null ? "Making the deck…" : "Make deck"}
+      </button>
+    </section>
+  );
 
-      {/* Existing decks */}
-      <section>
-        <h2 className="font-serif text-xl mb-4">
-          Your decks{" "}
-          <span className="text-[color:var(--muted)] text-base font-normal">
-            ({decks.length})
-          </span>
+  return (
+    <div
+      className={
+        "grid grid-cols-[minmax(0,1fr)] items-start gap-12 " +
+        "lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-16"
+      }
+    >
+      {decks.length === 0 && form}
+      <section className="min-w-0 lg:col-start-1 lg:row-start-1">
+        <h2 className="mb-2 flex items-baseline gap-3">
+          <span className="section-title">Your decks</span>
+          <span className="text-meta text-ink-3">{decks.length}</span>
         </h2>
         {decks.length === 0 ? (
           <div
-            className="border border-dashed border-[color:var(--border)] rounded-md p-8 text-center text-[color:var(--muted)]"
+            className="border-t border-line pt-4 text-ui text-ink-2"
             data-testid="decks-empty"
           >
-            No decks yet. Create one above and share the link with your students.
+            No decks yet. Make one and share its link with your students.
           </div>
         ) : (
-          <ul className="flex flex-col gap-4" data-testid="decks-list">
+          <ul data-testid="decks-list">
             {decks.map((deck) => (
               <li
                 key={deck.id}
                 data-testid={`deck-${deck.id}`}
-                className="border border-[color:var(--border)] bg-[color:var(--card)] rounded-md p-5 flex flex-col gap-3"
+                className={
+                  "grid grid-cols-[minmax(0,1fr)] gap-6 border-t border-line py-8 " +
+                  "sm:grid-cols-[136px_minmax(0,1fr)] sm:gap-8"
+                }
               >
-                <div className="flex items-baseline justify-between gap-4">
-                  <h3 className="font-serif text-lg">{deck.title}</h3>
-                  <span className="text-xs text-[color:var(--muted)] shrink-0">
-                    {deck.cardCount} {deck.cardCount === 1 ? "card" : "cards"} ·{" "}
-                    {deck.sourceIds.length}{" "}
-                    {deck.sourceIds.length === 1 ? "source" : "sources"}
-                  </span>
+                {/* The deck as a pack of cards; the pack thickens with it. */}
+                <div aria-hidden className="hidden pt-1 sm:block">
+                  <CardStack under={deck.cardCount - 1}>
+                    <IndexCard
+                      size="small"
+                      head={countLabel(deck.cardCount, "card")}
+                      className="h-[84px]"
+                    >
+                      {null}
+                    </IndexCard>
+                  </CardStack>
                 </div>
-                {deck.description && (
-                  <p className="text-sm text-[color:var(--muted)]">{deck.description}</p>
-                )}
+                <div className="flex min-w-0 flex-col gap-4">
+                  <div>
+                    <h3 className="text-lead font-medium">{deck.title}</h3>
+                    {deck.description && (
+                      <p className="mt-1 text-ui text-ink-2">{deck.description}</p>
+                    )}
+                    <p className="mt-2 text-meta text-ink-3">
+                      {countLabel(deck.cardCount, "card")} from{" "}
+                      {countLabel(deck.sourceIds.length, "capture")} · made{" "}
+                      {formatDay(deck.createdAt)}
+                    </p>
+                  </div>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    readOnly
-                    value={shareUrl(deck.shareToken)}
-                    data-testid={`deck-link-${deck.id}`}
-                    onFocus={(e) => e.currentTarget.select()}
-                    className="flex-1 rounded-md border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-xs font-mono text-[color:var(--muted)]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => copyLink(deck)}
-                    data-testid={`copy-link-${deck.id}`}
-                    className="rounded-md border border-[color:var(--border)] px-3 py-2 text-xs font-medium hover:border-[color:var(--accent)] hover:text-[color:var(--accent)]"
-                  >
-                    {copiedId === deck.id ? "Copied!" : "Copy link"}
-                  </button>
-                </div>
+                  <div className="flex gap-2">
+                    <input
+                      readOnly
+                      aria-label="Share link"
+                      value={shareUrl(deck.shareToken)}
+                      data-testid={`deck-link-${deck.id}`}
+                      onFocus={(e) => e.currentTarget.select()}
+                      className={
+                        "field min-w-0 flex-1 font-typed text-meta text-ink-2"
+                      }
+                    />
+                    <button
+                      type="button"
+                      onClick={() => copyLink(deck)}
+                      data-testid={`copy-link-${deck.id}`}
+                      className="btn btn-secondary shrink-0"
+                    >
+                      <Copy aria-hidden size={16} strokeWidth={1.5} />
+                      {copiedId === deck.id ? "Copied" : "Copy link"}
+                    </button>
+                  </div>
 
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <a
-                    href={`/d/${deck.shareToken}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-md bg-[color:var(--foreground)] text-[color:var(--background)] px-3 py-1.5 font-medium no-underline hover:opacity-80"
-                  >
-                    Open student view ↗
-                  </a>
-                  <a
-                    href={`/d/${deck.shareToken}/pdf`}
-                    className="rounded-md border border-[color:var(--border)] px-3 py-1.5 font-medium no-underline text-[color:var(--foreground)] hover:border-[color:var(--accent)] hover:text-[color:var(--accent)]"
-                  >
-                    ⬇ PDF study guide
-                  </a>
-                  <a
-                    href={`/d/${deck.shareToken}/anki`}
-                    className="rounded-md border border-[color:var(--border)] px-3 py-1.5 font-medium no-underline text-[color:var(--foreground)] hover:border-[color:var(--accent)] hover:text-[color:var(--accent)]"
-                  >
-                    ⬇ Anki deck
-                  </a>
-                  <a
-                    href={`mailto:?subject=${encodeURIComponent(
-                      `Study deck: ${deck.title}`,
-                    )}&body=${encodeURIComponent(
-                      `Here's a flashcard deck to study:\n\n${shareUrl(deck.shareToken)}\n\nOpen it in your browser to study, or download it for Anki.`,
-                    )}`}
-                    className="rounded-md border border-[color:var(--border)] px-3 py-1.5 font-medium no-underline text-[color:var(--foreground)] hover:border-[color:var(--accent)] hover:text-[color:var(--accent)]"
-                  >
-                    ✉ Email to students
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => removeDeck(deck)}
-                    disabled={deletingId === deck.id}
-                    data-testid={`delete-deck-${deck.id}`}
-                    className="ml-auto rounded-md px-3 py-1.5 font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
-                  >
-                    {deletingId === deck.id ? "Deleting…" : "Delete"}
-                  </button>
+                  <div className="-ml-3 flex flex-wrap items-center gap-x-1 gap-y-1">
+                    <a
+                      href={`/d/${deck.shareToken}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-quiet btn-sm"
+                    >
+                      <ExternalLink aria-hidden size={16} strokeWidth={1.5} />
+                      Student view
+                    </a>
+                    <a
+                      href={`/d/${deck.shareToken}/pdf`}
+                      className="btn btn-quiet btn-sm"
+                    >
+                      <Download aria-hidden size={16} strokeWidth={1.5} />
+                      PDF study guide
+                    </a>
+                    <a
+                      href={`/d/${deck.shareToken}/anki`}
+                      className="btn btn-quiet btn-sm"
+                    >
+                      <Download aria-hidden size={16} strokeWidth={1.5} />
+                      Anki deck
+                    </a>
+                    <a
+                      href={`mailto:?subject=${encodeURIComponent(
+                        `Study deck: ${deck.title}`,
+                      )}&body=${encodeURIComponent(
+                        `Here's a flashcard deck to study:\n\n${shareUrl(deck.shareToken)}\n\nOpen it in your browser to study, or download it for Anki.`,
+                      )}`}
+                      className="btn btn-quiet btn-sm"
+                    >
+                      <Mail aria-hidden size={16} strokeWidth={1.5} />
+                      Email it
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => removeDeck(deck)}
+                      disabled={deletingId === deck.id}
+                      data-testid={`delete-deck-${deck.id}`}
+                      className="btn btn-danger btn-sm sm:ml-auto"
+                    >
+                      <Trash2 aria-hidden size={16} strokeWidth={1.5} />
+                      {deletingId === deck.id ? "Deleting…" : "Delete"}
+                    </button>
+                  </div>
                 </div>
               </li>
             ))}
           </ul>
         )}
       </section>
+      {decks.length > 0 && form}
     </div>
   );
 }

@@ -43,23 +43,23 @@ export default async function DecksPage() {
   }));
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-12">
       <div>
-        <h1 className="font-serif text-3xl tracking-tight">Study decks</h1>
-        <p className="text-[color:var(--muted)] mt-1 max-w-2xl">
-          Bundle the flashcards from any sources into a deck, then share one link.
-          Students open it with no login and can study in the browser or download
-          the cards as a PDF study guide or an Anki deck.
+        <h1 className="text-title font-medium">Study decks</h1>
+        <p className="mt-3 max-w-[40rem] text-read text-ink-2">
+          Share flashcards with students as one link. They need no account, and
+          can study in the browser or download the cards as a PDF or an Anki
+          deck.
         </p>
       </div>
 
       {sources.length === 0 ? (
-        <div className="border border-dashed border-[color:var(--border)] rounded-md p-8 text-center text-[color:var(--muted)]">
-          You need at least one processed source with flashcards first.{" "}
-          <Link href="/" className="text-[color:var(--accent)]">
-            Capture something
-          </Link>
-          .
+        <div className="border-t border-line pt-6 text-ui text-ink-2">
+          <p>Decks are made from flashcards, and there are none yet.</p>
+          <p className="mt-2">
+            <Link href="/">Capture something</Link> and its cards can go in a
+            deck.
+          </p>
         </div>
       ) : (
         <DeckManager sources={sources} decks={decks} origin={origin} />

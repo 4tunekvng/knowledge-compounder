@@ -1,8 +1,40 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { cards } from "@/lib/db/schema";
-import { schedule, type Rating, type State } from "@/lib/fsrs";
+import { cards, type Card } from "@/lib/db/schema";
+import {
+  schedule,
+  type CardState,
+  type Rating,
+  type State,
+} from "@/lib/fsrs";
+
+const RATINGS: Rating[] = [1, 2, 3, 4];
+
+/** A stored card's memory state, as the scheduler reads it. */
+function cardState(card: Card): CardState {
+  return {
+    stability: card.stability,
+    difficulty: card.difficulty,
+    scheduledDays: card.scheduledDays,
+    reps: card.reps,
+    lapses: card.lapses,
+    state: card.fsrsState as State,
+    lastReviewedAt: card.lastReviewedAt,
+  };
+}
+
+/**
+ * How long each grade (Again, Hard, Good, Easy) would put the card away for,
+ * in milliseconds. The same scheduler gradeCard runs, so a label built from
+ * it is the real outcome of pressing that grade.
+ */
+export function nextDueIn(card: Card, now: Date): number[] {
+  return RATINGS.map(
+    (rating) =>
+      schedule(cardState(card), rating, now).dueAt.getTime() - now.getTime(),
+  );
+}
 
 export async function gradeCard(ownerId: string, cardId: number, rating: Rating) {
   const db = await getDb();
@@ -13,19 +45,7 @@ export async function gradeCard(ownerId: string, cardId: number, rating: Rating)
   }
 
   const now = new Date();
-  const next = schedule(
-    {
-      stability: card.stability,
-      difficulty: card.difficulty,
-      scheduledDays: card.scheduledDays,
-      reps: card.reps,
-      lapses: card.lapses,
-      state: card.fsrsState as State,
-      lastReviewedAt: card.lastReviewedAt,
-    },
-    rating,
-    now,
-  );
+  const next = schedule(cardState(card), rating, now);
 
   await db
     .update(cards)

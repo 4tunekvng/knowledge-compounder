@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { StudyDeck } from "@/components/StudyDeck";
 import { getDeckByToken } from "@/lib/services/decks";
+import { countLabel } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -26,21 +27,18 @@ export default async function StudentDeckPage({ params }: Params) {
   if (!deck) notFound();
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <p className="text-xs text-[color:var(--accent)]">
-          Shared study deck
-        </p>
-        <h1 className="font-serif text-3xl md:text-4xl tracking-tight" data-testid="deck-title">
+    <div className="mx-auto flex max-w-[760px] flex-col gap-8">
+      <header>
+        <p className="text-meta text-ink-3">Study deck</p>
+        <h1 className="mt-2 text-title font-medium" data-testid="deck-title">
           {deck.deck.title}
         </h1>
         {deck.deck.description && (
-          <p className="text-[color:var(--muted)] max-w-2xl">{deck.deck.description}</p>
+          <p className="mt-3 text-read text-ink-2">{deck.deck.description}</p>
         )}
-        <p className="text-sm text-[color:var(--muted)]">
-          {deck.cards.length} {deck.cards.length === 1 ? "card" : "cards"} ·{" "}
-          {deck.sourceTitles.length}{" "}
-          {deck.sourceTitles.length === 1 ? "source" : "sources"}
+        <p className="mt-3 text-ui text-ink-3">
+          {countLabel(deck.cards.length, "card")} from{" "}
+          {countLabel(deck.sourceTitles.length, "reading")}
         </p>
       </header>
 

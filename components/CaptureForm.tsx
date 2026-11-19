@@ -8,15 +8,16 @@ import {
   type DragEvent,
   type FormEvent,
 } from "react";
-import { FileText } from "lucide-react";
+import { Check, FileText, FileUp } from "lucide-react";
+import { IndexCard } from "@/components/IndexCard";
 import { useRouter } from "next/navigation";
 
 const PROCESSING_STEPS = [
   "Reading the source",
-  "Extracting clean text",
-  "Reflecting in your voice",
+  "Pulling out the text",
+  "Writing why it mattered to you",
   "Drafting flashcards",
-  "Tagging concepts",
+  "Naming the main ideas",
 ];
 
 const STEP_MS = 1500;
@@ -43,7 +44,7 @@ function ProcessingIndicator() {
   return (
     <ol
       data-testid="capture-processing"
-      className="flex flex-col gap-1.5 text-sm"
+      className="flex flex-col gap-2 text-ui"
       aria-live="polite"
     >
       {PROCESSING_STEPS.map((s, i) => {
@@ -52,29 +53,25 @@ function ProcessingIndicator() {
         return (
           <li
             key={s}
-            className="flex items-center gap-2.5 transition-opacity"
-            style={{ opacity: i > activeIdx ? 0.4 : 1 }}
+            className={
+              "flex items-center gap-3 " +
+              (done || active ? "text-ink" : "text-ink-3")
+            }
           >
             <span
-              className="flex size-4 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
-              style={{
-                background: done
-                  ? "color-mix(in srgb, var(--accent) 22%, transparent)"
+              aria-hidden
+              className={
+                "flex size-5 shrink-0 items-center justify-center rounded-full " +
+                (done
+                  ? "bg-ink text-stock"
                   : active
-                    ? "color-mix(in srgb, var(--accent) 38%, transparent)"
-                    : "color-mix(in srgb, var(--muted) 18%, transparent)",
-                color: done || active ? "var(--accent)" : "var(--muted)",
-              }}
+                    ? "border border-ink"
+                    : "border border-line-strong")
+              }
             >
-              {done ? "✓" : active ? "•" : i + 1}
+              {done && <Check size={12} strokeWidth={2} />}
             </span>
-            <span
-              style={{
-                color: done || active ? "var(--foreground)" : "var(--muted)",
-              }}
-            >
-              {s}
-            </span>
+            {s}
           </li>
         );
       })}
@@ -82,7 +79,7 @@ function ProcessingIndicator() {
   );
 }
 
-export function CaptureForm() {
+export function CaptureForm({ today }: { today: string }) {
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -117,7 +114,7 @@ export function CaptureForm() {
 
     const trimmed = input.trim();
     if (!trimmed) {
-      setError("Paste a URL or some text — or drop in a PDF.");
+      setError("Paste a link or some text, or add a PDF.");
       return;
     }
 
@@ -140,12 +137,13 @@ export function CaptureForm() {
     setError(null);
     const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
     if (!isPdf) {
-      setError("Only PDF files can be uploaded. Paste other text directly.");
+      setError("Only PDF files can be added. Paste other text into the card.");
       return;
     }
     if (file.size > MAX_PDF_BYTES) {
       setError(
-        `PDF is too large (${(file.size / 1_048_576).toFixed(1)} MB). Max is 10 MB.`,
+        `That PDF is ${(file.size / 1_048_576).toFixed(1)} MB. ` +
+          "The limit is 10 MB.",
       );
       return;
     }
@@ -174,7 +172,7 @@ export function CaptureForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-3"
+      className="flex flex-col gap-6"
       data-testid="capture-form"
       onDragOver={(e) => {
         e.preventDefault();
@@ -186,13 +184,10 @@ export function CaptureForm() {
       }}
       onDrop={onDrop}
     >
-      <div
-        className="relative rounded-md transition"
-        style={
-          isDragging
-            ? { outline: "2px dashed var(--accent)", outlineOffset: "2px" }
-            : undefined
-        }
+      <IndexCard
+        head="New capture"
+        aside={today}
+        className={isDragging ? "outline-2 outline-dashed outline-accent" : ""}
       >
         <textarea
           id="capture-input"
@@ -200,17 +195,27 @@ export function CaptureForm() {
           data-testid="capture-input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Paste a URL or text"
+          placeholder="Paste a link or some text"
           rows={6}
           disabled={isPending}
-          className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--card)] px-4 py-3 text-base font-mono leading-relaxed text-[color:var(--foreground)] placeholder:text-[color:var(--muted)] focus:border-[color:var(--accent)] focus:outline-none disabled:opacity-50"
+          className={
+            "block min-h-[calc(var(--rule-gap)*6)] w-full resize-none " +
+            "bg-transparent [field-sizing:content] " +
+            "text-ink placeholder:text-ink-3 focus:outline-none " +
+            "disabled:opacity-50"
+          }
         />
         {isDragging && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md bg-[color:var(--background)]/85 text-sm font-medium text-[color:var(--accent)]">
+          <div
+            className={
+              "pointer-events-none absolute inset-0 flex items-center " +
+              "justify-center rounded-md bg-stock/90 text-ui text-accent"
+            }
+          >
             Drop the PDF to capture it
           </div>
         )}
-      </div>
+      </IndexCard>
 
       <input
         ref={fileInputRef}
@@ -227,7 +232,7 @@ export function CaptureForm() {
 
       {pdfName && (
         <p
-          className="flex items-center gap-2 text-xs text-[color:var(--muted)]"
+          className="flex items-center gap-2 text-ui text-ink-2"
           data-testid="pdf-name"
         >
           <FileText aria-hidden size={16} strokeWidth={1.5} className="shrink-0" />
@@ -236,33 +241,38 @@ export function CaptureForm() {
       )}
 
       {error && (
-        <p className="text-sm text-red-700" role="alert" data-testid="capture-error">
+        <p className="text-ui text-danger" role="alert" data-testid="capture-error">
           {error}
         </p>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        {isPending ? (
-          <ProcessingIndicator />
-        ) : (
+      {isPending ? (
+        <ProcessingIndicator />
+      ) : (
+        <div
+          className={
+            "flex flex-col-reverse gap-3 sm:flex-row sm:items-center " +
+            "sm:justify-between"
+          }
+        >
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             data-testid="pdf-upload-button"
-            className="inline-flex items-center gap-2 rounded-md border border-[color:var(--border)] px-4 py-2.5 text-sm font-medium text-[color:var(--foreground)] transition hover:border-[color:var(--accent)] hover:text-[color:var(--accent)]"
+            className="btn btn-secondary"
           >
-            <FileText aria-hidden size={16} strokeWidth={1.5} /> Upload a PDF
+            <FileUp aria-hidden size={16} strokeWidth={1.5} /> Add a PDF
           </button>
-        )}
-        <button
-          type="submit"
-          disabled={isPending || input.trim().length === 0}
-          data-testid="capture-submit"
-          className="rounded-md bg-[color:var(--accent)] px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
-        >
-          {isPending ? "Processing…" : "Capture"}
-        </button>
-      </div>
+          <button
+            type="submit"
+            disabled={input.trim().length === 0}
+            data-testid="capture-submit"
+            className="btn btn-primary sm:min-w-40"
+          >
+            Capture
+          </button>
+        </div>
+      )}
     </form>
   );
 }
