@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   blob,
   integer,
+  primaryKey,
   real,
   sqliteTable,
   text,
@@ -203,3 +204,41 @@ export const paperHarvests = sqliteTable("paper_harvests", {
 });
 
 export type Paper = typeof papers.$inferSelect;
+
+// Paper picks, per person (migration 0007), keyed by owner_id like every
+// other table; every query goes through lib/papers/readers.ts.
+export const readerProfiles = sqliteTable("reader_profiles", {
+  ownerId: text("owner_id").primaryKey(),
+  interestsText: text("interests_text").notNull(),
+  terms: text("terms").notNull(), // JSON ProfileTerm[] (lib/papers/rank.ts)
+  compiledAt: integer("compiled_at", { mode: "timestamp_ms" }),
+  lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+export const readerEvents = sqliteTable("reader_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ownerId: text("owner_id").notNull(),
+  arxivId: text("arxiv_id").notNull(),
+  kind: text("kind", {
+    enum: ["shown", "more", "less", "save", "open", "imported"],
+  }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+export const dailyPicks = sqliteTable(
+  "daily_picks",
+  {
+    ownerId: text("owner_id").notNull(),
+    day: text("day").notNull(), // reading day, YYYY-MM-DD (starts 05:00 UTC)
+    rank: integer("rank").notNull(),
+    arxivId: text("arxiv_id").notNull(),
+    score: real("score").notNull(),
+    matched: text("matched").notNull(), // JSON: matched terms, strongest first
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.ownerId, t.day, t.rank] }) }),
+);
