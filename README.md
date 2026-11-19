@@ -152,7 +152,7 @@ outside.
 ## Sign-in
 
 Everyone signs in with Google through `fortuneking-auth`
-(https://auth.fortuneking.dev), and every row is keyed by their Google account
+(https://fortuneking.dev/auth), and every row is keyed by their Google account
 id (`owner_id`). `worker.ts` puts `lib/auth/gate.ts` in front of the app: it
 asks the sign-in service who the visitor is, sends signed-out pages to
 `/login` and answers signed-out API calls with 401, refuses posts from other
