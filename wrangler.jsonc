@@ -1,6 +1,11 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "knowledge-compounder",
+	// Own domain; the workers.dev address stays on too.
+	"routes": [
+		{ "pattern": "knowledge-compounder.fortuneking.dev", "custom_domain": true }
+	],
+	"workers_dev": true,
 	// worker.ts wraps the OpenNext build (.open-next/worker.js) and adds the
 	// cron handler that drains pending sources.
 	"main": "worker.ts",
