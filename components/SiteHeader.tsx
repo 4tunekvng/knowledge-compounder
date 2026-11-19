@@ -87,7 +87,7 @@ export function SiteHeader({
     <header className="border-b border-line">
       <div
         className={
-          "mx-auto flex h-14 max-w-[1120px] items-center gap-6 " +
+          "mx-auto flex h-14 max-w-[1120px] items-center gap-4 sm:gap-6 " +
           "px-4 sm:h-16 sm:px-8"
         }
       >
@@ -126,13 +126,13 @@ export function SiteHeader({
                     data-testid={`nav-${item.id}`}
                     className={
                       "relative flex h-16 flex-col items-center justify-center " +
-                      // Seven tabs share a 320px phone: smaller labels there.
-                      "gap-1 text-[11px] no-underline transition-colors " +
-                      "min-[360px]:text-label " +
+                      "gap-1 text-label no-underline transition-colors " +
                       "sm:h-9 sm:flex-row sm:gap-2 sm:rounded-control sm:px-3 " +
                       "sm:text-meta " +
                       (active
-                        ? "font-medium text-ink sm:bg-raised"
+                        ? "font-medium text-ink before:absolute before:inset-x-3 " +
+                          "before:top-0 before:h-0.5 before:bg-ink " +
+                          "sm:bg-raised sm:before:hidden"
                         : "text-ink-3 hover:text-ink sm:text-ink-2 " +
                           "sm:hover:bg-raised")
                     }
@@ -143,7 +143,10 @@ export function SiteHeader({
                       strokeWidth={1.5}
                       className="sm:hidden"
                     />
-                    {item.label}
+                    {/* Seven labels don't fit under 375px at the smallest
+                        type size, so there the bar shows icons and the
+                        labels are read out instead. */}
+                    <span className="max-[374px]:sr-only">{item.label}</span>
                     {showDue && (
                       <span
                         className={
