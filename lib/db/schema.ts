@@ -177,3 +177,29 @@ export type Theme = typeof themes.$inferSelect;
 export type Essay = typeof essays.$inferSelect;
 export type IntegrationToken = typeof integrationTokens.$inferSelect;
 export type Deck = typeof decks.$inferSelect;
+
+// Paper picks: the shared pool of new papers every person's picks are ranked
+// from (migration 0006). No personal data lives here.
+export const papers = sqliteTable("papers", {
+  arxivId: text("arxiv_id").primaryKey(),
+  title: text("title").notNull(),
+  authors: text("authors").notNull(), // JSON array of names
+  abstract: text("abstract").notNull(),
+  categories: text("categories").notNull(), // JSON array, e.g. ["cs.LG"]
+  publishedAt: integer("published_at", { mode: "timestamp_ms" }).notNull(),
+  hfUpvotes: integer("hf_upvotes"), // null when not on Hugging Face's list
+  hfSummary: text("hf_summary"), // Hugging Face's one-line summary, if any
+  githubUrl: text("github_url"),
+  harvestedAt: integer("harvested_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
+export const paperHarvests = sqliteTable("paper_harvests", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull(),
+  papersSeen: integer("papers_seen").notNull(),
+  failedSources: text("failed_sources").notNull(), // JSON array of feed names
+});
+
+export type Paper = typeof papers.$inferSelect;

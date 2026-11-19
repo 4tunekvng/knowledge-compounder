@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<rss xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0">
+  <channel>
+    <title>cs.LG updates on arXiv.org</title>
+    <link>http://rss.arxiv.org/rss/cs.LG</link>
+    <description>cs.LG updates on the arXiv.org e-print archive.</description>
+    <atom:link href="http://rss.arxiv.org/rss/cs.LG" rel="self" type="application/rss+xml"/>
+    <docs>http://www.rssboard.org/rss-specification</docs>
+    <language>en-us</language>
+    <lastBuildDate>Thu, 19 Nov 2026 05:00:01 +0000</lastBuildDate>
+    <managingEditor>rss-help@arxiv.org</managingEditor>
+    <pubDate>Thu, 19 Nov 2026 00:00:00 -0500</pubDate>
+    <skipDays>
+      <day>Saturday</day>
+      <day>Sunday</day>
+    </skipDays>
+    <item>
+      <title>Neural Network-Based Modeling of Hysteretic Systems: From Prandtl and Preisach Neural Networks to Neuro-Madelung and Neuroplastic Continuous Models</title>
+      <link>https://arxiv.org/abs/2611.23240</link>
+      <description>arXiv:2611.23240v1 Announce Type: new 
+Abstract: Hysteresis is a complex nonlinear phenomenon characterized by memory dependence, path dependence, and, in many physical systems, degradation, non-congruency, asymmetry, and rate dependence. This review examines the development and capabilities of Prandtl neural networks (PNNs), Preisach neural networks (PreisachNNs), generalized Prandtl neural networks (GPNNs), the neuro-Madelung model (NMM), extended Preisach neural networks (EPNNs), and dynamic plastic continuous neural networks (DPCNNs). Particular attention is given to their mechanisms for representing memory, network architectures, activation functions, training algorithms, treatment of deterioration and rate dependence, and applications to nonlinear structural and material systems. The PNN introduced hysteretic memory directly into neural activation through stop operators and demonstrated accurate nonlinear dynamic analysis of structures. Preisach-NNs subsequently extended this concept through an additional nonlinear hidden layer to represent non-Masing hysteresis. GPNNs introduced deteriorating-stop neurons to capture stiffness and strength degradation and non-congruent hysteresis. A different generalization was provided by the NMM, which combined Madelung's hysteresis rules with multilayer feedforward neural networks to represent diverse rate-independent and rate-dependent behaviors. These developments culminated in the EPNN, which combines deteriorating hysteretic operators, nonlinear neural mappings, and input-rate information to accommodate Masing and nonMasing, symmetric and asymmetric, congruent and noncongruent, and rate-independent and rate-dependent hysteresis.</description>
+      <guid isPermaLink="false">oai:arXiv.org:2611.23240v1</guid>
+      <category>cs.LG</category>
+      <category>cs.NE</category>
+      <pubDate>Thu, 19 Nov 2026 00:00:00 -0500</pubDate>
+      <arxiv:announce_type>new</arxiv:announce_type>
+      <dc:rights>http://creativecommons.org/licenses/by/4.0/</dc:rights>
+      <dc:creator>Mehrdad Shafiei Dizaji, Farzad Shafiei Dizaji</dc:creator>
+    </item>
+    <item>
+      <title>GridForge: An Open Physics-Informed Digital Twin and Benchmark Suite for UK 11 kV Underground Distribution Cables</title>
+      <link>https://arxiv.org/abs/2611.23241</link>
+      <description>arXiv:2611.23241v1 Announce Type: new 
+Abstract: The UK distribution-cable monitoring sector is data-rich but framework-poor: each Distribution Network Operator (DNO) collects megabytes of telemetry per asset per day, but there is no public benchmark dataset, no shared reference model, and no commonly agreed evaluation protocol for benchmarking sectoral, data-intensive models for operational decision support; notably for maintenance planning and prioritisation. We address this gap with GridForge, an open-source physics-informed digital twin and benchmark suite for fault diagnosis and prediction, integrating four building blocks: (i) a verified steady state and transient thermal model based on IEC 60287 and IEC 60853; (ii) a calibrated synthetic dataset of 64 cables (covering 320 cable-years) representing four canonical UK 11 kV thermal archetypes and four condition modes; (iii) a Physics-Informed Neural Network (PINN) surrogate that satisfies the algebraic balance defined by IEC 60287 during training and reaches an RMSE of 0.148 {\deg}C on an independent held out set against the reference analytical oracle; and (iv) a five-task benchmark suite that includes three reference baseline models (pure physics, gradient-boosted trees, and the PINN). All numerical parameters are sourced from public standards, the code is licensed under the MIT licence, and the trained PINN converges in only two minutes (as run on the computing platform in Section 10.1), enabling independent verification by DNO engineering and research practitioners. At present only the virtual-sensor task (T4) discriminates between the reference baselines; the other tasks tie or are undefined on this test split, so extending the baselines with task-specific logic is a priority future enhancement. For open validation, the dataset, test sets and models are made available at https://github.com/mlily2024/Gridforge</description>
+      <guid isPermaLink="false">oai:arXiv.org:2611.23241v1</guid>
+      <category>cs.LG</category>
+      <pubDate>Thu, 19 Nov 2026 00:00:00 -0500</pubDate>
+      <arxiv:announce_type>new</arxiv:announce_type>
+      <dc:rights>http://arxiv.org/licenses/nonexclusive-distrib/1.0/</dc:rights>
+      <dc:creator>Lilliane Linnet Musoke</dc:creator>
+    </item>
+    <item>
+      <title>ConserveEdit: Source-Anchored Transactions for Drift-Bounded Iterative Image Editing</title>
+      <link>https://arxiv.org/abs/2611.22724</link>
+      <description>arXiv:2611.22724v1 Announce Type: cross 
+Abstract: Instruction-driven image editors produce convincing local edits in one pass, but inside an iterative refinement loop every accepted output becomes the next input, so unintended changes outside the requested region accumulate. We present ConserveEdit, an editor-agnostic controller that treats each refinement step as a transaction against a contract compiled once from the source image. The contract separates what may change (the authorized region of each target, with a bounded halo for shadows and reflections) from what must survive (protected content with explicit tolerances). Candidates from a frozen editor are composed through a source-anchored mask and committed only if target progress, drift on protected content, and image quality pass as separate tests; otherwise the step is rolled back and repaired. For any editor, this keeps every pixel outside the authorized region bit-exact and bounds drift independently of the number of iterations, whereas no fixed scalar trade-off reproduces the separate tests. On all 1053 MagicBrush test edits with a frozen Qwen-Image-Edit, masking is necessary but not sufficient. A direct call already alters the rest of the image (12.1 dB PSNR outside the mask); composed through the source-anchored mask, it stays bit-exact there and its DINO similarity to the ground truth rises from 0.67 to 0.85, matching ConserveEdit, so this gain comes from the mask. Next to automatic masks, however, masked direct editing changes a protected face or text on 48% of turns, and masked scalar selection avoids this mostly by abstaining (23% constrained success). Because its drift test names the violated entity, ConserveEdit shrinks the support instead (2% violations, 53% constrained success); in a simulator with known ground truth it raises constrained success from 55.0% to 61.8%. Automatic grounding remains the main bottleneck. Code and logs will be released.</description>
+      <guid isPermaLink="false">oai:arXiv.org:2611.22724v1</guid>
+      <category>cs.CV</category>
+      <category>cs.LG</category>
+      <pubDate>Thu, 19 Nov 2026 00:00:00 -0500</pubDate>
+      <arxiv:announce_type>cross</arxiv:announce_type>
+      <dc:rights>http://arxiv.org/licenses/nonexclusive-distrib/1.0/</dc:rights>
+      <dc:creator>Shuyang Jiang, Fucheng Deng, Yuchuan Luo, Zhenyu Wu</dc:creator>
+    </item>
+    <item>
+      <title>Loss-Controlling Calibration with Asymptotic Guarantees</title>
+      <link>https://arxiv.org/abs/2301.04378</link>
+      <description>arXiv:2301.04378v4 Announce Type: replace 
+Abstract: We propose a learning framework for calibrating predictive models to perform loss-controlling prediction, which extends our proposed conformal loss-controlling prediction framework to more general settings. In contrast to existing methods, the predictors built by the proposed approach are not restricted to set-valued predictors, and the loss function can be any measurable function without requiring monotonicity assumptions. The approach is a natural extension of conformal loss-controlling prediction, since it reduces to the latter when the predictors are set-valued with the nesting property and the losses are monotone. The loss-controlling guarantee of the proposed framework is established in the asymptotic setting and is empirically verified in selective regression and high-impact weather forecasting, demonstrating its effectiveness for the domains requiring general loss-controlling prediction.</description>
+      <guid isPermaLink="false">oai:arXiv.org:2301.04378v4</guid>
+      <category>cs.LG</category>
+      <pubDate>Thu, 19 Nov 2026 00:00:00 -0500</pubDate>
+      <arxiv:announce_type>replace</arxiv:announce_type>
+      <dc:rights>http://arxiv.org/licenses/nonexclusive-distrib/1.0/</dc:rights>
+      <dc:creator>Di Wang, Yujin Li, Junzhi Shi, Pingping Wang, Shuo Zhuang, Hongyue Li</dc:creator>
+    </item>
+  </channel>
+</rss>
