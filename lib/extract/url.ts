@@ -1,5 +1,6 @@
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
+import { DERIVED_TITLE_MAX } from "@/lib/format";
 
 export interface ExtractedDoc {
   title: string;
@@ -235,7 +236,7 @@ function deriveTitle(text: string): string {
   if (!text) return "Untitled";
   const firstLine = text.split("\n").find((line) => line.trim().length > 0);
   const candidate = (firstLine ?? text).trim();
-  return candidate.slice(0, 120);
+  return candidate.slice(0, DERIVED_TITLE_MAX);
 }
 
 function makeExcerpt(excerpt: string | null | undefined, text: string): string {

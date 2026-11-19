@@ -3,6 +3,8 @@ import {
   cardTypeLabel,
   catalogNumber,
   countLabel,
+  displayTitle,
+  essayHeading,
   formatInterval,
   hostOf,
   originLabel,
@@ -71,5 +73,46 @@ describe("format", () => {
 
   it("names pasted text", () => {
     expect(originLabel({ url: null, sourceType: "text" })).toBe("Pasted text");
+  });
+});
+
+describe("displayTitle", () => {
+  it("keeps a short title as it is", () => {
+    expect(displayTitle("Thinking, Fast and Slow")).toBe("Thinking, Fast and Slow");
+  });
+
+  it("uses the first sentence of pasted text, without its full stop", () => {
+    expect(displayTitle("Habits compound. Small ones matter most over years."))
+      .toBe("Habits compound");
+  });
+
+  it("does not split at an abbreviation", () => {
+    expect(displayTitle("The U.S. Senate passed it. Then it stalled."))
+      .toBe("The U.S. Senate passed it");
+  });
+
+  it("shows a link as its site", () => {
+    expect(displayTitle("read later https://www.example.org/posts/42?ref=x"))
+      .toBe("read later example.org");
+  });
+
+  it("drops a word cut off by the stored title limit", () => {
+    const stored = `${"word ".repeat(23)}unfinis`;
+    expect(displayTitle(stored)).toBe(`${"word ".repeat(22)}word…`);
+  });
+
+  it("cuts a long title at a word, never inside one", () => {
+    expect(displayTitle("alpha beta gamma delta epsilon", 14)).toBe("alpha beta…");
+  });
+});
+
+describe("essayHeading", () => {
+  it("names the theme the essay was drafted from", () => {
+    expect(essayHeading("Notes toward a thesis", "Habits compound"))
+      .toBe("Draft: Habits compound");
+  });
+
+  it("falls back to the drafter's title when the theme is gone", () => {
+    expect(essayHeading("Why habits compound", null)).toBe("Why habits compound");
   });
 });

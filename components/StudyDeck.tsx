@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Download, Shuffle } from "lucide-react";
 import { CardStack, IndexCard } from "@/components/IndexCard";
-import { cardTypeLabel, countLabel } from "@/lib/format";
+import { cardTypeLabel, countLabel, displayTitle } from "@/lib/format";
 
 interface StudyCard {
   id: number;
@@ -179,8 +179,8 @@ export function StudyDeck({ cards, exportBase }: Props) {
                   )}
                 </IndexCard>
               </CardStack>
-              <p className="mt-6 truncate text-meta text-ink-3">
-                From {card.sourceTitle}
+              <p className="mt-6 text-meta text-ink-3">
+                From {displayTitle(card.sourceTitle)}
               </p>
             </div>
 
@@ -246,7 +246,7 @@ function BrowseList({ cards }: { cards: StudyCard[] }) {
     <div className="flex flex-col gap-12" data-testid="browse-list">
       {grouped.map(([sourceTitle, group]) => (
         <section key={sourceTitle} className="flex flex-col gap-4">
-          <h3 className="text-ui font-semibold">{sourceTitle}</h3>
+          <h3 className="text-ui font-semibold">{displayTitle(sourceTitle)}</h3>
           <ul className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {group.map((c) => (
               <IndexCard

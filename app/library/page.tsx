@@ -24,14 +24,16 @@ export default async function LibraryPage() {
     <div className="flex flex-col gap-10">
       <div>
         <h1 className="text-title font-medium">Library</h1>
-        <p className="mt-3 text-read text-ink-2">
-          {countLabel(sources.length, "capture")}, newest first
+        <p className="mt-3 text-ui text-ink-2">
+          {sources.length === 0
+            ? "No captures yet"
+            : `${countLabel(sources.length, "capture")}, newest first`}
         </p>
       </div>
       {sources.length === 0 ? (
         <div className="border-t border-line pt-6 text-ui text-ink-2">
-          <p>Nothing filed yet.</p>
-          <p className="mt-2">
+          <p>
+            Everything you capture is filed here, newest first.{" "}
             <Link href="/">Capture something you just read</Link>
           </p>
         </div>
@@ -41,7 +43,7 @@ export default async function LibraryPage() {
             <section key={month} aria-label={month}>
               <h2 className="mb-2 flex items-baseline gap-3">
                 <span className="section-title">{month}</span>
-                <span className="text-meta text-ink-3">
+                <span className="text-label text-ink-3">
                   {countLabel(items.length, "capture")}
                 </span>
               </h2>

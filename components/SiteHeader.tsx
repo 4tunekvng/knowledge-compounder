@@ -73,7 +73,7 @@ export function SiteHeader({
             "mx-auto flex h-14 max-w-[1120px] items-center px-4 sm:h-16 sm:px-8"
           }
         >
-          <span className="text-read font-semibold">
+          <span className="text-ui font-semibold">
             <Wordmark />
           </span>
         </div>
@@ -91,7 +91,7 @@ export function SiteHeader({
       >
         <Link
           href="/"
-          className="shrink-0 text-read font-semibold text-ink no-underline"
+          className="shrink-0 text-ui font-semibold text-ink no-underline"
           data-testid="brand-link"
         >
           <Wordmark />
@@ -120,9 +120,9 @@ export function SiteHeader({
                     data-testid={`nav-${item.id}`}
                     className={
                       "relative flex h-16 flex-col items-center justify-center " +
-                      "gap-1 text-meta no-underline transition-colors " +
+                      "gap-1 text-label no-underline transition-colors " +
                       "sm:h-9 sm:flex-row sm:gap-2 sm:rounded-lg sm:px-3 " +
-                      "sm:text-ui " +
+                      "sm:text-meta " +
                       (active
                         ? "font-medium text-ink sm:bg-raised"
                         : "text-ink-3 hover:text-ink sm:text-ink-2 " +
@@ -139,7 +139,7 @@ export function SiteHeader({
                     {showDue && (
                       <span
                         className={
-                          "absolute right-2 top-2 text-meta text-accent " +
+                          "absolute right-2 top-2 text-label text-accent " +
                           "sm:static"
                         }
                         data-testid="review-due-badge"

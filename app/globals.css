@@ -27,16 +27,7 @@
   --card-head: #e19580;
   --card-shadow: 0 1px 2px rgb(31 27 22 / 0.06), 0 8px 24px rgb(31 27 22 / 0.06);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --size-title: 40px;
-  --size-title-line: 44px;
   color-scheme: light;
-}
-
-@media (max-width: 639px) {
-  :root {
-    --size-title: 32px;
-    --size-title-line: 36px;
-  }
 }
 
 @theme inline {
@@ -58,17 +49,17 @@
   --shadow-card: var(--card-shadow);
   --font-serif: var(--font-source-serif), Georgia, serif;
   --font-typed: var(--font-courier-prime), "Courier New", monospace;
-  /* The whole type scale: five sizes. */
-  --text-meta: 13px;
+  /* The whole type scale: five sizes, the same on every screen width. */
+  --text-label: 12px;
+  --text-label--line-height: 16px;
+  --text-meta: 14px;
   --text-meta--line-height: 20px;
-  --text-ui: 16px;
-  --text-ui--line-height: 24px;
-  --text-read: 20px;
-  --text-read--line-height: 30px;
-  --text-lead: 24px;
-  --text-lead--line-height: 32px;
-  --text-title: var(--size-title);
-  --text-title--line-height: var(--size-title-line);
+  --text-ui: 17px;
+  --text-ui--line-height: 26px;
+  --text-lead: 22px;
+  --text-lead--line-height: 30px;
+  --text-title: 36px;
+  --text-title--line-height: 40px;
 }
 
 @layer base {
@@ -111,8 +102,8 @@
     padding: 0 20px;
     border-radius: 8px;
     border: 1px solid transparent;
-    font-size: 16px;
-    line-height: 24px;
+    font-size: var(--text-ui);
+    line-height: var(--text-ui--line-height);
     font-weight: 500;
     text-decoration: none;
     cursor: pointer;
@@ -125,14 +116,11 @@
   .btn:active:not(:disabled) {
     transform: scale(0.98);
   }
-  .btn:disabled,
-  .btn[aria-disabled="true"] {
-    cursor: not-allowed;
-    opacity: 0.45;
-  }
   .btn-sm {
     min-height: 36px;
     padding: 0 12px;
+    font-size: var(--text-meta);
+    line-height: var(--text-meta--line-height);
   }
   .btn-primary {
     background: var(--accent);
@@ -141,11 +129,7 @@
   .btn-primary:hover:not(:disabled) {
     background: var(--accent-hover);
   }
-  .btn-primary:disabled {
-    opacity: 1;
-    background: var(--raised);
-    color: var(--ink-3);
-  }
+
   .btn-secondary {
     background: var(--stock);
     border-color: var(--line);
@@ -154,6 +138,7 @@
   }
   .btn-secondary:hover:not(:disabled) {
     border-color: var(--line-strong);
+    background: var(--raised);
   }
   .btn-quiet {
     color: var(--ink-2);
@@ -169,6 +154,16 @@
     background: var(--danger-wash);
   }
 
+  /* One disabled look for every kind of button: flat, readable, inert. */
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    cursor: not-allowed;
+    background: var(--raised);
+    border-color: transparent;
+    box-shadow: none;
+    color: var(--ink-3);
+  }
+
   .field {
     width: 100%;
     min-height: 44px;
@@ -177,8 +172,8 @@
     border: 1px solid var(--line-strong);
     background: var(--stock);
     color: var(--ink);
-    font-size: 16px;
-    line-height: 24px;
+    font-size: var(--text-ui);
+    line-height: var(--text-ui--line-height);
     transition: border-color 150ms var(--ease);
   }
   .field::placeholder {
@@ -189,8 +184,8 @@
   }
 
   .section-title {
-    font-size: 20px;
-    line-height: 30px;
+    font-size: var(--text-ui);
+    line-height: var(--text-ui--line-height);
     font-weight: 600;
   }
 
@@ -259,38 +254,38 @@
     height: var(--head);
     padding: 0 var(--pad-x);
     font-family: var(--font-typed);
-    font-size: 13px;
+    font-size: var(--text-label);
     color: var(--ink-3);
   }
 
   .index-card__body {
     padding: 0 var(--pad-x) var(--rule-gap);
     font-family: var(--font-typed);
-    font-size: 20px;
+    font-size: var(--text-ui);
     line-height: var(--rule-gap);
     overflow-wrap: anywhere;
   }
 
   .index-card--small .index-card__body {
-    font-size: 16px;
+    font-size: var(--text-meta);
   }
 
   .index-card__front {
-    font-size: 24px;
+    font-size: var(--text-lead);
     color: var(--ink);
   }
 
   @media (max-width: 639px) {
     .index-card__body {
-      font-size: 16px;
+      font-size: var(--text-ui);
     }
     .index-card__front {
-      font-size: 20px;
+      font-size: var(--text-ui);
     }
   }
 
   .index-card--small .index-card__front {
-    font-size: 16px;
+    font-size: var(--text-meta);
   }
 
   .index-card__back {
@@ -353,14 +348,18 @@
 @layer components {
   /* The drafted essay, set for reading. */
   .prose-essay {
-    font-size: 20px;
-    line-height: 32px;
+    font-size: var(--text-ui);
+    line-height: 28px;
     color: var(--ink);
   }
 
+  .prose-essay > :first-child {
+    margin-top: 0;
+  }
+
   .prose-essay h1 {
-    font-size: 24px;
-    line-height: 32px;
+    font-size: var(--text-lead);
+    line-height: var(--text-lead--line-height);
     font-weight: 600;
     margin-top: 40px;
     margin-bottom: 12px;
@@ -368,8 +367,8 @@
 
   .prose-essay h2,
   .prose-essay h3 {
-    font-size: 20px;
-    line-height: 30px;
+    font-size: var(--text-ui);
+    line-height: var(--text-ui--line-height);
     font-weight: 600;
     margin-top: 32px;
     margin-bottom: 8px;
@@ -396,7 +395,7 @@
 
   .prose-essay sup {
     font-family: var(--font-typed);
-    font-size: 13px;
+    font-size: var(--text-label);
     line-height: 0;
   }
 
@@ -415,11 +414,19 @@
     padding: 0 4px;
   }
 
+  /* Footnotes under the essay: the sources, set small. */
+  .prose-essay p:has(> sup[id^="fn-"]) {
+    font-size: var(--text-meta);
+    line-height: var(--text-meta--line-height);
+    color: var(--ink-2);
+    margin-bottom: 12px;
+  }
+
   .prose-essay code {
     font-family: var(--font-typed);
     background: var(--raised);
     padding: 0 4px;
     border-radius: 4px;
-    font-size: 16px;
+    font-size: var(--text-meta);
   }
 }

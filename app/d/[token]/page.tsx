@@ -34,11 +34,11 @@ export default async function StudentDeckPage({ params }: Params) {
           {deck.deck.title}
         </h1>
         {deck.deck.description && (
-          <p className="mt-3 text-read text-ink-2">{deck.deck.description}</p>
+          <p className="mt-3 text-ui text-ink-2">{deck.deck.description}</p>
         )}
         <p className="mt-3 text-ui text-ink-3">
           {countLabel(deck.cards.length, "card")} from{" "}
-          {countLabel(deck.sourceTitles.length, "reading")}
+          {countLabel(deck.sourceTitles.length, "capture")}
         </p>
       </header>
 

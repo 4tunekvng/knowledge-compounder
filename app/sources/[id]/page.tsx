@@ -13,9 +13,11 @@ import { GenerateCardsButton } from "@/components/GenerateCardsButton";
 import {
   cardTypeLabel,
   catalogNumber,
+  displayTitle,
   formatDay,
   originLabel,
 } from "@/lib/format";
+import { failureReason } from "@/lib/error-copy";
 
 export const dynamic = "force-dynamic";
 
@@ -41,12 +43,13 @@ export default async function SourcePage({ params }: Params) {
   const { source, processing, cards, related } = detail;
   const takeaways = processing ? parseTakeaways(processing.keyTakeaways) : [];
   const concepts = processing ? parseConcepts(processing.concepts) : [];
+  const title = displayTitle(source.title);
 
   return (
     <article className="flex flex-col gap-12">
       <header className="min-w-0 max-w-[760px]">
         <p className="text-meta text-ink-3">
-          <span className="font-typed">{catalogNumber(source.id)}</span>
+          {catalogNumber(source.id)}
           {" · "}
           {originLabel(source)}
           {" · Filed "}
@@ -55,11 +58,11 @@ export default async function SourcePage({ params }: Params) {
         <h1
           className={
             "mt-3 break-words font-medium " +
-            (source.title.length > LONG_TITLE ? "text-lead" : "text-title")
+            (title.length > LONG_TITLE ? "text-lead" : "text-title")
           }
           data-testid="source-title"
         >
-          {source.title}
+          {title}
         </h1>
         {source.url && (
           <a
@@ -82,9 +85,11 @@ export default async function SourcePage({ params }: Params) {
           <p className="font-semibold text-danger">Processing failed</p>
           {/* The raw error stays on the row and in the logs; it can name
               gateway hosts, which no reader needs to see. */}
+          <p className="mt-1 text-ink-2" data-testid="failure-reason">
+            {failureReason(source.errorMessage)}
+          </p>
           <p className="mt-1 text-ink-2">
-            Something went wrong while processing this source. The text is
-            saved, so trying again starts from it.
+            The captured text is saved, so trying again starts from it.
           </p>
           <RetrySourceButton sourceId={source.id} />
         </div>
@@ -103,7 +108,7 @@ export default async function SourcePage({ params }: Params) {
           <div className="flex min-w-0 flex-col gap-12">
             {processing && (
               <section data-testid="why-i-cared" aria-label="Why I cared">
-                <IndexCard head="Why I cared" aside={catalogNumber(source.id)}>
+                <IndexCard head="Why I cared">
                   <p>{processing.whyICared}</p>
                 </IndexCard>
               </section>
@@ -114,7 +119,7 @@ export default async function SourcePage({ params }: Params) {
                 <h2 className="section-title mb-4">Key takeaways</h2>
                 <ol className="flex flex-col gap-4">
                   {takeaways.map((t, i) => (
-                    <li key={i} className="grid grid-cols-[24px_1fr] text-read">
+                    <li key={i} className="grid grid-cols-[24px_1fr] text-ui">
                       <span className="text-ink-3">{i + 1}</span>
                       <span>{t}</span>
                     </li>
@@ -199,14 +204,11 @@ export default async function SourcePage({ params }: Params) {
                         <Link
                           href={`/sources/${r.id}`}
                           className={
-                            "line-clamp-2 text-ui text-ink no-underline " +
+                            "line-clamp-2 text-meta text-ink no-underline " +
                             "hover:text-accent"
                           }
                         >
-                          <span className="font-typed text-meta text-ink-3">
-                            {catalogNumber(r.id)}
-                          </span>{" "}
-                          {r.title}
+                          {displayTitle(r.title)}
                         </Link>
                       </li>
                     ))}
@@ -225,7 +227,7 @@ export default async function SourcePage({ params }: Params) {
         </summary>
         <pre
           className={
-            "max-h-[400px] overflow-auto whitespace-pre-wrap px-6 pb-6 font-typed " +
+            "max-h-[400px] overflow-auto whitespace-pre-wrap px-6 pb-6 font-serif " +
             "text-meta text-ink-2"
           }
         >

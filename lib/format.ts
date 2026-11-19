@@ -18,6 +18,49 @@ const monthFormat = new Intl.DateTimeFormat("en-GB", {
   year: "numeric",
 });
 
+// A title taken from pasted text is its first line, cut at this many
+// characters (lib/extract/url.ts), so one this long may end mid-word.
+export const DERIVED_TITLE_MAX = 120;
+
+const LINK = /https?:\/\/\S+/g;
+// A sentence ends at . ! or ? followed by a space, after a lowercase letter,
+// a digit or a closing bracket or quote (so "U.S. law" is not two sentences).
+const FIRST_SENTENCE = /^(.*?[a-z0-9)'"’”][.!?])\s/;
+
+/** Cut at the last whole word that fits in max characters, then add "…". */
+function cutAtWord(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max + 1);
+  const lastSpace = cut.lastIndexOf(" ");
+  const kept = lastSpace > 0 ? cut.slice(0, lastSpace) : text.slice(0, max);
+  return `${kept.replace(/[\s,;:.!?–—-]+$/, "")}…`;
+}
+
+/**
+ * A capture's title as people should read it: links shown as their site,
+ * the first sentence of pasted text, never a word cut in half.
+ */
+export function displayTitle(title: string, max = DERIVED_TITLE_MAX): string {
+  let text = title.replace(LINK, (link) => hostOf(link)).replace(/\s+/g, " ");
+  const sentence = FIRST_SENTENCE.exec(text);
+  if (sentence) {
+    text = sentence[1].replace(/\.$/, "");
+  } else if (title.length >= DERIVED_TITLE_MAX) {
+    // The stored title was cut mid-text: drop the last, maybe partial, word.
+    const trimmed = title.endsWith(" ") ? text.trim() : text.replace(/\s*\S+$/, "");
+    return `${trimmed.replace(/[\s,;:.!?–—-]+$/, "")}…`;
+  }
+  return cutAtWord(text.trim(), max);
+}
+
+/**
+ * An essay's heading: "Draft: " and the theme it was written from, so the
+ * list reads as titles; the drafter's own title when the theme is gone.
+ */
+export function essayHeading(title: string, themeLabel: string | null): string {
+  return themeLabel ? `Draft: ${themeLabel}` : title;
+}
+
 /** "No. 11": how a capture is referred to everywhere, like a call number. */
 export function catalogNumber(id: number): string {
   return `No. ${id}`;

@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import { CardStack, IndexCard } from "@/components/IndexCard";
 import {
   cardTypeLabel,
-  catalogNumber,
   countLabel,
+  displayTitle,
   formatInterval,
 } from "@/lib/format";
 
@@ -137,14 +137,13 @@ export function ReviewQueue({ cards }: Props) {
             )}
           </IndexCard>
         </CardStack>
-        <p className="mt-6 truncate text-meta text-ink-3">
+        <p className="mt-6 text-meta text-ink-3">
           From{" "}
           <Link
             href={`/sources/${card.source.id}`}
             className="text-ink-2 no-underline hover:underline"
           >
-            <span className="font-typed">{catalogNumber(card.source.id)}</span>{" "}
-            {card.source.title}
+            {displayTitle(card.source.title)}
           </Link>
         </p>
       </div>

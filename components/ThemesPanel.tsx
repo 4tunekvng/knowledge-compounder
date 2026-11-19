@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { catalogNumber, countLabel } from "@/lib/format";
+import { CatalogNo } from "@/components/CatalogNo";
+import { countLabel, displayTitle } from "@/lib/format";
 
 interface ThemeView {
   id: number;
@@ -99,8 +100,9 @@ export function ThemesPanel({
       >
         <p className="text-ui text-ink-2">
           {hasEnoughSources
-            ? `Read across ${countLabel(sourceCount, "processed capture")}`
-            : `Themes need at least 2 processed captures. You have ${sourceCount}.`}
+            ? `Across your ${countLabel(sourceCount, "capture")}`
+            : "Themes need at least 2 captures with notes. " +
+              `You have ${sourceCount}.`}
         </p>
         <button
           onClick={findThemes}
@@ -122,8 +124,11 @@ export function ThemesPanel({
         <div className="text-ui text-ink-2" data-testid="themes-empty">
           <p>No themes yet.</p>
           <p className="mt-2 max-w-[36rem] text-ink-3">
-            Find themes groups your captures by the ideas they share. Each
-            theme can become a drafted essay that cites them.
+            {hasEnoughSources
+              ? "Press Find themes to group your captures by idea. Any theme " +
+                "can then become a drafted essay."
+              : "Capture a few things you read, then come back to see the " +
+                "ideas they share."}
           </p>
         </div>
       ) : (
@@ -192,24 +197,18 @@ export function ThemesPanel({
                               "py-3"
                             }
                           >
-                            <span
-                              className={
-                                "w-14 shrink-0 font-typed text-meta text-ink-3"
-                              }
-                            >
-                              {catalogNumber(sid)}
-                            </span>
+                            <CatalogNo id={sid} />
                             <Link
                               href={`/sources/${sid}`}
                               className={
-                                "line-clamp-2 min-w-0 flex-1 text-ui text-ink " +
+                                "min-w-0 flex-1 text-ui text-ink " +
                                 "no-underline hover:text-accent"
                               }
                             >
-                              {sourceTitlesById[sid] ?? "A capture"}
+                              {displayTitle(sourceTitlesById[sid] ?? "A capture")}
                             </Link>
                             {also.length > 0 && (
-                              <span className="shrink-0 text-meta text-accent">
+                              <span className="shrink-0 text-label text-accent">
                                 Also under {also.join(", ")}
                               </span>
                             )}

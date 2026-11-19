@@ -27,7 +27,7 @@ export default async function ReviewPage() {
     <div className="mx-auto flex max-w-[760px] flex-col gap-8">
       <div>
         <h1 className="text-title font-medium">Review</h1>
-        <p className="mt-3 text-read text-ink-2">
+        <p className="mt-3 text-ui text-ink-2">
           {countLabel(dueTotal, "card")} due now
           {/* The queue loads at most a round of cards at a time. */}
           {dueTotal > cards.length && `, the first ${cards.length} in this round`}

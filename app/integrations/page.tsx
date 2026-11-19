@@ -13,7 +13,7 @@ export default async function IntegrationsPage() {
     <div className="flex max-w-[760px] flex-col gap-12">
       <section>
         <h1 className="text-title font-medium">Imports</h1>
-        <p className="mt-3 text-read text-ink-2">
+        <p className="mt-3 text-ui text-ink-2">
           Connect Readwise, then bring your highlights into the library with
           one button. Each one gets the same note, flashcards and main ideas as
           something you capture by hand.

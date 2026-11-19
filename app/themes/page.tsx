@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ThemesPanel } from "@/components/ThemesPanel";
-import { formatDay } from "@/lib/format";
+import { essayHeading, formatDay } from "@/lib/format";
 import {
   getCorpusForThemes,
   listEssays,
@@ -33,7 +33,7 @@ export default async function ThemesPage() {
     <div className="flex flex-col gap-16">
       <section>
         <h1 className="text-title font-medium">Themes</h1>
-        <p className="mt-3 mb-8 max-w-[40rem] text-read text-ink-2">
+        <p className="mt-3 mb-8 max-w-[40rem] text-ui text-ink-2">
           Ideas that come up in two or more of your captures, each filed with
           the captures it came from. Draft an essay from any of them.
         </p>
@@ -59,10 +59,13 @@ export default async function ThemesPage() {
               >
                 <Link
                   href={`/essays/${e.id}`}
-                  className="text-read text-ink no-underline hover:text-accent"
+                  className="text-ui text-ink no-underline hover:text-accent"
                   data-testid={`essay-link-${e.id}`}
                 >
-                  {e.title}
+                  {essayHeading(
+                    e.title,
+                    themes.find((t) => t.id === e.themeId)?.label ?? null,
+                  )}
                 </Link>
                 <span className="shrink-0 text-meta text-ink-3">
                   {formatDay(e.createdAt)}

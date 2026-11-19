@@ -3,6 +3,7 @@ import type { Source } from "@/lib/db/schema";
 import {
   catalogNumber,
   countLabel,
+  displayTitle,
   formatDay,
   originLabel,
 } from "@/lib/format";
@@ -29,38 +30,43 @@ export function SourceListItem({
   compact = false,
 }: Props) {
   const concepts = conceptsJson ? parseConcepts(conceptsJson) : [];
-  const number = catalogNumber(source.id);
-  const status = statusText(source, cardCount);
-  // The short form carries its status in the meta line; the library gives it
-  // a column of its own.
-  const meta = compact
-    ? [originLabel(source), status].join(" · ")
-    : [originLabel(source), formatDay(source.createdAt)].join(" · ");
+  const failed = source.status === "failed";
+  const status = failed
+    ? "Failed"
+    : source.status === "pending"
+      ? "Waiting"
+      : countLabel(cardCount, "card");
+  // Each part keeps its words together; the line wraps between parts, so a
+  // date or a count is never cut off on a narrow screen.
+  const meta = [
+    ...(compact ? [catalogNumber(source.id)] : []),
+    originLabel(source),
+    ...(compact ? [] : [formatDay(source.createdAt)]),
+  ];
 
   return (
     <li
       className={
-        "group relative grid min-w-0 border-t border-line " +
-        (compact
-          ? "py-4"
-          : "grid-cols-[minmax(0,1fr)_auto] gap-x-6 py-6 " +
-            "sm:grid-cols-[64px_minmax(0,1fr)_auto]")
+        "group relative flex min-w-0 gap-x-6 border-t border-line " +
+        (compact ? "py-4" : "py-6")
       }
       data-testid={`source-item-${source.id}`}
     >
       {!compact && (
         <span
           aria-hidden
-          className="hidden pt-1 font-typed text-meta text-ink-3 sm:block"
+          className={
+            "hidden w-14 shrink-0 pt-0.5 text-right text-meta text-ink-3 " +
+            "tabular-nums sm:block"
+          }
         >
-          {number}
+          {catalogNumber(source.id)}
         </span>
       )}
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <h3
           className={
-            "line-clamp-2 break-words font-medium " +
-            (compact ? "text-ui" : "text-read")
+            "break-words text-ui font-medium " + (compact ? "line-clamp-3" : "")
           }
         >
           {/* The link covers the whole entry, so the row is one target. */}
@@ -71,17 +77,29 @@ export function SourceListItem({
               "group-hover:text-accent"
             }
           >
-            {source.title}
+            {displayTitle(source.title)}
           </Link>
         </h3>
-        <p className="mt-1 truncate text-meta text-ink-3">
-          <span className={compact ? "font-typed" : "font-typed sm:hidden"}>
-            {number} ·{" "}
+        <p className="mt-1 text-meta text-ink-3">
+          {meta.map((part, i) => (
+            <span key={i} className="inline-block max-w-full truncate align-top">
+              {i > 0 && <span aria-hidden>&nbsp;·&nbsp;</span>}
+              {part}
+            </span>
+          ))}
+          <span
+            data-testid={`source-status-${source.id}`}
+            className={
+              "inline-block " + (failed ? "text-danger" : "") +
+              (compact ? "" : " sm:hidden")
+            }
+          >
+            <span aria-hidden>&nbsp;·&nbsp;</span>
+            {status}
           </span>
-          {meta}
         </p>
         {!compact && whyICared && (
-          <p className="mt-3 line-clamp-2 max-w-[44rem] text-ui text-ink-2">
+          <p className="mt-3 line-clamp-2 max-w-[44rem] text-meta text-ink-2">
             {whyICared}
           </p>
         )}
@@ -91,17 +109,21 @@ export function SourceListItem({
               .slice(0, SHOWN_CONCEPTS)
               .map((c) => c.name)
               .join(" · ")}
-            {concepts.length > SHOWN_CONCEPTS &&
-              ` · ${concepts.length - SHOWN_CONCEPTS} more`}
+            {concepts.length > SHOWN_CONCEPTS && (
+              <span className="whitespace-nowrap">
+                {" "}
+                +{concepts.length - SHOWN_CONCEPTS} more
+              </span>
+            )}
           </p>
         )}
       </div>
       {!compact && (
         <span
-          data-testid={`source-status-${source.id}`}
+          aria-hidden
           className={
-            "shrink-0 pt-1 text-meta " +
-            (source.status === "failed" ? "text-danger" : "text-ink-3")
+            "hidden shrink-0 pt-0.5 text-meta sm:block " +
+            (failed ? "text-danger" : "text-ink-3")
           }
         >
           {status}
@@ -109,10 +131,4 @@ export function SourceListItem({
       )}
     </li>
   );
-}
-
-function statusText(source: Source, cardCount: number): string {
-  if (source.status === "failed") return "Failed";
-  if (source.status === "pending") return "Waiting";
-  return countLabel(cardCount, "card");
 }

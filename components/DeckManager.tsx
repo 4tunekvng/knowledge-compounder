@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Download, ExternalLink, Mail, Trash2 } from "lucide-react";
 import { CardStack, IndexCard } from "@/components/IndexCard";
-import { catalogNumber, countLabel } from "@/lib/format";
+import { CatalogNo } from "@/components/CatalogNo";
+import { countLabel, displayTitle } from "@/lib/format";
 
 interface SourceOption {
   id: number;
@@ -29,6 +30,8 @@ interface Props {
   origin: string;
 }
 
+const PICKER_ROWS = 8;
+
 export function DeckManager({ sources, decks, origin }: Props) {
   const router = useRouter();
   const [title, setTitle] = useState("");
@@ -38,6 +41,11 @@ export function DeckManager({ sources, decks, origin }: Props) {
   const [creating, startCreating] = useTransition();
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  // The picker is never a box that scrolls inside the page: it shows the
+  // newest captures, and the rest on request.
+  const shownSources = showAll ? sources : sources.slice(0, PICKER_ROWS);
+  const hiddenCount = sources.length - shownSources.length;
 
   function toggle(id: number) {
     setSelected((prev) => {
@@ -159,15 +167,15 @@ export function DeckManager({ sources, decks, origin }: Props) {
       <fieldset className="flex min-w-0 flex-col gap-2">
         <legend className="text-ui font-medium">Captures</legend>
         <ul
-          className="max-h-80 overflow-auto rounded-lg border border-line-strong"
+          className="rounded-lg border border-line-strong"
           data-testid="deck-source-list"
         >
-          {sources.map((s) => (
+          {shownSources.map((s) => (
             <li key={s.id} className="border-t border-line first:border-t-0">
               <label
                 className={
-                  "flex min-h-11 cursor-pointer items-center gap-3 px-3 py-2 " +
-                  "text-ui hover:bg-raised"
+                  "flex min-h-11 cursor-pointer items-baseline gap-3 px-3 py-3 " +
+                  "hover:bg-raised"
                 }
               >
                 <input
@@ -175,21 +183,30 @@ export function DeckManager({ sources, decks, origin }: Props) {
                   data-testid={`deck-source-${s.id}`}
                   checked={selected.has(s.id)}
                   onChange={() => toggle(s.id)}
-                  className="size-[18px] shrink-0 accent-accent"
+                  className="size-[18px] shrink-0 self-center accent-accent"
                 />
-                <span className="min-w-0 flex-1 truncate">
-                  <span className="font-typed text-meta text-ink-3">
-                    {catalogNumber(s.id)}
-                  </span>{" "}
-                  {s.title}
-                </span>
-                <span className="shrink-0 text-meta text-ink-3">
-                  {s.cardCount}
+                <CatalogNo id={s.id} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-meta">
+                    {displayTitle(s.title, 56)}
+                  </span>
+                  <span className="block text-label text-ink-3">
+                    {countLabel(s.cardCount, "card")}
+                  </span>
                 </span>
               </label>
             </li>
           ))}
         </ul>
+        {hiddenCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowAll(true)}
+            className="btn btn-quiet btn-sm self-start"
+          >
+            Show all {sources.length} captures
+          </button>
+        )}
         <p className="text-meta text-ink-3" aria-live="polite">
           {selected.size === 0
             ? "None picked yet"
@@ -277,9 +294,7 @@ export function DeckManager({ sources, decks, origin }: Props) {
                       value={shareUrl(deck.shareToken)}
                       data-testid={`deck-link-${deck.id}`}
                       onFocus={(e) => e.currentTarget.select()}
-                      className={
-                        "field min-w-0 flex-1 font-typed text-meta text-ink-2"
-                      }
+                      className="field min-w-0 flex-1 text-meta text-ink-2"
                     />
                     <button
                       type="button"
@@ -300,21 +315,21 @@ export function DeckManager({ sources, decks, origin }: Props) {
                       className="btn btn-quiet btn-sm"
                     >
                       <ExternalLink aria-hidden size={16} strokeWidth={1.5} />
-                      Student view
+                      Open as student
                     </a>
                     <a
                       href={`/d/${deck.shareToken}/pdf`}
                       className="btn btn-quiet btn-sm"
                     >
                       <Download aria-hidden size={16} strokeWidth={1.5} />
-                      PDF study guide
+                      PDF
                     </a>
                     <a
                       href={`/d/${deck.shareToken}/anki`}
                       className="btn btn-quiet btn-sm"
                     >
                       <Download aria-hidden size={16} strokeWidth={1.5} />
-                      Anki deck
+                      Anki
                     </a>
                     <a
                       href={`mailto:?subject=${encodeURIComponent(
@@ -325,14 +340,14 @@ export function DeckManager({ sources, decks, origin }: Props) {
                       className="btn btn-quiet btn-sm"
                     >
                       <Mail aria-hidden size={16} strokeWidth={1.5} />
-                      Email it
+                      Email
                     </a>
                     <button
                       type="button"
                       onClick={() => removeDeck(deck)}
                       disabled={deletingId === deck.id}
                       data-testid={`delete-deck-${deck.id}`}
-                      className="btn btn-danger btn-sm sm:ml-auto"
+                      className="btn btn-danger btn-sm"
                     >
                       <Trash2 aria-hidden size={16} strokeWidth={1.5} />
                       {deletingId === deck.id ? "Deleting…" : "Delete"}

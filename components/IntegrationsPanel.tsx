@@ -165,7 +165,7 @@ export function IntegrationsPanel({ readwise }: { readwise: ProviderStatus }) {
             value={token}
             onChange={(e) => setToken(e.target.value)}
             disabled={busy}
-            className="field min-w-0 flex-1 font-typed"
+            className="field min-w-0 flex-1"
           />
           <button
             type="submit"
@@ -221,7 +221,7 @@ export function IntegrationsPanel({ readwise }: { readwise: ProviderStatus }) {
           <summary className="cursor-pointer">Sync details</summary>
           <pre
             className={
-              "mt-2 whitespace-pre-wrap rounded-lg bg-raised p-4 font-typed"
+              "mt-2 whitespace-pre-wrap rounded-lg bg-raised p-4"
             }
           >
             {JSON.stringify(lastSync, null, 2)}

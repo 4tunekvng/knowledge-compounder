@@ -47,7 +47,7 @@ export default async function DecksPage() {
     <div className="flex flex-col gap-12">
       <div>
         <h1 className="text-title font-medium">Study decks</h1>
-        <p className="mt-3 max-w-[40rem] text-read text-ink-2">
+        <p className="mt-3 max-w-[40rem] text-ui text-ink-2">
           Share flashcards with students as one link. They need no account, and
           can study in the browser or download the cards as a PDF or an Anki
           deck.

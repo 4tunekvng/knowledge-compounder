@@ -1,89 +1,28 @@
 "use client";
 
 import {
-  useEffect,
   useRef,
   useState,
   useTransition,
   type DragEvent,
   type FormEvent,
 } from "react";
-import { Check, FileText, FileUp } from "lucide-react";
+import { FileText, FileUp } from "lucide-react";
 import { IndexCard } from "@/components/IndexCard";
-import { formatDay } from "@/lib/format";
+import { displayTitle, formatDay } from "@/lib/format";
 import { useLocalTime } from "@/lib/use-local-time";
 import { useRouter } from "next/navigation";
 
-const PROCESSING_STEPS = [
-  "Reading the source",
-  "Pulling out the text",
-  "Writing why it mattered to you",
-  "Drafting flashcards",
-  "Naming the main ideas",
-];
-
-const STEP_MS = 1500;
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
-
-function ProcessingIndicator() {
-  const [activeIdx, setActiveIdx] = useState(0);
-
-  useEffect(() => {
-    const start = performance.now();
-    let raf = 0;
-    const tick = (now: number) => {
-      const idx = Math.min(
-        PROCESSING_STEPS.length - 1,
-        Math.floor((now - start) / STEP_MS),
-      );
-      setActiveIdx(idx);
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-
-  return (
-    <ol
-      data-testid="capture-processing"
-      className="flex flex-col gap-2 text-ui"
-      aria-live="polite"
-    >
-      {PROCESSING_STEPS.map((s, i) => {
-        const done = i < activeIdx;
-        const active = i === activeIdx;
-        return (
-          <li
-            key={s}
-            className={
-              "flex items-center gap-3 " +
-              (done || active ? "text-ink" : "text-ink-3")
-            }
-          >
-            <span
-              aria-hidden
-              className={
-                "flex size-5 shrink-0 items-center justify-center rounded-full " +
-                (done
-                  ? "bg-ink text-stock"
-                  : active
-                    ? "border border-ink"
-                    : "border border-line-strong")
-              }
-            >
-              {done && <Check size={12} strokeWidth={2} />}
-            </span>
-            {s}
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
 
 const todayLabel = () => formatDay(new Date());
 
-export function CaptureForm() {
+export function CaptureForm({
+  onFiling,
+}: {
+  // Told what is being filed when a capture starts, and null when it ends.
+  onFiling?: (title: string | null) => void;
+}) {
   const today = useLocalTime(todayLabel);
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -123,17 +62,26 @@ export function CaptureForm() {
       return;
     }
 
+    send(displayTitle(trimmed.split("\n")[0], 80), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ input: trimmed }),
+    });
+  }
+
+  // Posts a capture and shows it being filed until the answer comes back.
+  function send(title: string, init: RequestInit) {
+    // Outside the transition, so the filing card shows while it runs.
+    onFiling?.(title);
     startTransition(async () => {
       try {
-        const res = await fetch("/api/capture", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ input: trimmed }),
-        });
+        const res = await fetch("/api/capture", init);
         const data = await res.json();
         handleResult(res, data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Network error.");
+      } catch {
+        setError("Couldn't reach the app. Check your connection and try again.");
+      } finally {
+        onFiling?.(null);
       }
     });
   }
@@ -153,17 +101,9 @@ export function CaptureForm() {
       return;
     }
     setPdfName(file.name);
-    startTransition(async () => {
-      try {
-        const formData = new FormData();
-        formData.append("file", file);
-        const res = await fetch("/api/capture", { method: "POST", body: formData });
-        const data = await res.json();
-        handleResult(res, data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Network error.");
-      }
-    });
+    const formData = new FormData();
+    formData.append("file", file);
+    send(file.name, { method: "POST", body: formData });
   }
 
   function onDrop(event: DragEvent) {
@@ -251,33 +191,30 @@ export function CaptureForm() {
         </p>
       )}
 
-      {isPending ? (
-        <ProcessingIndicator />
-      ) : (
-        <div
-          className={
-            "flex flex-col-reverse gap-3 sm:flex-row sm:items-center " +
-            "sm:justify-between"
-          }
+      <div
+        className={
+          "flex flex-col-reverse gap-3 sm:flex-row sm:items-center " +
+          "sm:justify-between"
+        }
+      >
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isPending}
+          data-testid="pdf-upload-button"
+          className="btn btn-secondary"
         >
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            data-testid="pdf-upload-button"
-            className="btn btn-secondary"
-          >
-            <FileUp aria-hidden size={16} strokeWidth={1.5} /> Add a PDF
-          </button>
-          <button
-            type="submit"
-            disabled={input.trim().length === 0}
-            data-testid="capture-submit"
-            className="btn btn-primary sm:min-w-40"
-          >
-            Capture
-          </button>
-        </div>
-      )}
+          <FileUp aria-hidden size={16} strokeWidth={1.5} /> Add a PDF
+        </button>
+        <button
+          type="submit"
+          disabled={isPending || input.trim().length === 0}
+          data-testid="capture-submit"
+          className="btn btn-primary sm:min-w-40"
+        >
+          {isPending ? "Filing…" : "Capture"}
+        </button>
+      </div>
     </form>
   );
 }
