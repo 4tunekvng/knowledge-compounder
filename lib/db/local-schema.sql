@@ -1,6 +1,6 @@
 -- Full local-dev schema for the better-sqlite3 adapter (lib/db/local.ts).
 -- Mirrors the current state of lib/db/schema.ts AFTER all migrations
--- (0001_init through 0006_papers) are applied. Used only for local dev /
+-- (0001_init through 0007_readers) are applied. Used only for local dev /
 -- preview / Playwright e2e — production runs on Cloudflare D1 and is
 -- migrated via `wrangler d1 migrations apply`. Everything is IF NOT EXISTS
 -- so applying it repeatedly on an existing dev DB is a no-op.
@@ -135,4 +135,36 @@ CREATE TABLE IF NOT EXISTS paper_harvests (
   started_at INTEGER NOT NULL,
   papers_seen INTEGER NOT NULL,
   failed_sources TEXT NOT NULL
+);
+
+-- Paper picks: each person's interests, clicks and picks (migration 0007).
+CREATE TABLE IF NOT EXISTS reader_profiles (
+  owner_id TEXT PRIMARY KEY,
+  interests_text TEXT NOT NULL,
+  terms TEXT NOT NULL,
+  compiled_at INTEGER,
+  last_seen_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+
+CREATE TABLE IF NOT EXISTS reader_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  owner_id TEXT NOT NULL,
+  arxiv_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX IF NOT EXISTS reader_events_owner_idx
+  ON reader_events(owner_id, arxiv_id);
+
+-- Each reading day, a person's top 20 of the recent papers. The page shows
+-- 3; the monthly pick is drawn from a month of these.
+CREATE TABLE IF NOT EXISTS daily_picks (
+  owner_id TEXT NOT NULL,
+  day TEXT NOT NULL,
+  rank INTEGER NOT NULL,
+  arxiv_id TEXT NOT NULL,
+  score REAL NOT NULL,
+  matched TEXT NOT NULL,
+  PRIMARY KEY (owner_id, day, rank)
 );
