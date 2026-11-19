@@ -17,9 +17,38 @@ describe("queries JSON parsers", () => {
     ]);
     const result = parseConcepts(json);
     expect(result).toEqual([
-      { name: "moats", weight: 0.4 },
-      { name: "distribution", weight: 0.3 },
+      { name: "Moats", weight: 0.4 },
+      { name: "Distribution", weight: 0.3 },
     ]);
+  });
+
+  it("parseConcepts shows tags written as code as words", () => {
+    // Arrange
+    const json = JSON.stringify([
+      { name: "connection_reuse", weight: 0.9 },
+      { name: "#spacedRepetition", weight: 0.5 },
+      { name: "SRE practices", weight: 0.4 },
+      { name: "API_design", weight: 0.3 },
+    ]);
+
+    // Act
+    const names = parseConcepts(json).map((c) => c.name);
+
+    // Assert
+    expect(names).toEqual([
+      "Connection reuse",
+      "Spaced repetition",
+      "SRE practices",
+      "API design",
+    ]);
+  });
+
+  it("parseConcepts keeps one of two tags that differ only in spelling", () => {
+    const json = JSON.stringify([
+      { name: "load_balancing", weight: 0.6 },
+      { name: "Load balancing", weight: 0.3 },
+    ]);
+    expect(parseConcepts(json)).toEqual([{ name: "Load balancing", weight: 0.6 }]);
   });
 
   it("parseConcepts returns [] on garbage", () => {
