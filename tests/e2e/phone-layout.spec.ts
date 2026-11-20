@@ -86,6 +86,13 @@ test.describe("wider screens", () => {
     const list = page.getByTestId("deck-source-list");
     await expect(list).toHaveCSS("overflow-y", "visible");
   });
+
+  test("flashcards flow down two columns", async ({ page }) => {
+    await page.goto("/library");
+    await page.getByRole("link", { name: LONG_TITLE }).click();
+    const grid = page.getByTestId("cards-section").locator("ul").first();
+    await expect(grid).toHaveCSS("column-count", "2");
+  });
 });
 
 test.describe("the smallest phones", () => {
