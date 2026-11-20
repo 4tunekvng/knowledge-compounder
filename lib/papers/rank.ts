@@ -43,6 +43,15 @@ const QUALITY_WEIGHT = 0.2;
 // log(1 + 100) / log(101) = 1: about a day's top paper on Hugging Face.
 const TOP_UPVOTES = 100;
 export const MAX_FEEDBACK_TERMS = 60;
+// A term found in more than this share of papers can't tell one reader's
+// taste from another's. Words a person wrote are always kept; library and
+// feedback terms over it are skipped. Only applied to pools big enough for a
+// share to mean something.
+const MAX_SHARED_DF = 0.1;
+const MIN_POOL_FOR_DF_RULE = 50;
+// "Why you got this" names only terms that did at least this share of the
+// work of the strongest one.
+const MIN_EXPLAINING_SHARE = 0.25;
 const MIN_FEEDBACK_DF = 3;
 
 // Words STOP_WORDS leaves in that say nothing about a research topic: short
@@ -159,9 +168,12 @@ function quality(upvotes: number): number {
  * any other negative (a model paraphrase, feedback) only lowers the sum.
  */
 export function rankPapers(index: PaperIndex, terms: ProfileTerm[]): Ranked[] {
+  const n = index.docs.size;
+  const tooCommon = (gram: string) =>
+    n >= MIN_POOL_FOR_DF_RULE && (index.df.get(gram) ?? 0) / n > MAX_SHARED_DF;
   const grams = terms
     .map((t) => ({ ...t, gram: normalizeTerm(t.term) }))
-    .filter((t) => t.gram);
+    .filter((t) => t.gram && (t.source === "written" || !tooCommon(t.gram)));
   const ranked: Ranked[] = [];
   for (const [arxivId, doc] of index.docs) {
     let raw = 0;
@@ -183,7 +195,11 @@ export function rankPapers(index: PaperIndex, terms: ProfileTerm[]): Ranked[] {
       arxivId,
       relevance,
       score: relevance * (1 + QUALITY_WEIGHT * quality(doc.upvotes)),
-      matched: hits.map((h) => h.term),
+      matched: hits
+        .filter(
+          (h) => h.contribution >= MIN_EXPLAINING_SHARE * strongest.contribution,
+        )
+        .map((h) => h.term),
       strongest: strongest.term,
     });
   }

@@ -177,3 +177,34 @@ describe("textTerms", () => {
     ]);
   });
 });
+
+describe("terms that say little", () => {
+  // 60 papers: "mean" appears in 20 (a third), "world models" in 2.
+  const big = buildIndex([
+    paper("wm1", "World models for planning", "We report the mean reward."),
+    paper("wm2", "World models from video", "A mean field view."),
+    ...Array.from({ length: 18 }, (_, i) =>
+      paper(`m${i}`, `Topic ${i} study`, "We report the mean error."),
+    ),
+    ...Array.from({ length: 40 }, (_, i) => paper(`x${i}`, `Other ${i}`, "Text.")),
+  ]);
+
+  it("ignores a library or feedback term found in over a tenth of papers", () => {
+    const terms: ProfileTerm[] = [{ term: "Mean", weight: 0.6, source: "compiled" }];
+
+    expect(rankPapers(big, terms)).toEqual([]);
+  });
+
+  it("keeps a common word the person wrote themselves", () => {
+    expect(rankPapers(big, [own("mean", 1)]).length).toBe(20);
+  });
+
+  it("explains a pick only by the terms that carried it", () => {
+    const terms: ProfileTerm[] = [
+      own("world models", 1),
+      { term: "reward", weight: 0.05, source: "compiled" },
+    ];
+
+    expect(rankPapers(big, terms)[0].matched).toEqual(["world models"]);
+  });
+});
