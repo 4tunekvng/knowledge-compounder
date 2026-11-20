@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiUser, unauthorized } from "@/lib/auth/user";
+import { errorResponse } from "@/lib/errors";
 import { draftEssayForTheme } from "@/lib/services/themes";
 
 export const runtime = "nodejs";
@@ -26,14 +27,6 @@ export async function POST(request: Request) {
     const essay = await draftEssayForTheme(user.id, themeId);
     return NextResponse.json({ essay });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error.";
-    if (message === "Theme not found.") {
-      return NextResponse.json({ error: message }, { status: 404 });
-    }
-    if (message.startsWith("Theme has fewer than")) {
-      return NextResponse.json({ error: message }, { status: 422 });
-    }
-    console.error("[essay] draftEssayForTheme failed:", err);
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+    return errorResponse(err, "[essay] draftEssayForTheme");
   }
 }

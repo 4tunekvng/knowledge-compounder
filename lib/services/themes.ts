@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
+import { ServiceError } from "@/lib/errors";
 import { chunkForD1 } from "@/lib/db/chunk";
 import { sources, themes, essays, processings } from "@/lib/db/schema";
 import { findThemes } from "@/lib/ai/themes";
@@ -11,8 +12,9 @@ import { getCorpusForThemes, getTheme, parseSourceIds } from "./queries";
 export async function generateThemes(ownerId: string) {
   const corpus = await getCorpusForThemes(ownerId);
   if (corpus.length < 2) {
-    throw new Error(
+    throw new ServiceError(
       "Need at least 2 processed sources to surface themes. Capture more material first.",
+      422,
     );
   }
 
@@ -29,8 +31,9 @@ export async function generateThemes(ownerId: string) {
   });
 
   if (validated.length === 0) {
-    throw new Error(
+    throw new ServiceError(
       "AI returned themes that referenced no captured sources. Try again after capturing more material.",
+      422,
     );
   }
 
@@ -101,11 +104,11 @@ export async function generateThemes(ownerId: string) {
 export async function draftEssayForTheme(ownerId: string, themeId: number) {
   const theme = await getTheme(ownerId, themeId);
   if (!theme) {
-    throw new Error("Theme not found.");
+    throw new ServiceError("Theme not found.", 404);
   }
   const ids = parseSourceIds(theme.sourceIds);
   if (ids.length < 2) {
-    throw new Error("Theme has fewer than 2 valid source ids.");
+    throw new ServiceError("Theme has fewer than 2 valid source ids.", 422);
   }
 
   const db = await getDb();

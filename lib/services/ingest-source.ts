@@ -11,6 +11,7 @@
  * cap or the user cancels.
  */
 export { sanitizeForPrompt } from "@/lib/sanitize";
+import { ServiceError } from "@/lib/errors";
 
 export interface NewCapture {
   /** Stable id from the provider. Used to dedupe re-syncs. */
@@ -44,10 +45,13 @@ export interface IngestSource {
   ): AsyncGenerator<NewCapture>;
 }
 
-export class InvalidTokenError extends Error {
+export class InvalidTokenError extends ServiceError {
   constructor(provider: string) {
-    super(`Invalid token for provider '${provider}'. Re-paste the token in /integrations.`);
-    this.name = "InvalidTokenError";
+    super(
+      `Invalid token for provider '${provider}'. ` +
+        "Re-paste the token in /integrations.",
+      401,
+    );
   }
 }
 

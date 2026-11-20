@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiUser, unauthorized } from "@/lib/auth/user";
+import { errorResponse } from "@/lib/errors";
 import { retrySource } from "@/lib/services/ingest";
 
 export const runtime = "nodejs";
@@ -19,14 +20,6 @@ export async function POST(
     const result = await retrySource(user.id, id);
     return NextResponse.json(result);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error.";
-    if (message === "Source not found.") {
-      return NextResponse.json({ error: message }, { status: 404 });
-    }
-    if (message.startsWith("Source is not in a failed state")) {
-      return NextResponse.json({ error: message }, { status: 409 });
-    }
-    console.error("[sources/retry] retrySource failed:", err);
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+    return errorResponse(err, "[sources/retry] retrySource");
   }
 }

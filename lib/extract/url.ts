@@ -1,6 +1,7 @@
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
 import { DERIVED_TITLE_MAX } from "@/lib/format";
+import { CaptureError } from "@/lib/errors";
 
 export interface ExtractedDoc {
   title: string;
@@ -89,7 +90,12 @@ async function readHtmlBody(response: Response, sourceUrl: string): Promise<stri
   // Accept an empty/absent content-type — some servers omit it for HTML.
   // Reject clearly non-HTML types (PDF, images, JS, JSON, etc.) early.
   if (contentType && !isHtmlLike) {
-    throw new Error(`URL returned non-HTML content-type (${contentType.split(";")[0].trim()}): ${sourceUrl}`);
+    const type = contentType.split(";")[0].trim();
+    throw new CaptureError(
+      `URL returned non-HTML content-type (${type}): ${sourceUrl}`,
+      422,
+      "not-web-page",
+    );
   }
 
   // Check Content-Length before streaming so we can bail before reading anything.
@@ -98,7 +104,12 @@ async function readHtmlBody(response: Response, sourceUrl: string): Promise<stri
     const contentLength = parseInt(clHeader, 10);
     if (!isNaN(contentLength) && contentLength > MAX_RESPONSE_BYTES) {
       await response.body?.cancel();
-      throw new Error(`Response body too large (${contentLength} bytes, limit ${MAX_RESPONSE_BYTES}): ${sourceUrl}`);
+      throw new CaptureError(
+        `Response body too large (${contentLength} bytes, ` +
+          `limit ${MAX_RESPONSE_BYTES}): ${sourceUrl}`,
+        422,
+        "too-large",
+      );
     }
   }
 
@@ -156,19 +167,35 @@ function fetchHop(url: string): Promise<Response> {
 // target that is not http(s) or points at a private host (SSRF guard).
 function redirectTarget(response: Response, from: string, label: string): string {
   const location = response.headers.get("location");
-  if (!location) throw new Error(`${label} from ${from} had no Location header`);
+  if (!location) {
+    throw new CaptureError(
+      `${label} from ${from} had no Location header`,
+      422,
+      "cannot-open",
+    );
+  }
   let next: URL;
   try {
     next = new URL(location, from);
   } catch {
-    throw new Error(`${label} to invalid URL: ${location}`);
+    throw new CaptureError(
+      `${label} to invalid URL: ${location}`,
+      422,
+      "not-web-address",
+    );
   }
   if (!isHttp(next)) {
-    throw new Error(`Redirect to non-HTTP(S) scheme blocked: ${next.protocol}`);
+    throw new CaptureError(
+      `Redirect to non-HTTP(S) scheme blocked: ${next.protocol}`,
+      422,
+      "not-web-address",
+    );
   }
   if (isPrivateHost(next.hostname)) {
-    throw new Error(
+    throw new CaptureError(
       `Redirect to private/internal address blocked: ${next.hostname}`,
+      422,
+      "private-address",
     );
   }
   return next.toString();
@@ -179,13 +206,21 @@ export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
   try {
     parsed = new URL(url);
   } catch {
-    throw new Error(`Invalid URL: ${url}`);
+    throw new CaptureError(`Invalid URL: ${url}`, 422, "not-web-address");
   }
   if (!isHttp(parsed)) {
-    throw new Error(`Only http and https URLs are supported (got ${parsed.protocol}): ${url}`);
+    throw new CaptureError(
+      `Only http and https URLs are supported (got ${parsed.protocol}): ${url}`,
+      422,
+      "not-web-address",
+    );
   }
   if (isPrivateHost(parsed.hostname)) {
-    throw new Error(`Fetching private/internal addresses is not allowed: ${parsed.hostname}`);
+    throw new CaptureError(
+      `Fetching private/internal addresses is not allowed: ${parsed.hostname}`,
+      422,
+      "private-address",
+    );
   }
   // Follow redirects by hand so every hop passes the same SSRF checks.
   let target = url;
@@ -193,13 +228,22 @@ export async function extractFromUrl(url: string): Promise<ExtractedDoc> {
     const response = await fetchHop(target);
     if (response.status < 300 || response.status >= 400) {
       if (!response.ok) {
-        throw new Error(`Failed to fetch ${target} (${response.status})`);
+        // The site answered with an error: not the reader's to fix (502).
+        throw new CaptureError(
+          `Failed to fetch ${target} (${response.status})`,
+          502,
+          "cannot-open",
+        );
       }
       const html = await readHtmlBody(response, target);
       return extractFromHtml(html, target);
     }
     if (hop === REDIRECT_LABELS.length) {
-      throw new Error(`Too many redirects fetching ${url}`);
+      throw new CaptureError(
+        `Too many redirects fetching ${url}`,
+        422,
+        "cannot-open",
+      );
     }
     await response.body?.cancel();
     target = redirectTarget(response, target, REDIRECT_LABELS[hop]);

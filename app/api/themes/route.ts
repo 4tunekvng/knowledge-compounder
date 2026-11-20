@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiUser, unauthorized } from "@/lib/auth/user";
+import { errorResponse } from "@/lib/errors";
 import { generateThemes } from "@/lib/services/themes";
 
 export const runtime = "nodejs";
@@ -11,16 +12,6 @@ export async function POST(request: Request) {
     const themes = await generateThemes(user.id);
     return NextResponse.json({ themes });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error.";
-    // "Need at least 2 processed sources" and "AI returned themes that referenced no
-    // captured sources" are user-actionable states, not server errors.
-    if (
-      message.startsWith("Need at least") ||
-      message.startsWith("AI returned themes")
-    ) {
-      return NextResponse.json({ error: message }, { status: 422 });
-    }
-    console.error("[themes] generateThemes failed:", err);
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+    return errorResponse(err, "[themes] generateThemes");
   }
 }

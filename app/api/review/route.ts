@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiUser, unauthorized } from "@/lib/auth/user";
+import { errorResponse } from "@/lib/errors";
 import { gradeCard } from "@/lib/services/review";
 import type { Rating } from "@/lib/fsrs";
 
@@ -42,11 +43,6 @@ export async function POST(request: Request) {
       dueAt: next.dueAt.toISOString(),
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error.";
-    if (message === "Card not found.") {
-      return NextResponse.json({ error: message }, { status: 404 });
-    }
-    console.error("[review] gradeCard failed:", err);
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+    return errorResponse(err, "[review] gradeCard");
   }
 }

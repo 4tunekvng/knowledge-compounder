@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
+import { ServiceError } from "@/lib/errors";
 import { cards, sources, type Card } from "@/lib/db/schema";
 import { generateMoreCards } from "@/lib/ai/more-cards";
 
@@ -31,9 +32,12 @@ export async function addMoreCards(
     .where(and(eq(sources.id, sourceId), eq(sources.ownerId, ownerId)))
     .get();
 
-  if (!source) throw new Error("Source not found.");
+  if (!source) throw new ServiceError("Source not found.", 404);
   if (source.status !== "processed") {
-    throw new Error("Source is not processed yet — process it before adding cards.");
+    throw new ServiceError(
+      "Source is not processed yet — process it before adding cards.",
+      422,
+    );
   }
 
   const existing = await db
@@ -56,7 +60,10 @@ export async function addMoreCards(
     (c) => !existingSet.has(c.front.trim().toLowerCase()),
   );
   if (fresh.length === 0) {
-    throw new Error("No new cards generated — the source may already be fully covered.");
+    throw new ServiceError(
+      "No new cards generated — the source may already be fully covered.",
+      422,
+    );
   }
 
   const inserted: Card[] = [];

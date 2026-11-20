@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiUser, unauthorized } from "@/lib/auth/user";
+import { errorResponse } from "@/lib/errors";
 import { createDeck } from "@/lib/services/decks";
 
 export const runtime = "nodejs";
@@ -34,15 +35,6 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ deck });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error.";
-    if (
-      message.startsWith("Deck title") ||
-      message.startsWith("Select at least") ||
-      message.startsWith("None of the selected")
-    ) {
-      return NextResponse.json({ error: message }, { status: 400 });
-    }
-    console.error("[decks] createDeck failed:", err);
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+    return errorResponse(err, "[decks] createDeck");
   }
 }

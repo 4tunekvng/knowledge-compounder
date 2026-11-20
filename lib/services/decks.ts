@@ -1,6 +1,7 @@
 import "server-only";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
+import { ServiceError } from "@/lib/errors";
 import { chunkForD1 } from "@/lib/db/chunk";
 import { cards, decks, sources, type Deck } from "@/lib/db/schema";
 import { parseSourceIds } from "@/lib/parsers";
@@ -43,14 +44,16 @@ export async function createDeck(input: {
   sourceIds: number[];
 }): Promise<Deck> {
   const title = input.title.trim();
-  if (!title) throw new Error("Deck title is required.");
-  if (title.length > 200) throw new Error("Deck title is too long (max 200 chars).");
+  if (!title) throw new ServiceError("Deck title is required.", 400);
+  if (title.length > 200) {
+    throw new ServiceError("Deck title is too long (max 200 chars).", 400);
+  }
 
   const requested = Array.from(
     new Set(input.sourceIds.filter((n) => Number.isInteger(n) && n > 0)),
   );
   if (requested.length === 0) {
-    throw new Error("Select at least one source for the deck.");
+    throw new ServiceError("Select at least one source for the deck.", 400);
   }
 
   const db = await getDb();
@@ -67,7 +70,7 @@ export async function createDeck(input: {
   );
   const validIds = valid.flat().map((s) => s.id);
   if (validIds.length === 0) {
-    throw new Error("None of the selected sources exist.");
+    throw new ServiceError("None of the selected sources exist.", 400);
   }
 
   const description = input.description?.trim() || null;

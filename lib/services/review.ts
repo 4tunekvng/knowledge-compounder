@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
+import { ServiceError } from "@/lib/errors";
 import { cards, type Card } from "@/lib/db/schema";
 import {
   schedule,
@@ -41,7 +42,7 @@ export async function gradeCard(ownerId: string, cardId: number, rating: Rating)
   const owned = and(eq(cards.id, cardId), eq(cards.ownerId, ownerId));
   const card = await db.select().from(cards).where(owned).get();
   if (!card) {
-    throw new Error("Card not found.");
+    throw new ServiceError("Card not found.", 404);
   }
 
   const now = new Date();
