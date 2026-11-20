@@ -234,3 +234,53 @@ describe("library concepts", () => {
     expect(ids(picks)).not.toContain("2611.00006");
   });
 });
+
+describe("deep read", () => {
+  it("is the best paper from the person's last 30 days of picks", async () => {
+    await readers.saveInterests(
+      FORTUNE,
+      "reward hacking, not image generation",
+      NOW,
+    );
+
+    const pick = await readers.deepReadPick(FORTUNE, NOW);
+
+    expect(["2611.00001", "2611.00002", "2611.00003", "2611.00004"]).toContain(
+      pick?.arxivId,
+    );
+    expect(pick?.matched).toContain("reward hacking");
+  });
+
+  it("is nothing for someone with no picks or saves yet", async () => {
+    expect(await readers.deepReadPick(FRIEND, NOW)).toBeNull();
+  });
+
+  it("files the paper and makes one deck, even when asked twice", async () => {
+    const first = await readers.deepRead(FORTUNE, "2611.00002");
+    const again = await readers.deepRead(FORTUNE, "2611.00002");
+
+    expect(again).toEqual(first);
+    expect(
+      sqlite
+        .prepare(
+          "SELECT title, description, source_ids FROM decks WHERE owner_id = ?",
+        )
+        .all(FORTUNE),
+    ).toEqual([
+      {
+        title: "Deep read: Detecting reward hacking with monitors",
+        description: "https://arxiv.org/abs/2611.00002",
+        source_ids: JSON.stringify([first?.sourceId]),
+      },
+    ]);
+  });
+
+  it("keeps each person's deep-read decks apart", async () => {
+    await readers.deepRead(FORTUNE, "2611.00002");
+    await readers.deepRead(FRIEND, "2611.00002");
+
+    expect(
+      sqlite.prepare("SELECT count(DISTINCT source_ids) AS n FROM decks").get(),
+    ).toEqual({ n: 2 });
+  });
+});

@@ -10,6 +10,7 @@ import {
 } from "@/lib/db/schema";
 import { extractFromUrl } from "@/lib/extract/url";
 import { parseConcepts } from "@/lib/parsers";
+import { createDeck, listDecks } from "@/lib/services/decks";
 import { ingestExternal } from "@/lib/services/ingest";
 import { dayStart } from "./harvest";
 import {
@@ -396,4 +397,81 @@ export async function deleteReadingData(userId: string): Promise<void> {
   await db.delete(readerProfiles).where(eq(readerProfiles.ownerId, userId));
   await db.delete(readerEvents).where(eq(readerEvents.ownerId, userId));
   await db.delete(dailyPicks).where(eq(dailyPicks.ownerId, userId));
+}
+
+// A month of reading: the deep read is the best paper a person met in it.
+const DEEP_READ_DAYS = 30;
+const DEEP_READ_KINDS = ["save", "more"] as const;
+
+/**
+ * The person's deep read: the best paper among everything picked for them or
+ * saved and marked "more" in the last 30 days, re-scored together over that
+ * one set (a word's rarity changes from day to day, so stored daily scores
+ * don't compare). Null when they have no candidates yet.
+ */
+export async function deepReadPick(
+  userId: string,
+  now: number = Date.now(),
+): Promise<Pick | null> {
+  const db = await getDb();
+  const since = now - DEEP_READ_DAYS * DAY_MS;
+  const picked = await db
+    .selectDistinct({ arxivId: dailyPicks.arxivId })
+    .from(dailyPicks)
+    .where(
+      and(eq(dailyPicks.ownerId, userId), gte(dailyPicks.day, readingDay(since))),
+    );
+  const marked = await db
+    .selectDistinct({ arxivId: readerEvents.arxivId })
+    .from(readerEvents)
+    .where(
+      and(
+        eq(readerEvents.ownerId, userId),
+        inArray(readerEvents.kind, [...DEEP_READ_KINDS]),
+        gte(readerEvents.createdAt, new Date(since)),
+      ),
+    );
+  const ids = [...new Set([...picked, ...marked].map((r) => r.arxivId))];
+  if (ids.length === 0) return null;
+  const rows = await db.select().from(papers).where(inArray(papers.arxivId, ids));
+  const [best] = rankPapers(buildIndex(rows), await rankingTerms(userId));
+  const paper = rows.find((r) => r.arxivId === best?.arxivId);
+  if (!best || !paper) return null;
+  return {
+    arxivId: paper.arxivId,
+    title: paper.title,
+    summary: paper.hfSummary ?? firstSentences(paper.abstract, 2),
+    matched: best.matched,
+    githubUrl: paper.githubUrl,
+    hfUpvotes: paper.hfUpvotes,
+  };
+}
+
+/**
+ * Deep-read a paper: file it in the library (its flashcards follow from the
+ * capture job) and make it a deck, whose share link gives a study page and an
+ * Anki download. Doing it twice returns the same entry and deck.
+ */
+export async function deepRead(
+  userId: string,
+  arxivId: string,
+): Promise<{ sourceId: number; shareToken: string } | null> {
+  const { sourceId } = await saveToLibrary(userId, arxivId);
+  if (!sourceId) return null;
+  const existing = (await listDecks(userId)).find(
+    (d) => d.sourceIds.length === 1 && d.sourceIds[0] === sourceId,
+  );
+  if (existing) return { sourceId, shareToken: existing.deck.shareToken };
+  const db = await getDb();
+  const [paper] = await db
+    .select({ title: papers.title })
+    .from(papers)
+    .where(eq(papers.arxivId, arxivId));
+  const deck = await createDeck({
+    ownerId: userId,
+    title: `Deep read: ${paper?.title ?? arxivId}`.slice(0, 200),
+    description: `https://arxiv.org/abs/${arxivId}`,
+    sourceIds: [sourceId],
+  });
+  return { sourceId, shareToken: deck.shareToken };
 }
