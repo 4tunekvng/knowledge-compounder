@@ -13,8 +13,6 @@ import {
   type Source,
   type Theme,
 } from "@/lib/db/schema";
-import { blobToEmbedding } from "@/lib/embeddings/client";
-import { cosineSimilarity, topK } from "@/lib/embeddings/similarity";
 import {
   parseCitations,
   parseConcepts,
@@ -95,8 +93,8 @@ export async function getSourceDetail(
     .orderBy(cards.id)
     .all();
 
-  const related = processing?.embedding
-    ? await findRelated(ownerId, id, processing.embedding as Uint8Array)
+  const related = processing
+    ? await findRelated(ownerId, id, parseConcepts(processing.concepts))
     : [];
 
   return {
@@ -107,13 +105,18 @@ export async function getSourceDetail(
   };
 }
 
+// Captures that share a main idea with this one, the most shared first.
+// Ideas match by name, ignoring case; each shared idea scores 1 plus the
+// smaller of its two weights, so two shared ideas outrank one strong one.
+// Captures with no idea in common are not linked: a link should mean the
+// two are about the same thing, not that they use the same common words.
 async function findRelated(
   ownerId: string,
   excludeSourceId: number,
-  queryEmbedding: Uint8Array,
+  ideas: { name: string; weight: number }[],
 ): Promise<{ source: Source; processing: Processing; score: number }[]> {
-  const queryVec = blobToEmbedding(queryEmbedding);
-  if (!queryVec) return [];
+  const mine = new Map(ideas.map((c) => [c.name.toLowerCase(), c.weight]));
+  if (mine.size === 0) return [];
 
   const db = await getDb();
   // Exclude the current source at SQL level so its data is never loaded.
@@ -132,28 +135,18 @@ async function findRelated(
     )
     .all();
 
-  const scored = others
+  return others
     .map((o) => {
-      const otherVec = blobToEmbedding(o.processing.embedding as Uint8Array);
-      // Skip vectors with mismatched dimensions (e.g. mixed Voyage / lexical
-      // embeddings stored after a model change). cosineSimilarity throws on
-      // length mismatch; we want a graceful 0 score instead.
-      const score =
-        otherVec && otherVec.length === queryVec.length
-          ? cosineSimilarity(queryVec, otherVec)
-          : 0;
-      return {
-        item: { source: o.source, processing: o.processing },
-        score,
-      };
+      let score = 0;
+      for (const idea of parseConcepts(o.processing.concepts)) {
+        const weight = mine.get(idea.name.toLowerCase());
+        if (weight !== undefined) score += 1 + Math.min(weight, idea.weight);
+      }
+      return { ...o, score };
     })
-    .filter((s) => s.score > 0.05);
-
-  return topK(scored, 5).map((s) => ({
-    source: s.item.source,
-    processing: s.item.processing,
-    score: s.score,
-  }));
+    .filter((o) => o.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
 }
 
 export interface DueCard {

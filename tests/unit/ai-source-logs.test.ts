@@ -1,15 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Every AI answer says in the logs where it came from: the model, the test
- * stub, or (for embeddings) the word-count fallback used when Voyage is
- * unavailable. A stand-in must never pass for the real thing.
+ * Every AI answer says in the logs where it came from: the model or the
+ * test stub. A stand-in must never pass for the real thing.
  */
 
 vi.mock("@/lib/db/client", () => ({ getEnv: async () => ({}) }));
 
 const { processSource } = await import("@/lib/ai/process");
-const { embed } = await import("@/lib/embeddings/client");
 
 const logged = () => {
   const log = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -32,17 +30,5 @@ describe("where an AI answer came from", () => {
 
     // Assert
     expect(lines()).toContain("[ai] Processing source=test-stub");
-  });
-
-  it("logs an embedding made without Voyage as the fallback", async () => {
-    // Arrange
-    vi.stubEnv("VOYAGE_API_KEY", "");
-    const lines = logged();
-
-    // Act
-    await embed("Distribution outlasts data moats.");
-
-    // Assert
-    expect(lines()).toContain("[embed] source=lexical-fallback");
   });
 });

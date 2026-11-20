@@ -3,7 +3,6 @@ import { and, asc, eq, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { cards, processings, sources } from "@/lib/db/schema";
 import { processSource } from "@/lib/ai/process";
-import { embed, embeddingToBlob } from "@/lib/embeddings/client";
 import {
   extractFromText,
   extractFromUrl,
@@ -120,7 +119,7 @@ export interface ExternalIngestInput {
 }
 
 /**
- * Shared tail of every ingest path: run Claude processing, embed, persist the
+ * Shared tail of every ingest path: run Claude processing, persist the
  * processing + cards, and flip the source to "processed". On any failure the
  * source is marked "failed" with the error so the UI can show a Retry button.
  * D1 has no multi-statement transactions over the binding, so writes run
@@ -136,7 +135,6 @@ async function processAndPersist(
   let held = claim;
   try {
     const result = await processSource(prompt);
-    const vector = await embed(`${prompt.title}\n\n${prompt.text}`);
     const renewed = await renewClaim(db, held);
     if (!renewed) return currentResult(db, sourceId);
     held = renewed;
@@ -154,7 +152,6 @@ async function processAndPersist(
         whyICared: result.why_i_cared,
         keyTakeaways: JSON.stringify(result.key_takeaways),
         concepts: JSON.stringify(result.concepts),
-        embedding: embeddingToBlob(vector),
       })
       .run();
 

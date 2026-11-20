@@ -7,8 +7,8 @@ import * as schema from "@/lib/db/schema";
 
 /**
  * Pins the ingest pipeline's database effects. getDb is swapped for a fresh
- * in-memory SQLite per test; the model and embedding calls are mocked at
- * the module boundary so nothing leaves the process.
+ * in-memory SQLite per test; the model call is mocked at the module
+ * boundary so nothing leaves the process.
  */
 
 let sqlite: Database.Database;
@@ -26,10 +26,6 @@ vi.mock("@/lib/ai/process", () => ({
   processSource: (args: unknown) => processSource(args),
 }));
 
-vi.mock("@/lib/embeddings/client", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/embeddings/client")>()),
-  embed: async () => new Float32Array([0.5, 0.25]),
-}));
 
 const {
   ingest,

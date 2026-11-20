@@ -8,7 +8,7 @@ import * as schema from "@/lib/db/schema";
 /**
  * Two people share one database. Every read and write made as Alice must
  * leave Bob's rows unseen and unchanged, including when she guesses his ids.
- * The model, embeddings and theme calls are mocked; the database is real
+ * The model and theme calls are mocked; the database is real
  * SQLite with the app's schema.
  */
 
@@ -32,10 +32,6 @@ const findThemes = vi.fn();
 vi.mock("@/lib/ai/themes", () => ({
   findThemes: (args: unknown) => findThemes(args),
 }));
-vi.mock("@/lib/embeddings/client", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/embeddings/client")>()),
-  embed: async () => new Float32Array([0.5, 0.25]),
-}));
 
 const queries = await import("@/lib/services/queries");
 const { gradeCard } = await import("@/lib/services/review");
@@ -51,7 +47,8 @@ const integrations = await import("@/lib/services/ingest-orchestrator");
 
 const ALICE = "alice-google-id";
 const BOB = "bob-google-id";
-const SAME_VECTOR = Buffer.from(new Float32Array([0.5, 0.25]).buffer);
+// Every processed source shares this idea, so each could be related.
+const SAME_IDEAS = JSON.stringify([{ name: "Moats", weight: 0.5 }]);
 
 function addSource(owner: string, title: string, status = "processed"): number {
   const id = Number(
@@ -66,10 +63,9 @@ function addSource(owner: string, title: string, status = "processed"): number {
     sqlite
       .prepare(
         "INSERT INTO processings (owner_id, source_id, why_i_cared, " +
-          "key_takeaways, concepts, embedding) VALUES (?, ?, 'w', '[]', " +
-          "'[]', ?)",
+          "key_takeaways, concepts) VALUES (?, ?, 'w', '[]', ?)",
       )
-      .run(owner, id, SAME_VECTOR);
+      .run(owner, id, SAME_IDEAS);
     sqlite
       .prepare(
         "INSERT INTO cards (owner_id, source_id, card_type, front, back, " +
