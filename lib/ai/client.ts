@@ -31,6 +31,15 @@ export function isFakeAi(): boolean {
   return process.env.USE_FAKE_AI === "1";
 }
 
+/**
+ * Test mode's stand-in reply (USE_FAKE_AI=1), logged with its source so a
+ * stub can never pass for the model's answer in the logs.
+ */
+export function testStub<T>(label: string, make: () => T): T {
+  console.log(`[ai] ${label} source=test-stub`);
+  return make();
+}
+
 export const MODELS = {
   // Per-source processing + theme clustering — balanced cost/quality.
   process: "claude-sonnet-5-5" as const,
@@ -92,7 +101,8 @@ async function callOnce<Schema extends z.ZodType>(
   const logCall = (outcome: string) => {
     const h = headers as Headers | null;
     console.log(
-      `[ai] ${args.label} try ${attempt} ${outcome} ${Date.now() - started}ms ` +
+      `[ai] ${args.label} source=model try ${attempt} ${outcome} ` +
+        `${Date.now() - started}ms ` +
         `route=${h?.get("x-fortune-llm-route") ?? "none"} ` +
         `model=${h?.get("x-fortune-llm-model") ?? args.model} ` +
         `prior=${h?.get("x-fortune-llm-prior-errors") ?? "none"} ` +

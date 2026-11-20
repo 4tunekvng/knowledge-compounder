@@ -1,5 +1,5 @@
 import "server-only";
-import { isFakeAi, MODELS, parseStructured } from "./client";
+import { isFakeAi, MODELS, parseStructured, testStub } from "./client";
 import { fakeMoreCards } from "./fake";
 import { fitMoreCards, AdditionalCardsResultSchema, type AdditionalCardsResult } from "./schemas";
 import { sanitizeForPrompt } from "@/lib/sanitize";
@@ -20,7 +20,9 @@ export async function generateMoreCards(args: {
   existingFronts: string[];
 }): Promise<AdditionalCardsResult> {
   if (isFakeAi()) {
-    return fakeMoreCards(args.title, args.text, args.existingFronts);
+    return testStub("More-cards", () =>
+      fakeMoreCards(args.title, args.text, args.existingFronts),
+    );
   }
 
   return fitMoreCards(await parseStructured({
