@@ -1,0 +1,22 @@
+{
+  "train": [
+    "blog-feature-toggles",
+    "book-sre-monitoring",
+    "essay-great-work",
+    "note-index-funds",
+    "note-kalman-oneliner",
+    "paper-attention-abstract",
+    "wiki-goodhart",
+    "wiki-spaced-repetition"
+  ],
+  "validation": [
+    "blog-joel-test",
+    "encyclopedia-stoicism",
+    "note-oncall-talk"
+  ],
+  "test": [
+    "note-cooking-sear",
+    "note-systems-highlights",
+    "wiki-mitochondrion"
+  ]
+}

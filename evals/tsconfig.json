@@ -1,0 +1,12 @@
+{
+  // For running eval scripts with tsx outside Next: "server-only" resolves to
+  // the same empty shim the unit tests use.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "..",
+    "paths": {
+      "@/*": ["./*"],
+      "server-only": ["./tests/unit/server-only-shim.ts"]
+    }
+  }
+}
