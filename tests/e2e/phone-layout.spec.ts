@@ -59,6 +59,40 @@ test.describe("phone layout", () => {
     await expect(page.getByTestId("source-title")).toBeVisible();
     await expectNoSideScroll(page);
   });
+
+  test("a deck's share link shows in full", async ({ page }) => {
+    await page.goto("/decks");
+    await page.getByTestId("deck-title").fill("Phone deck");
+    await page.locator('input[data-testid^="deck-source-"]').first().check();
+    await page.getByTestId("create-deck").click();
+
+    const link = page
+      .getByTestId("decks-list")
+      .locator("li", { hasText: "Phone deck" })
+      .locator('[data-testid^="deck-link-"]');
+    await expect(link).toHaveText(/\/d\/[a-f0-9]{32}$/);
+    const cut = await link.evaluate((el) => el.scrollWidth > el.clientWidth);
+    expect(cut).toBe(false);
+  });
+});
+
+// From 640px up the screens have room for frames and columns; these lock in
+// the ones that cut rows in half or left holes.
+test.describe("wider screens", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test("the deck picker is never a box that scrolls", async ({ page }) => {
+    await page.goto("/decks");
+    const list = page.getByTestId("deck-source-list");
+    await expect(list).toHaveCSS("overflow-y", "visible");
+  });
+
+  test("flashcards flow down two columns", async ({ page }) => {
+    await page.goto("/library");
+    await page.getByRole("link", { name: LONG_TITLE }).click();
+    const grid = page.getByTestId("cards-section").locator("ul").first();
+    await expect(grid).toHaveCSS("column-count", "2");
+  });
 });
 
 test.describe("the smallest phones", () => {

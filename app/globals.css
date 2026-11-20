@@ -408,12 +408,13 @@
     line-height: 0;
   }
 
-  /* Each footnote marker is a 44 x 44 target: 44 wide in the line, and
-     44 tall through an invisible box that leaves the line height alone. */
+  /* Each footnote marker sits in a 24px box, so two side by side stay
+     close, and answers taps across 44 x 44 through an invisible box that
+     leaves the line alone. */
   .prose-essay sup a {
     position: relative;
     display: inline-block;
-    min-width: 44px;
+    min-width: 24px;
     text-align: center;
     color: var(--accent);
     text-decoration: none;
@@ -422,8 +423,8 @@
   .prose-essay sup a::after {
     content: "";
     position: absolute;
-    left: 0;
-    right: 0;
+    left: -10px;
+    right: -10px;
     top: 50%;
     height: 44px;
     transform: translateY(-50%);

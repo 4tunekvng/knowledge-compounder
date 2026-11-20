@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, lte, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gt, lte, ne, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import {
   cards,
@@ -201,6 +201,20 @@ export async function countDueCards(
     .where(and(eq(cards.ownerId, ownerId), lte(cards.dueAt, now)))
     .get();
   return Number(row?.count ?? 0);
+}
+
+/** When the next card not yet due comes back, or null if there are none. */
+export async function nextDueAt(
+  ownerId: string,
+  now = new Date(),
+): Promise<Date | null> {
+  const db = await getDb();
+  const row = await db
+    .select({ dueAt: sql<number>`MIN(${cards.dueAt})` })
+    .from(cards)
+    .where(and(eq(cards.ownerId, ownerId), gt(cards.dueAt, now)))
+    .get();
+  return row?.dueAt ? new Date(Number(row.dueAt)) : null;
 }
 
 export async function listThemes(ownerId: string): Promise<Theme[]> {

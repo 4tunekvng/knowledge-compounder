@@ -43,9 +43,7 @@ export function DeckManager({ sources, decks, origin }: Props) {
   const [showAll, setShowAll] = useState(false);
   // The picker is never a box that scrolls inside the page: it shows the
   // newest captures, and the rest on request.
-  // A phone shows the newest few and the rest on request; from 640px up the
-  // whole list scrolls inside a frame of its own.
-  const hiddenOnPhone = showAll ? 0 : Math.max(0, sources.length - PICKER_ROWS);
+  const hidden = showAll ? 0 : Math.max(0, sources.length - PICKER_ROWS);
 
   function toggle(id: number) {
     setSelected((prev) => {
@@ -166,27 +164,14 @@ export function DeckManager({ sources, decks, origin }: Props) {
       </div>
       <fieldset className="flex min-w-0 flex-col gap-2">
         <legend className="text-ui font-medium">Captures with flashcards</legend>
-        {/* On a phone the rows sit straight in the panel, divided by
-            hairlines; from 640px up the list gets its own frame. */}
-        <ul
-          className={
-            "sm:max-h-[420px] sm:overflow-y-auto sm:rounded-box sm:border " +
-            "sm:border-line-strong"
-          }
-          data-testid="deck-source-list"
-        >
-          {sources.map((s, i) => (
-            <li
-              key={s.id}
-              className={
-                "border-t border-line sm:first:border-t-0 " +
-                (hiddenOnPhone > 0 && i >= PICKER_ROWS ? "hidden sm:block" : "")
-              }
-            >
+        {/* The rows sit straight in the panel, divided by hairlines. */}
+        <ul data-testid="deck-source-list">
+          {sources.slice(0, sources.length - hidden).map((s) => (
+            <li key={s.id} className="border-t border-line">
               <label
                 className={
                   "flex min-h-11 cursor-pointer items-start gap-3 py-3 " +
-                  "hover:bg-raised sm:px-3"
+                  "hover:bg-raised"
                 }
               >
                 <input
@@ -208,11 +193,11 @@ export function DeckManager({ sources, decks, origin }: Props) {
             </li>
           ))}
         </ul>
-        {hiddenOnPhone > 0 && (
+        {hidden > 0 && (
           <button
             type="button"
             onClick={() => setShowAll(true)}
-            className="btn btn-quiet btn-sm -ml-3 self-start sm:hidden"
+            className="btn btn-quiet btn-sm -ml-3 self-start"
           >
             Show all {sources.length}
           </button>
@@ -297,15 +282,19 @@ export function DeckManager({ sources, decks, origin }: Props) {
                     </p>
                   </div>
 
-                  <div className="flex gap-2">
-                    <input
-                      readOnly
+                  <div className="flex items-start gap-3">
+                    {/* The whole link, wrapped onto a second line if it must,
+                        so nobody copies it by hand with the end cut off. */}
+                    <p
+                      className={
+                        "min-w-0 flex-1 rounded-box bg-raised px-3 py-2.5 " +
+                        "text-meta text-ink-2 break-all select-all"
+                      }
                       aria-label="Share link"
-                      value={shareUrl(deck.shareToken)}
                       data-testid={`deck-link-${deck.id}`}
-                      onFocus={(e) => e.currentTarget.select()}
-                      className="field min-w-0 flex-1 text-meta text-ink-2"
-                    />
+                    >
+                      {shareUrl(deck.shareToken)}
+                    </p>
                     <button
                       type="button"
                       onClick={() => copyLink(deck)}

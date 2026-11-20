@@ -26,6 +26,9 @@ interface Props {
   cards: ReviewCard[];
   // Every card due when the page loaded; a round loads at most 50 of them.
   dueTotal: number;
+  // Milliseconds until the next card not yet due comes back; null when the
+  // reader has no cards at all.
+  nextDueIn: number | null;
 }
 
 // FSRS-6 ratings: 1=Again 2=Hard 3=Good 4=Easy
@@ -49,7 +52,7 @@ function returnSchedule(waits: number[]): { when: string; count: number }[] {
 // One neutral style for every grade; the accent marks the expected answer.
 const GOOD_GRADE = 3;
 
-export function ReviewQueue({ cards, dueTotal }: Props) {
+export function ReviewQueue({ cards, dueTotal, nextDueIn }: Props) {
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,15 +86,19 @@ export function ReviewQueue({ cards, dueTotal }: Props) {
   // in an empty (or new) list, until the reader asks for more.
   const allDone = completed.length > 0 && index >= cards.length;
 
+  // The card says there is nothing to review, so no count line above it.
   if (cards.length === 0 && !allDone) {
-    return withDueLine(
+    return (
       <EmptyCard
-        head="Nothing due"
+        head={nextDueIn === null ? "No cards yet" : "Nothing due"}
         action={CAPTURE_ACTION}
         data-testid="review-empty"
       >
-        Nothing to review right now. Each card comes back on the day it is
-        due, and every new capture adds more.
+        {nextDueIn === null
+          ? "No flashcards yet. Capture something you read and its cards " +
+            "start here."
+          : `Nothing to review right now. Your next card comes back ` +
+            `${formatInterval(nextDueIn)}.`}
       </EmptyCard>
     );
   }

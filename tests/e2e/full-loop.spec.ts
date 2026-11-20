@@ -188,7 +188,7 @@ test.describe("Knowledge Compounder full loop", () => {
     const deck = page.getByTestId("decks-list").locator('li[data-testid^="deck-"]').first();
     await expect(deck).toBeVisible({ timeout: 15_000 });
     const linkInput = deck.locator('[data-testid^="deck-link-"]');
-    const shareUrl = await linkInput.inputValue();
+    const shareUrl = (await linkInput.textContent())!.trim();
     expect(shareUrl).toMatch(/\/d\/[a-f0-9]{32}$/);
     const token = shareUrl.split("/d/")[1];
 

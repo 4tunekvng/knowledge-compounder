@@ -30,7 +30,9 @@ export function FlashcardGrid({
 
   return (
     <>
-      <ul className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
+      {/* Two columns from 768px up, filled top to bottom, so an odd
+          number of cards never leaves a hole at the end of a row. */}
+      <ul className="gap-6 md:columns-2 [&>li]:mb-6 [&>li]:break-inside-avoid">
         {cards.map((card, i) => (
           <IndexCard
             as="li"
