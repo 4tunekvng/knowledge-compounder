@@ -33,10 +33,19 @@ export const MAX_ATTEMPTS = 3;
 // small enough to stay within Worker memory/time limits during extraction.
 export const MAX_PDF_BYTES = 10 * 1024 * 1024;
 
+/** The capture has been read and saved; its notes are being written. */
+export interface Filed {
+  sourceId: number;
+  title: string;
+  chars: number;
+}
+
 export interface IngestInput {
   /** Google account id of the person capturing. */
   ownerId: string;
   raw: string;
+  /** Told once the capture is saved, before the long processing step. */
+  onFiled?: (filed: Filed) => void;
 }
 
 export interface IngestResult {
@@ -224,6 +233,7 @@ async function markFailed(
 export async function ingest({
   ownerId,
   raw,
+  onFiled,
 }: IngestInput): Promise<IngestResult> {
   const trimmed = raw.trim();
   if (trimmed.length === 0) {
@@ -264,6 +274,7 @@ export async function ingest({
     throw new Error("INSERT into sources returned no rows — database may be read-only or schema mismatch.");
   }
   const sourceId = inserted[0].id;
+  onFiled?.({ sourceId, title: extracted.title, chars: extracted.text.length });
 
   return processAndPersist(db, { sourceId, ownerId, at: claimedAt }, {
     title: sanitizeForPrompt(extracted.title) || "Untitled",
@@ -275,6 +286,7 @@ export interface IngestPdfInput {
   ownerId: string;
   filename: string;
   bytes: Uint8Array;
+  onFiled?: (filed: Filed) => void;
 }
 
 /**
@@ -287,6 +299,7 @@ export async function ingestPdf({
   ownerId,
   filename,
   bytes,
+  onFiled,
 }: IngestPdfInput): Promise<IngestResult> {
   if (bytes.byteLength === 0) {
     throw new Error("Failed to extract content: the PDF file was empty.");
@@ -325,6 +338,7 @@ export async function ingestPdf({
     );
   }
   const sourceId = inserted[0].id;
+  onFiled?.({ sourceId, title: extracted.title, chars: extracted.text.length });
 
   return processAndPersist(db, { sourceId, ownerId, at: claimedAt }, {
     title: sanitizeForPrompt(extracted.title) || "Untitled",

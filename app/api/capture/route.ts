@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { apiUser, unauthorized } from "@/lib/auth/user";
 import { captureErrorCopy } from "@/lib/error-copy";
-import { ingest, ingestPdf, MAX_PDF_BYTES } from "@/lib/services/ingest";
+import {
+  ingest,
+  ingestPdf,
+  MAX_PDF_BYTES,
+  type Filed,
+  type IngestResult,
+} from "@/lib/services/ingest";
 
 export const runtime = "nodejs";
 
@@ -9,13 +15,57 @@ export async function POST(request: Request) {
   const user = apiUser(request);
   if (!user) return unauthorized();
   const contentType = request.headers.get("content-type") ?? "";
+  // ?progress=1: answer as a stream of JSON lines, one per real stage, so
+  // the page can say the capture is saved while its notes are written.
+  const progress = new URL(request.url).searchParams.get("progress") === "1";
   if (contentType.includes("multipart/form-data")) {
-    return handlePdfUpload(request, user.id);
+    return handlePdfUpload(request, user.id, progress);
   }
-  return handleTextCapture(request, user.id);
+  return handleTextCapture(request, user.id, progress);
 }
 
-async function handleTextCapture(request: Request, ownerId: string) {
+type Run = (onFiled: (filed: Filed) => void) => Promise<IngestResult>;
+
+async function respond(run: Run, progress: boolean, tag: string, kind: Kind) {
+  if (!progress) {
+    try {
+      return NextResponse.json(await run(() => {}));
+    } catch (err) {
+      const failure = describeFailure(err, tag, kind);
+      return NextResponse.json(
+        { error: failure.error },
+        { status: failure.status },
+      );
+    }
+  }
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (event: object) =>
+        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      try {
+        const result = await run((filed) => send({ stage: "filed", ...filed }));
+        send({ stage: "done", ...result });
+      } catch (err) {
+        send({ stage: "error", ...describeFailure(err, tag, kind) });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "content-type": "application/x-ndjson; charset=utf-8",
+      "cache-control": "no-store",
+    },
+  });
+}
+
+async function handleTextCapture(
+  request: Request,
+  ownerId: string,
+  progress: boolean,
+) {
   let body: unknown;
   try {
     body = await request.json();
@@ -40,15 +90,19 @@ async function handleTextCapture(request: Request, ownerId: string) {
     );
   }
 
-  try {
-    const result = await ingest({ ownerId, raw: input });
-    return NextResponse.json(result);
-  } catch (err) {
-    return errorResponse(err, "[capture]", "url");
-  }
+  return respond(
+    (onFiled) => ingest({ ownerId, raw: input, onFiled }),
+    progress,
+    "[capture]",
+    "url",
+  );
 }
 
-async function handlePdfUpload(request: Request, ownerId: string) {
+async function handlePdfUpload(
+  request: Request,
+  ownerId: string,
+  progress: boolean,
+) {
   let form: FormData;
   try {
     form = await request.formData();
@@ -88,16 +142,22 @@ async function handlePdfUpload(request: Request, ownerId: string) {
   }
 
   const filename = file.name && file.name.trim() ? file.name : "upload.pdf";
-  try {
-    const result = await ingestPdf({ ownerId, filename, bytes });
-    return NextResponse.json(result);
-  } catch (err) {
-    return errorResponse(err, "[capture:pdf]", "pdf");
-  }
+  return respond(
+    (onFiled) => ingestPdf({ ownerId, filename, bytes, onFiled }),
+    progress,
+    "[capture:pdf]",
+    "pdf",
+  );
 }
 
-// Shared error → HTTP status mapping for both capture paths.
-function errorResponse(err: unknown, tag: string, kind: "url" | "pdf") {
+type Kind = "url" | "pdf";
+
+// Shared error → HTTP status and plain message for both capture paths.
+function describeFailure(
+  err: unknown,
+  tag: string,
+  kind: Kind,
+): { status: number; error: string } {
   const message = err instanceof Error ? err.message : "Unknown error.";
   const isUserActionable422 =
     message.startsWith("Failed to extract content") ||
@@ -109,17 +169,14 @@ function errorResponse(err: unknown, tag: string, kind: "url" | "pdf") {
   const isBadGateway = message.startsWith("Failed to fetch");
   // The status still follows the raw text; the reader gets plain copy.
   if (isUserActionable422) {
-    return NextResponse.json(
-      { error: captureErrorCopy(message, kind) },
-      { status: 422 },
-    );
+    return { status: 422, error: captureErrorCopy(message, kind) };
   }
   if (isBadGateway) {
-    return NextResponse.json(
-      { error: captureErrorCopy(message, kind) },
-      { status: 502 },
-    );
+    return { status: 502, error: captureErrorCopy(message, kind) };
   }
   console.error(`${tag} ingest failed:`, err);
-  return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+  return {
+    status: 500,
+    error: "Something went wrong saving that. Try again in a moment.",
+  };
 }

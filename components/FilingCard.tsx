@@ -2,60 +2,83 @@
 
 import { useEffect, useRef, useState } from "react";
 import { IndexCard } from "@/components/IndexCard";
+import { catalogNumber } from "@/lib/format";
 
-const STEPS = [
-  "Reading the source",
-  "Pulling out the text",
-  "Writing your note",
-  "Drafting flashcards",
-  "Naming the main ideas",
-];
+/** A capture on its way in, as the server reports it (see /api/capture). */
+export interface Filing {
+  title: string;
+  startedAt: number;
+  // Set once the server has read the capture and saved it.
+  filed?: { sourceId: number; chars: number; at: number };
+}
 
-const STEP_MS = 1500;
+const clock = (ms: number) => {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
 
-// The capture being filed, typed onto a card line by line while the request
-// runs. The steps follow a timer, not the server: they show what happens,
-// in order, without claiming exact progress.
+// The capture being filed, typed onto a card as each real stage finishes:
+// read and saved (reported by the server), then the note and flashcards
+// being written, with the time it has taken so far.
 export function FilingCard({
-  title,
+  filing,
   className = "",
 }: {
-  title: string;
+  filing: Filing;
   className?: string;
 }) {
-  const [step, setStep] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
   const card = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const timer = setInterval(
-      () => setStep((s) => Math.min(STEPS.length - 1, s + 1)),
-      STEP_MS,
-    );
+    const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
   // Keep the whole card in view above the phone's bottom menu as it grows.
   // A copy that is display: none (the other layout's) doesn't scroll.
+  const stage = filing.filed ? "writing" : "reading";
   useEffect(() => {
     card.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [step]);
+  }, [stage]);
+
+  const { filed } = filing;
+  const lines: { text: string; status: string; now?: boolean }[] = filed
+    ? [
+        {
+          text: `Read ${filed.chars.toLocaleString("en-GB")} characters`,
+          status: "done",
+        },
+        { text: `Filed as ${catalogNumber(filed.sourceId)}`, status: "done" },
+        {
+          text: "Writing the note and cards",
+          status: clock(now - filed.at),
+          now: true,
+        },
+      ]
+    : [{ text: "Reading it", status: clock(now - filing.startedAt), now: true }];
 
   return (
     <div ref={card} className={"scroll-mb-24 " + className}>
       <IndexCard
         size="small"
         head="Filing now"
+        aside={filed ? "up to a minute" : undefined}
         aria-live="polite"
+        data-testid="capture-progress"
       >
-        <p className="index-card__front">{title}</p>
+        <p className="index-card__front">{filing.title}</p>
         <ol className="mt-[var(--rule-gap)] text-ink-2">
-          {STEPS.slice(0, step + 1).map((s, i) => (
-            <li key={s} className="flex justify-between gap-4">
-              <span className="min-w-0 truncate">{s}</span>
+          {lines.map((line) => (
+            <li key={line.text} className="flex justify-between gap-4">
+              <span className="min-w-0 truncate">{line.text}</span>
               <span
-                className={"shrink-0 " + (i < step ? "text-ink-3" : "text-accent")}
+                className={
+                  "shrink-0 tabular-nums " +
+                  (line.now ? "text-accent" : "text-ink-3")
+                }
               >
-                {i < step ? "done" : "now"}
+                {line.status}
               </span>
             </li>
           ))}

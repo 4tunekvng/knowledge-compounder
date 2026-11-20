@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { CaptureForm } from "@/components/CaptureForm";
-import { FilingCard } from "@/components/FilingCard";
+import { FilingCard, type Filing } from "@/components/FilingCard";
 
 // The capture page: the card you write on, and beside it the recent
 // captures, where the one being filed appears on top while it is written.
@@ -14,7 +14,7 @@ export function CaptureWorkspace({
   hasRecent: boolean;
   recent: ReactNode;
 }) {
-  const [filing, setFiling] = useState<string | null>(null);
+  const [filing, setFiling] = useState<Filing | null>(null);
 
   return (
     <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-16">
@@ -38,7 +38,7 @@ export function CaptureWorkspace({
           )}
         </div>
         {filing && (
-          <FilingCard title={filing} className="mb-4 hidden lg:block" />
+          <FilingCard filing={filing} className="mb-4 hidden lg:block" />
         )}
         {recent}
       </section>

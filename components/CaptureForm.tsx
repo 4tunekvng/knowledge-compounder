@@ -8,7 +8,7 @@ import {
   type FormEvent,
 } from "react";
 import { FileText, FileUp } from "lucide-react";
-import { FilingCard } from "@/components/FilingCard";
+import { FilingCard, type Filing } from "@/components/FilingCard";
 import { IndexCard } from "@/components/IndexCard";
 import { displayTitle, formatDay } from "@/lib/format";
 import { useLocalTime } from "@/lib/use-local-time";
@@ -18,11 +18,37 @@ const MAX_PDF_BYTES = 10 * 1024 * 1024;
 
 const todayLabel = () => formatDay(new Date());
 
+interface CaptureEvent {
+  stage: "filed" | "done" | "error";
+  sourceId: number;
+  title: string;
+  chars: number;
+  status?: string;
+  error?: string;
+}
+
+/** The capture route's progress stream: one JSON object per line. */
+async function* readLines(body: ReadableStream<Uint8Array>) {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffered = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffered += decoder.decode(value, { stream: true });
+    const lines = buffered.split("\n");
+    buffered = lines.pop() ?? "";
+    for (const line of lines) {
+      if (line.trim()) yield JSON.parse(line) as CaptureEvent;
+    }
+  }
+}
+
 export function CaptureForm({
   onFiling,
 }: {
-  // Told what is being filed when a capture starts, and null when it ends.
-  onFiling?: (title: string | null) => void;
+  // Told how a capture is getting on as it goes, and null when it ends.
+  onFiling?: (filing: Filing | null) => void;
 }) {
   const today = useLocalTime(todayLabel);
   const [input, setInput] = useState("");
@@ -30,15 +56,15 @@ export function CaptureForm({
   const [isPending, startTransition] = useTransition();
   const [isDragging, setIsDragging] = useState(false);
   const [pdfName, setPdfName] = useState<string | null>(null);
-  const [filing, setFiling] = useState<string | null>(null);
+  const [filing, setFiling] = useState<Filing | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   function handleResult(
-    res: Response,
+    ok: boolean,
     data: { status?: string; sourceId?: number; error?: string },
   ) {
-    if (!res.ok) {
+    if (!ok) {
       setError(data.error ?? "Capture failed.");
       return;
     }
@@ -71,16 +97,37 @@ export function CaptureForm({
     });
   }
 
-  // Posts a capture and shows it being filed until the answer comes back.
+  // Posts a capture and shows each stage the server reports (read and
+  // saved, then the notes written) until the final answer comes back.
   function send(title: string, init: RequestInit) {
+    const show = (next: Filing) => {
+      setFiling(next);
+      onFiling?.(next);
+    };
     // Outside the transition, so the filing card shows while it runs.
-    setFiling(title);
-    onFiling?.(title);
+    show({ title, startedAt: Date.now() });
     startTransition(async () => {
       try {
-        const res = await fetch("/api/capture", init);
-        const data = await res.json();
-        handleResult(res, data);
+        const res = await fetch("/api/capture?progress=1", init);
+        if (!res.ok || !res.body) {
+          handleResult(false, await res.json());
+          return;
+        }
+        for await (const event of readLines(res.body)) {
+          if (event.stage === "filed") {
+            show({
+              title: displayTitle(event.title, 80) || title,
+              startedAt: Date.now(),
+              filed: {
+                sourceId: event.sourceId,
+                chars: event.chars,
+                at: Date.now(),
+              },
+            });
+          } else {
+            handleResult(event.stage === "done", event);
+          }
+        }
       } catch {
         setError("Couldn't reach the app. Check your connection and try again.");
       } finally {
@@ -168,7 +215,7 @@ export function CaptureForm({
 
       {/* On a phone the capture being filed shows right under the card you
           wrote it on; wider screens show it atop Recent captures. */}
-      {filing && <FilingCard title={filing} className="lg:hidden" />}
+      {filing && <FilingCard filing={filing} className="lg:hidden" />}
 
       <input
         ref={fileInputRef}
