@@ -6,13 +6,13 @@ import { sanitizeForPrompt } from "@/lib/sanitize";
 
 const SYSTEM = `You are the Knowledge Compounder processing agent. A reader has captured something they read (an article, paper, chapter or their own notes) and you turn it into a note, takeaways, flashcards and tags they will keep.
 
-1. The note ("why_i_cared"): about 100 words of plain prose, written as the reader's note to their future self, in the first person. Say what is worth keeping from this piece and why: name its sharpest idea, claim or number and what it changes or explains. You know nothing about the reader beyond what they wrote in the capture. Never invent their past, feelings, struggles, job, team, projects or reaction ("I used to think", "my team", "this is a relief", "I've always struggled"). If the capture contains the reader's own words (a "my note", a plan, a question, a project), build the note on those words and keep their details exact.
+1. The note ("why_i_cared"): about 100 words of plain prose, written as the reader's note to their future self, in the first person. Say what is worth keeping from this piece and why: name its sharpest idea, claim or number and what it changes or explains. You know nothing about the reader beyond what they wrote in the capture. Never invent their past, feelings, struggles, job, team, projects, reaction or plans ("I used to think", "my team", "this is a relief", "this changes how I approach", "this will help me design"). Write about the idea and why it holds, not about what the reader will now do. If the capture contains the reader's own words (a "my note", a plan, a question, a project), build the note on those words and keep their details exact.
 
 2. Two to five takeaways, each one specific sentence a reader could act on or argue with, not a restatement of the title.
 
 3. Flashcards for spaced repetition, written the way a good spaced-repetition teacher writes them:
-- Each card asks for exactly one fact or idea with one right answer. When the source gives a list (four steps, three signals), make one card per item that matters, or ask what a single item means; never ask the reader to recall a whole list.
-- Each question must make sense to someone who sees only the card months from now: name the subject in the question, and never refer to "the author", "the article", "this talk", "this team" or the reader's own projects.
+- Each card asks for exactly one fact or idea with one right answer. When the source gives a list (four steps, three signals), make one card per item that matters, or ask what a single item means; never ask the reader to recall a whole list. Instead of "What are the three kinds of X?", ask "Which kind of X does Y?" or "What does the Z kind of X measure?".
+- Each question must make sense to someone who sees only the card months from now: name the subject in the question, and never refer to "the author", "the authors", "the paper", "the article", "this talk", "this team", "in this context" or a project of the reader's.
 - Answers are one or two short sentences, 40 words at most.
 - Use three kinds: definition (what is it?), mechanism (how or why does it work?), application (when would you use it?). Make 4 cards for a short note and up to 12 for a dense source, each on a distinct idea. Skip trivia such as dates, counts or names nobody needs.
 - Every card must be answerable from the capture; do not add outside facts.
@@ -41,6 +41,24 @@ export async function processSource(args: {
 }
 
 
+// The free model that answers in seconds (Groq) takes about 8,000 tokens a
+// minute. At about 4 characters a token, 16,000 characters is 4,000 tokens,
+// which leaves room for these instructions and the reply; a longer page
+// goes to a model that takes a minute or more. The start of a page carries
+// its argument, so the model reads that much and is told the rest is cut.
+const MODEL_CHARS = 16_000;
+
+function excerpt(text: string): string {
+  if (text.length <= MODEL_CHARS) return text;
+  const cut = text.lastIndexOf(" ", MODEL_CHARS);
+  const kept = text.slice(0, cut > 0 ? cut : MODEL_CHARS);
+  const left = (text.length - kept.length).toLocaleString("en-GB");
+  return (
+    `${kept}\n\n[The remaining ${left} characters are left out. ` +
+    "Write only about the part above.]"
+  );
+}
+
 function buildUserMessage(title: string, text: string): string {
   return `# Captured material
 
@@ -48,7 +66,7 @@ Title: ${sanitizeForPrompt(title)}
 
 ---
 
-${sanitizeForPrompt(text)}
+${excerpt(sanitizeForPrompt(text))}
 
 ---
 

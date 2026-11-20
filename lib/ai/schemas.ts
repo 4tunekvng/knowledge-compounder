@@ -100,11 +100,30 @@ export type EssayResult = z.infer<typeof EssayResultSchema>;
 // The app's limits, applied to a parsed reply: extra items are trimmed and a
 // weight outside 0 to 1 is clamped, so a reply one item over is kept, not lost.
 
+// A card read months later has no source beside it, so a question that
+// points at one ("what does the author say...") can't be answered.
+// Words that mean the source itself, not ones with everyday senses ("the
+// source code", "the post office").
+const SOURCE_WORDS =
+  "authors?|article|paper|book|chapter|talk|speaker|essay|passage";
+const LEANS_ON_SOURCE = new RegExp(
+  `\\b(the|this) (${SOURCE_WORDS})\\b|\\bin this context\\b`,
+  "i",
+);
+
+type Card = z.infer<typeof CardSchema>;
+
+/** The cards that stand alone; all of them if none does. */
+function standAlone(cards: Card[]): Card[] {
+  const kept = cards.filter((c) => !LEANS_ON_SOURCE.test(c.front));
+  return kept.length > 0 ? kept : cards;
+}
+
 export function fitProcessing(result: ProcessingResult): ProcessingResult {
   return {
     ...result,
     key_takeaways: result.key_takeaways.slice(0, 5),
-    cards: result.cards.slice(0, 12),
+    cards: standAlone(result.cards).slice(0, 12),
     concepts: result.concepts.slice(0, 8).map((c) => ({
       ...c,
       weight: Math.min(1, Math.max(0, c.weight)),
@@ -113,7 +132,7 @@ export function fitProcessing(result: ProcessingResult): ProcessingResult {
 }
 
 export function fitMoreCards(result: AdditionalCardsResult): AdditionalCardsResult {
-  return { cards: result.cards.slice(0, 8) };
+  return { cards: standAlone(result.cards).slice(0, 8) };
 }
 
 export function fitThemes(result: ThemesResult): ThemesResult {

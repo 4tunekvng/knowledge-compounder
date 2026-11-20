@@ -4,6 +4,9 @@
 //
 //   npx tsx --tsconfig evals/tsconfig.json evals/processing/run.ts <label> [ids...]
 //
+// PAUSE_MS waits between cases, so back-to-back calls don't use up the fast
+// model's per-minute allowance the way one person capturing never would.
+//
 // Needs ANTHROPIC_BASE_URL and ANTHROPIC_API_KEY in the environment.
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -35,8 +38,12 @@ async function inputOf(c: Case) {
   return doc;
 }
 
+const pause = Number(process.env.PAUSE_MS ?? 0);
+
 async function main() {
-  for (const c of cases.filter((x) => only.length === 0 || only.includes(x.id))) {
+  const picked = cases.filter((x) => only.length === 0 || only.includes(x.id));
+  for (const [i, c] of picked.entries()) {
+    if (i > 0) await new Promise((done) => setTimeout(done, pause));
     const doc = await inputOf(c);
     const started = Date.now();
     let result: unknown = null;
