@@ -11,6 +11,8 @@ import {
 } from "@/lib/extract/url";
 import { extractFromPdf } from "@/lib/extract/pdf";
 import { sanitizeForPrompt } from "./ingest-source";
+import { CaptureError, ServiceError } from "@/lib/errors";
+import type { CaptureFailure } from "@/lib/error-copy";
 
 /**
  * How long a claim on a pending row holds before the drain treats its worker
@@ -221,6 +223,20 @@ async function markFailed(
   return { sourceId, status: "failed", error: PROCESSING_FAILED_MESSAGE };
 }
 
+/**
+ * An extractor's typed failure passes through with its own status (502 when
+ * the site failed, 422 when the reader can fix the input); anything else is
+ * filed under `fallback` as a 422.
+ */
+function extractionFailed(
+  err: unknown,
+  fallback: CaptureFailure,
+): CaptureError {
+  if (err instanceof CaptureError) return err;
+  const message = err instanceof Error ? err.message : String(err);
+  return new CaptureError(`Failed to extract content: ${message}`, 422, fallback);
+}
+
 export async function ingest({
   ownerId,
   raw,
@@ -238,8 +254,7 @@ export async function ingest({
       ? await extractFromUrl(trimmed)
       : extractFromText(trimmed);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    throw new Error(`Failed to extract content: ${message}`);
+    throw extractionFailed(err, "cannot-open");
   }
 
   const claimedAt = new Date();
@@ -289,7 +304,11 @@ export async function ingestPdf({
   bytes,
 }: IngestPdfInput): Promise<IngestResult> {
   if (bytes.byteLength === 0) {
-    throw new Error("Failed to extract content: the PDF file was empty.");
+    throw new CaptureError(
+      "Failed to extract content: the PDF file was empty.",
+      422,
+      "pdf-no-text",
+    );
   }
   const db = await getDb();
 
@@ -297,8 +316,7 @@ export async function ingestPdf({
   try {
     extracted = await extractFromPdf(bytes, filename);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    throw new Error(`Failed to extract content: ${message}`);
+    throw extractionFailed(err, "pdf-no-text");
   }
 
   const claimedAt = new Date();
@@ -512,7 +530,7 @@ export async function retrySource(
     .where(owned)
     .get();
 
-  if (!row) throw new Error("Source not found.");
+  if (!row) throw new ServiceError("Source not found.", 404);
 
   // Atomically flip status from "failed" → "pending". By adding status="failed"
   // to the WHERE clause we guard against a concurrent retry that already won
@@ -542,9 +560,10 @@ export async function retrySource(
       .from(sources)
       .where(owned)
       .get();
-    if (!current) throw new Error("Source not found.");
-    throw new Error(
+    if (!current) throw new ServiceError("Source not found.", 404);
+    throw new ServiceError(
       `Source is not in a failed state (current status: ${current.status}). Only failed sources can be retried.`,
+      409,
     );
   }
   return reprocessStored(db, { sourceId, ownerId, at: claimedAt }, {

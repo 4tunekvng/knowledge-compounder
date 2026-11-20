@@ -2,27 +2,21 @@ import { describe, expect, it } from "vitest";
 import { captureErrorCopy, failureReason } from "@/lib/error-copy";
 
 describe("captureErrorCopy", () => {
-  it("turns a fetch failure into plain words", () => {
-    expect(captureErrorCopy("Failed to extract content: fetch failed", "url"))
+  it("turns a link that won't open into plain words", () => {
+    expect(captureErrorCopy("cannot-open"))
       .toBe("Couldn't open that link. Check the address or paste the text instead.");
   });
 
   it("explains a link that is not a web page", () => {
-    expect(
-      captureErrorCopy(
-        "Failed to extract content: URL returned non-HTML content-type (image/png)",
-        "url",
-      ),
-    ).toMatch(/isn't a web page/);
+    expect(captureErrorCopy("not-web-page")).toMatch(/isn't a web page/);
   });
 
-  it("never repeats the raw text", () => {
-    expect(captureErrorCopy("Failed to fetch https://10.0.0.1/x (503)", "url"))
-      .not.toContain("10.0.0.1");
+  it("explains a private network address", () => {
+    expect(captureErrorCopy("private-address")).toMatch(/private network address/);
   });
 
   it("explains a PDF with no readable text", () => {
-    expect(captureErrorCopy("Failed to extract content: no text", "pdf"))
+    expect(captureErrorCopy("pdf-no-text"))
       .toMatch(/Couldn't read any text in that PDF/);
   });
 });

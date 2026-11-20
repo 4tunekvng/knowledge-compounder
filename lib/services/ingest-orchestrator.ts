@@ -19,6 +19,7 @@ import "server-only";
 import { and, eq } from "drizzle-orm";
 import { getDb, getEnv } from "@/lib/db/client";
 import { integrationTokens } from "@/lib/db/schema";
+import { ServiceError } from "@/lib/errors";
 import { openToken, sealToken } from "@/lib/token-box";
 import {
   InvalidTokenError,
@@ -83,8 +84,9 @@ export async function syncIntegration(
     .get();
 
   if (!row) {
-    throw new Error(
+    throw new ServiceError(
       `No token configured for provider '${provider}'. Paste a token in /integrations first.`,
+      422,
     );
   }
 

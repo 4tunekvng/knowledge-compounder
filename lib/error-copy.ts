@@ -2,39 +2,35 @@
 // gateway hosts or carry provider error bodies, so it never reaches the page:
 // it is sorted into one of a few plain explanations instead.
 
-const OPEN_FAILED =
-  "Couldn't open that link. Check the address or paste the text instead.";
+/** Why a capture failed before anything was filed, as its thrower names it. */
+export type CaptureFailure =
+  | "cannot-open"
+  | "not-web-address"
+  | "private-address"
+  | "not-web-page"
+  | "too-large"
+  | "pdf-no-text";
 
-const CAPTURE_ERRORS: [RegExp, string][] = [
-  [
-    /Invalid URL|Only http|non-HTTP/i,
+const CAPTURE_ERRORS: Record<CaptureFailure, string> = {
+  "cannot-open":
+    "Couldn't open that link. Check the address or paste the text instead.",
+  "not-web-address":
     "That doesn't look like a web address. Check it, or paste the text instead.",
-  ],
-  [
-    /private\/internal/i,
+  "private-address":
     "That link points to a private network address, so it can't be opened " +
-      "from here. Paste the text instead.",
-  ],
-  [
-    /non-HTML/i,
+    "from here. Paste the text instead.",
+  "not-web-page":
     "That link isn't a web page. If it's a PDF, download it and use Add a PDF.",
-  ],
-  [
-    /too large/i,
+  "too-large":
     "That page is too large to capture. Paste the part you read instead.",
-  ],
-];
+  "pdf-no-text":
+    "Couldn't read any text in that PDF. It may be scanned pages rather " +
+    "than text. Paste the text instead.",
+};
 
 /** Plain copy for a capture that failed before anything was filed. */
-export function captureErrorCopy(message: string, kind: "url" | "pdf"): string {
-  if (kind === "pdf") {
-    return (
-      "Couldn't read any text in that PDF. It may be scanned pages rather " +
-      "than text. Paste the text instead."
-    );
-  }
-  const match = CAPTURE_ERRORS.find(([pattern]) => pattern.test(message));
-  return match ? match[1] : OPEN_FAILED;
+export function captureErrorCopy(failure: CaptureFailure): string {
+  return CAPTURE_ERRORS[failure];
 }
 
 const FAILURE_REASONS: [RegExp, string][] = [
