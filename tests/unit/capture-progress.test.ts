@@ -19,12 +19,12 @@ vi.mock("@/lib/auth/user", () => ({
 
 const { POST } = await import("@/app/api/capture/route");
 
-const capture = (path: string) =>
+const capture = (input = "https://example.com/post") =>
   POST(
-    new Request(`http://localhost${path}`, {
+    new Request("http://localhost/api/capture", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ input: "https://example.com/post" }),
+      body: JSON.stringify({ input }),
     }),
   );
 
@@ -34,7 +34,7 @@ const lines = async (res: Response) =>
     .split("\n")
     .map((line) => JSON.parse(line));
 
-describe("POST /api/capture?progress=1", () => {
+describe("POST /api/capture", () => {
   it("says the capture is filed before it says it is done", async () => {
     // Arrange
     ingest.mockImplementation(async ({ onFiled }) => {
@@ -43,7 +43,7 @@ describe("POST /api/capture?progress=1", () => {
     });
 
     // Act
-    const events = await lines(await capture("/api/capture?progress=1"));
+    const events = await lines(await capture());
 
     // Assert
     expect(events).toEqual([
@@ -57,7 +57,7 @@ describe("POST /api/capture?progress=1", () => {
     ingest.mockRejectedValue(new Error("Failed to extract content: fetch failed"));
 
     // Act
-    const events = await lines(await capture("/api/capture?progress=1"));
+    const events = await lines(await capture());
 
     // Assert
     expect(events).toEqual([
@@ -70,14 +70,11 @@ describe("POST /api/capture?progress=1", () => {
     ]);
   });
 
-  it("answers in one JSON reply without the flag", async () => {
-    // Arrange
-    ingest.mockResolvedValue({ sourceId: 3, status: "processed" });
-
+  it("turns empty input away with a status before any work starts", async () => {
     // Act
-    const res = await capture("/api/capture");
+    const res = await capture("  ");
 
     // Assert
-    expect(await res.json()).toEqual({ sourceId: 3, status: "processed" });
+    expect([res.status, ingest.mock.calls.length]).toEqual([400, 0]);
   });
 });

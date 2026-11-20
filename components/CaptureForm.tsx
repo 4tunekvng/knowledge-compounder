@@ -104,20 +104,24 @@ export function CaptureForm({
       setFiling(next);
       onFiling?.(next);
     };
+    const startedAt = Date.now();
     // Outside the transition, so the filing card shows while it runs.
-    show({ title, startedAt: Date.now() });
+    show({ title, startedAt });
     startTransition(async () => {
+      let filed = false;
+      let ended = false;
       try {
-        const res = await fetch("/api/capture?progress=1", init);
+        const res = await fetch("/api/capture", init);
         if (!res.ok || !res.body) {
           handleResult(false, await res.json());
           return;
         }
         for await (const event of readLines(res.body)) {
           if (event.stage === "filed") {
+            filed = true;
             show({
               title: displayTitle(event.title, 80) || title,
-              startedAt: Date.now(),
+              startedAt,
               filed: {
                 sourceId: event.sourceId,
                 chars: event.chars,
@@ -125,11 +129,18 @@ export function CaptureForm({
               },
             });
           } else {
+            ended = true;
             handleResult(event.stage === "done", event);
           }
         }
+        if (!ended) throw new Error("The answer stopped part way.");
       } catch {
-        setError("Couldn't reach the app. Check your connection and try again.");
+        setError(
+          filed
+            ? "Lost the connection while writing the notes. The capture " +
+                "is saved: find it in your Library."
+            : "Couldn't reach the app. Check your connection and try again.",
+        );
       } finally {
         setFiling(null);
         onFiling?.(null);

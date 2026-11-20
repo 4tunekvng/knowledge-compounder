@@ -15,29 +15,19 @@ export async function POST(request: Request) {
   const user = apiUser(request);
   if (!user) return unauthorized();
   const contentType = request.headers.get("content-type") ?? "";
-  // ?progress=1: answer as a stream of JSON lines, one per real stage, so
-  // the page can say the capture is saved while its notes are written.
-  const progress = new URL(request.url).searchParams.get("progress") === "1";
   if (contentType.includes("multipart/form-data")) {
-    return handlePdfUpload(request, user.id, progress);
+    return handlePdfUpload(request, user.id);
   }
-  return handleTextCapture(request, user.id, progress);
+  return handleTextCapture(request, user.id);
 }
 
 type Run = (onFiled: (filed: Filed) => void) => Promise<IngestResult>;
 
-async function respond(run: Run, progress: boolean, tag: string, kind: Kind) {
-  if (!progress) {
-    try {
-      return NextResponse.json(await run(() => {}));
-    } catch (err) {
-      const failure = describeFailure(err, tag, kind);
-      return NextResponse.json(
-        { error: failure.error },
-        { status: failure.status },
-      );
-    }
-  }
+// Once the input is valid, the answer is a stream of JSON lines, one per
+// real stage: "filed" when the capture is read and saved, then "done" with
+// the result, or "error" with a plain message. The page can say the
+// capture is safe while its note and cards are still being written.
+function respond(run: Run, tag: string, kind: Kind) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -61,11 +51,7 @@ async function respond(run: Run, progress: boolean, tag: string, kind: Kind) {
   });
 }
 
-async function handleTextCapture(
-  request: Request,
-  ownerId: string,
-  progress: boolean,
-) {
+async function handleTextCapture(request: Request, ownerId: string) {
   let body: unknown;
   try {
     body = await request.json();
@@ -92,17 +78,12 @@ async function handleTextCapture(
 
   return respond(
     (onFiled) => ingest({ ownerId, raw: input, onFiled }),
-    progress,
     "[capture]",
     "url",
   );
 }
 
-async function handlePdfUpload(
-  request: Request,
-  ownerId: string,
-  progress: boolean,
-) {
+async function handlePdfUpload(request: Request, ownerId: string) {
   let form: FormData;
   try {
     form = await request.formData();
@@ -144,7 +125,6 @@ async function handlePdfUpload(
   const filename = file.name && file.name.trim() ? file.name : "upload.pdf";
   return respond(
     (onFiled) => ingestPdf({ ownerId, filename, bytes, onFiled }),
-    progress,
     "[capture:pdf]",
     "pdf",
   );
