@@ -1,5 +1,5 @@
 import "server-only";
-import { isFakeAi, MODELS, parseStructured } from "./client";
+import { isFakeAi, MODELS, parseStructured, testStub } from "./client";
 import { fakeEssay } from "./fake";
 import { EssayResultSchema, type EssayResult } from "./schemas";
 import { sanitizeForPrompt } from "@/lib/sanitize";
@@ -22,7 +22,9 @@ export async function draftEssay(args: {
   sources: { id: number; title: string; excerpt: string; whyICared: string }[];
 }): Promise<EssayResult> {
   if (isFakeAi()) {
-    return fakeEssay(args.themeLabel, args.themeSummary, args.sources);
+    return testStub("Essay", () =>
+      fakeEssay(args.themeLabel, args.themeSummary, args.sources),
+    );
   }
 
   return parseStructured({

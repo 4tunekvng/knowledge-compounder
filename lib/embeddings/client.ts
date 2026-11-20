@@ -53,6 +53,9 @@ async function callVoyage(text: string, inputType: "document" | "query"): Promis
 
 export async function embed(text: string): Promise<Float32Array> {
   const remote = await callVoyage(text, "document");
+  // Which embedder answered, so the logs say when related captures were
+  // matched on shared words instead of meaning.
+  console.log(`[embed] source=${remote ? "voyage" : "lexical-fallback"}`);
   return remote ?? lexicalEmbedding(text);
 }
 

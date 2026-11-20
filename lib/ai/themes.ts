@@ -1,5 +1,5 @@
 import "server-only";
-import { isFakeAi, MODELS, parseStructured } from "./client";
+import { isFakeAi, MODELS, parseStructured, testStub } from "./client";
 import { fakeThemes } from "./fake";
 import { ThemesResultSchema, type ThemesResult } from "./schemas";
 import { sanitizeForPrompt } from "@/lib/sanitize";
@@ -20,7 +20,7 @@ export async function findThemes(
   sources: { id: number; title: string; concepts: { name: string }[]; whyICared: string }[],
 ): Promise<ThemesResult> {
   if (isFakeAi()) {
-    return fakeThemes(sources);
+    return testStub("Themes", () => fakeThemes(sources));
   }
 
   // Not trimmed here: generateThemes trims after dropping themes with fewer

@@ -1,5 +1,5 @@
 import "server-only";
-import { isFakeAi, MODELS, parseStructured } from "./client";
+import { isFakeAi, MODELS, parseStructured, testStub } from "./client";
 import { fakeProcessing } from "./fake";
 import { fitProcessing, ProcessingResultSchema, type ProcessingResult } from "./schemas";
 import { sanitizeForPrompt } from "@/lib/sanitize";
@@ -18,7 +18,7 @@ export async function processSource(args: {
   text: string;
 }): Promise<ProcessingResult> {
   if (isFakeAi()) {
-    return fakeProcessing(args.title, args.text);
+    return testStub("Processing", () => fakeProcessing(args.title, args.text));
   }
 
   return fitProcessing(await parseStructured({
