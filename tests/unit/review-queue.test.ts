@@ -21,12 +21,16 @@ const card = (id: number) => ({
   nextIn: [60_000, 600_000, 86_400_000, 4 * 86_400_000],
 });
 
+// A queue of due cards, with no card waiting after them.
+const queue = (cards: ReturnType<typeof card>[]) =>
+  createElement(ReviewQueue, { cards, dueTotal: cards.length, nextDueIn: null });
+
 describe("ReviewQueue", () => {
   it("starts again at the first card after Check for more", async () => {
     // Arrange: grade the only due card, so the queue is cleared.
     const host = document.createElement("div");
     const root = createRoot(host);
-    await act(async () => root.render(createElement(ReviewQueue, { cards: [card(9)], dueTotal: 1 })));
+    await act(async () => root.render(queue([card(9)])));
     vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ ok: true })));
     const click = (selector: string) => host.querySelector<HTMLElement>(selector)!.click();
     await act(async () => click('[data-testid="reveal-button"]'));
@@ -34,9 +38,7 @@ describe("ReviewQueue", () => {
     await act(async () => click('[data-testid="review-done"] button'));
 
     // Act: the refresh brings in three newly due cards.
-    await act(async () =>
-      root.render(createElement(ReviewQueue, { cards: [card(1), card(2), card(3)], dueTotal: 3 })),
-    );
+    await act(async () => root.render(queue([card(1), card(2), card(3)])));
 
     // Assert
     expect(host.textContent).toContain("Q1");
@@ -46,9 +48,7 @@ describe("ReviewQueue", () => {
     // Arrange
     const host = document.createElement("div");
     const root = createRoot(host);
-    await act(async () =>
-      root.render(createElement(ReviewQueue, { cards: [card(4)], dueTotal: 1 })),
-    );
+    await act(async () => root.render(queue([card(4)])));
 
     // Act
     await act(async () =>
@@ -64,11 +64,7 @@ describe("ReviewQueue", () => {
     // Arrange: two due cards, both graded Good (back in 1 day).
     const host = document.createElement("div");
     const root = createRoot(host);
-    await act(async () =>
-      root.render(
-        createElement(ReviewQueue, { cards: [card(5), card(6)], dueTotal: 2 }),
-      ),
-    );
+    await act(async () => root.render(queue([card(5), card(6)])));
     vi.stubGlobal("fetch", async () => new Response("{}"));
     const click = (selector: string) =>
       host.querySelector<HTMLElement>(selector)!.click();
@@ -82,5 +78,19 @@ describe("ReviewQueue", () => {
     // Assert
     const done = host.querySelector('[data-testid="review-done"]')!.textContent;
     expect(done).toContain("Back in 1 day2 cards");
+  });
+
+  it("says when the next card comes back when nothing is due", async () => {
+    // Arrange
+    const host = document.createElement("div");
+    const root = createRoot(host);
+    const props = { cards: [], dueTotal: 0, nextDueIn: 2 * 86_400_000 };
+
+    // Act
+    await act(async () => root.render(createElement(ReviewQueue, props)));
+
+    // Assert
+    expect(host.textContent).toContain("Your next card comes back in 2 days.");
+    expect(host.textContent).not.toContain("due now");
   });
 });

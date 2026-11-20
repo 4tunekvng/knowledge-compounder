@@ -1,5 +1,9 @@
 import { ReviewQueue } from "@/components/ReviewQueue";
-import { countDueCards, listDueCards } from "@/lib/services/queries";
+import {
+  countDueCards,
+  listDueCards,
+  nextDueAt,
+} from "@/lib/services/queries";
 import { nextDueIn } from "@/lib/services/review";
 import { requireUser } from "@/lib/auth/user";
 
@@ -8,9 +12,10 @@ export const dynamic = "force-dynamic";
 export default async function ReviewPage() {
   const user = await requireUser();
   const now = new Date();
-  const [due, dueTotal] = await Promise.all([
+  const [due, dueTotal, next] = await Promise.all([
     listDueCards(user.id, now),
     countDueCards(user.id, now),
+    nextDueAt(user.id, now),
   ]);
   const cards = due.map(({ card, source }) => ({
     id: card.id,
@@ -25,7 +30,11 @@ export default async function ReviewPage() {
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-8">
       <h1 className="text-title font-medium">Review</h1>
-      <ReviewQueue cards={cards} dueTotal={dueTotal} />
+      <ReviewQueue
+        cards={cards}
+        dueTotal={dueTotal}
+        nextDueIn={next ? next.getTime() - now.getTime() : null}
+      />
     </div>
   );
 }
