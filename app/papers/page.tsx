@@ -1,8 +1,9 @@
 import { PaperDataDelete } from "@/components/PaperDataDelete";
+import { PaperDeepRead } from "@/components/PaperDeepRead";
 import { PaperInterests } from "@/components/PaperInterests";
 import { PaperPick } from "@/components/PaperPick";
 import { requireUser } from "@/lib/auth/user";
-import { getProfile, todaysPicks } from "@/lib/papers/readers";
+import { deepReadPick, getProfile, todaysPicks } from "@/lib/papers/readers";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,7 @@ export default async function PapersPage() {
   // concepts in their captures count too (lib/papers/readers.ts).
   const picks = await todaysPicks(user.id);
   const showPicks = Boolean(profile) || picks.length > 0;
+  const deep = showPicks ? await deepReadPick(user.id) : null;
 
   return (
     <div className="flex flex-col gap-12">
@@ -52,6 +54,15 @@ export default async function PapersPage() {
             ))
           )}
         </section>
+      )}
+
+      {deep && (
+        <PaperDeepRead
+          arxivId={deep.arxivId}
+          title={deep.title}
+          summary={deep.summary}
+          matched={deep.matched}
+        />
       )}
 
       {profile && <PaperDataDelete />}
