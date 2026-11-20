@@ -165,6 +165,12 @@ request. Share links (`/d/<token>`) stay public. In `next dev` there is no
 gate, so local requests must send that header themselves
 (`playwright.config.ts` shows how).
 
+`GET /api/today` feeds the Today page at https://fortuneking.dev/auth: the
+cards due now (linking to `/review`), today's paper picks, then the newest
+capture while it is being read or if it finished in the last day. It is the
+one route that page may read from another origin; the gate adds those
+headers (`lib/auth/today-cors.ts`).
+
 Production runs on Cloudflare D1 (real backend — nothing is stored in the
 browser). Local dev / preview / e2e use a `DATABASE_PATH` SQLite file via the
 better-sqlite3 adapter (`lib/db/local.ts`), dynamically imported so the native

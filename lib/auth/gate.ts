@@ -13,9 +13,14 @@
  *                            then the service's sign-out
  *   /d/<token> (share links), /login, /auth/start, /auth/callback -> public
  *
+ *   /api/today            -> also readable by https://fortuneking.dev
+ *                            (today-cors.ts); signed out, 401 "signed out"
+ *
  * Kept free of Next.js imports so it runs, and is tested, as plain Fetch
  * API code.
  */
+
+import { TODAY_PATH, todayPreflight, withTodayCors } from "./today-cors";
 
 export interface SignedInUser {
   id: string;
@@ -238,6 +243,14 @@ export async function gate(
   env: AuthEnv,
   next: Next,
 ): Promise<Response> {
+  return withTodayCors(request, await gateRequest(request, env, next));
+}
+
+async function gateRequest(
+  request: Request,
+  env: AuthEnv,
+  next: Next,
+): Promise<Response> {
   const url = new URL(request.url);
 
   // The sign-in cookie exists only on the app's own address.
@@ -256,6 +269,10 @@ export async function gate(
   if (url.pathname === "/auth/callback") return authCallback(request, url, env);
   if (url.pathname === SIGN_OUT_PATH) return authSignOut(request, url, env);
   if (isPublic(url.pathname)) return next(forwarded(request));
+  // A preflight carries no cookie, so it is answered before the sign-in check.
+  if (url.pathname === TODAY_PATH && request.method === "OPTIONS") {
+    return todayPreflight();
+  }
 
   let user: SignedInUser | null;
   try {
@@ -273,6 +290,9 @@ export async function gate(
     return next(forwarded(request));
   }
   if (!user) {
+    if (url.pathname === TODAY_PATH) {
+      return Response.json({ error: "signed out" }, { status: 401 });
+    }
     if (url.pathname.startsWith("/api/")) {
       return Response.json({ error: "Sign in first." }, { status: 401 });
     }

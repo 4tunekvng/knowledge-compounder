@@ -362,3 +362,73 @@ describe("nextUrl", () => {
     expect(new URL(nextUrl("/.//evil.example", HOST)).origin).toBe(HOST);
   });
 });
+
+describe("gate, /api/today for the Today page", () => {
+  const TODAY = "https://fortuneking.dev";
+
+  it("answers signed out with a 401 the Today page can read", async () => {
+    const next = app();
+
+    const res = await gate(
+      get("/api/today", { origin: TODAY }),
+      { AUTH: signedOut() },
+      next,
+    );
+
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: "signed out" });
+    expect(res.headers.get("access-control-allow-origin")).toBe(TODAY);
+    expect(res.headers.get("access-control-allow-credentials")).toBe("true");
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("adds the Today page's headers to the signed-in answer", async () => {
+    const res = await gate(
+      get("/api/today", { origin: TODAY }),
+      { AUTH: signedIn() },
+      app(),
+    );
+
+    expect(await res.text()).toBe("app");
+    expect(res.headers.get("access-control-allow-origin")).toBe(TODAY);
+    expect(res.headers.get("access-control-allow-credentials")).toBe("true");
+    expect(res.headers.get("vary")).toBe("Origin");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("gives another origin no cross-site headers", async () => {
+    const res = await gate(
+      get("/api/today", { origin: "https://evil.example" }),
+      { AUTH: signedIn() },
+      app(),
+    );
+
+    expect(res.headers.get("access-control-allow-origin")).toBeNull();
+    expect(res.headers.get("access-control-allow-credentials")).toBeNull();
+  });
+
+  it("answers the preflight without a cookie or the app", async () => {
+    const next = app();
+    const preflight = new Request(`${HOST}/api/today`, {
+      method: "OPTIONS",
+      headers: { origin: TODAY, "access-control-request-method": "GET" },
+    });
+
+    const res = await gate(preflight, { AUTH: signedOut() }, next);
+
+    expect(res.status).toBe(204);
+    expect(res.headers.get("access-control-allow-origin")).toBe(TODAY);
+    expect(res.headers.get("access-control-allow-methods")).toBe("GET");
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("keeps every other route closed to the Today page", async () => {
+    const res = await gate(
+      get("/api/review", { origin: TODAY }),
+      { AUTH: signedIn() },
+      app(),
+    );
+
+    expect(res.headers.get("access-control-allow-origin")).toBeNull();
+  });
+});
