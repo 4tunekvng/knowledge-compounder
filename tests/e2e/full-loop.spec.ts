@@ -85,7 +85,9 @@ test.describe("Knowledge Compounder full loop", () => {
     await page.getByTestId("generate-more-cards").click();
     await expect(page.getByTestId("cards-added")).toBeVisible({ timeout: 30_000 });
 
-    expect(await cards.count()).toBeGreaterThan(before);
+    // "Added N new cards" shows before router.refresh() brings the cards in,
+    // so wait for the count to change instead of reading it once.
+    await expect.poll(() => cards.count()).toBeGreaterThan(before);
   });
 
   test("review queue surfaces new cards and grading reschedules them", async ({ page }) => {
@@ -186,7 +188,7 @@ test.describe("Knowledge Compounder full loop", () => {
     const deck = page.getByTestId("decks-list").locator('li[data-testid^="deck-"]').first();
     await expect(deck).toBeVisible({ timeout: 15_000 });
     const linkInput = deck.locator('[data-testid^="deck-link-"]');
-    const shareUrl = await linkInput.inputValue();
+    const shareUrl = (await linkInput.textContent())!.trim();
     expect(shareUrl).toMatch(/\/d\/[a-f0-9]{32}$/);
     const token = shareUrl.split("/d/")[1];
 

@@ -1,5 +1,5 @@
 import "server-only";
-import { desc, eq, lte, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gt, lte, ne, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import {
   cards,
@@ -28,7 +28,10 @@ export interface SourceListItem {
   cardCount: number;
 }
 
-export async function listSources(limit = 50): Promise<SourceListItem[]> {
+export async function listSources(
+  ownerId: string,
+  limit = 50,
+): Promise<SourceListItem[]> {
   const db = await getDb();
   const rows = await db
     .select({
@@ -41,6 +44,7 @@ export async function listSources(limit = 50): Promise<SourceListItem[]> {
     .from(sources)
     .leftJoin(processings, eq(processings.sourceId, sources.id))
     .leftJoin(cards, eq(cards.sourceId, sources.id))
+    .where(eq(sources.ownerId, ownerId))
     .groupBy(sources.id)
     .orderBy(desc(sources.createdAt))
     .limit(limit)
@@ -66,12 +70,15 @@ export interface SourceDetail {
   related: { source: Source; processing: Processing; score: number }[];
 }
 
-export async function getSourceDetail(id: number): Promise<SourceDetail | null> {
+export async function getSourceDetail(
+  ownerId: string,
+  id: number,
+): Promise<SourceDetail | null> {
   const db = await getDb();
   const source = await db
     .select()
     .from(sources)
-    .where(eq(sources.id, id))
+    .where(and(eq(sources.id, id), eq(sources.ownerId, ownerId)))
     .get();
   if (!source) return null;
 
@@ -89,7 +96,7 @@ export async function getSourceDetail(id: number): Promise<SourceDetail | null> 
     .all();
 
   const related = processing?.embedding
-    ? await findRelated(id, processing.embedding as Uint8Array)
+    ? await findRelated(ownerId, id, processing.embedding as Uint8Array)
     : [];
 
   return {
@@ -101,6 +108,7 @@ export async function getSourceDetail(id: number): Promise<SourceDetail | null> 
 }
 
 async function findRelated(
+  ownerId: string,
   excludeSourceId: number,
   queryEmbedding: Uint8Array,
 ): Promise<{ source: Source; processing: Processing; score: number }[]> {
@@ -116,7 +124,12 @@ async function findRelated(
     })
     .from(processings)
     .innerJoin(sources, eq(sources.id, processings.sourceId))
-    .where(ne(processings.sourceId, excludeSourceId))
+    .where(
+      and(
+        eq(sources.ownerId, ownerId),
+        ne(processings.sourceId, excludeSourceId),
+      ),
+    )
     .all();
 
   const scored = others
@@ -148,7 +161,11 @@ export interface DueCard {
   source: Pick<Source, "id" | "title">;
 }
 
-export async function listDueCards(now = new Date(), limit = 50): Promise<DueCard[]> {
+export async function listDueCards(
+  ownerId: string,
+  now = new Date(),
+  limit = 50,
+): Promise<DueCard[]> {
   const db = await getDb();
   const rows = await db
     .select({
@@ -158,7 +175,7 @@ export async function listDueCards(now = new Date(), limit = 50): Promise<DueCar
     })
     .from(cards)
     .innerJoin(sources, eq(sources.id, cards.sourceId))
-    .where(lte(cards.dueAt, now))
+    .where(and(eq(cards.ownerId, ownerId), lte(cards.dueAt, now)))
     .orderBy(cards.dueAt)
     .limit(limit)
     .all();
@@ -173,34 +190,71 @@ export async function listDueCards(now = new Date(), limit = 50): Promise<DueCar
  * Cheap count of cards whose dueAt has passed. Used to drive the Review
  * nav badge — no need to materialize the full row set.
  */
-export async function countDueCards(now = new Date()): Promise<number> {
+export async function countDueCards(
+  ownerId: string,
+  now = new Date(),
+): Promise<number> {
   const db = await getDb();
   const row = await db
     .select({ count: sql<number>`COUNT(*)` })
     .from(cards)
-    .where(lte(cards.dueAt, now))
+    .where(and(eq(cards.ownerId, ownerId), lte(cards.dueAt, now)))
     .get();
   return Number(row?.count ?? 0);
 }
 
-export async function listThemes(): Promise<Theme[]> {
+/** When the next card not yet due comes back, or null if there are none. */
+export async function nextDueAt(
+  ownerId: string,
+  now = new Date(),
+): Promise<Date | null> {
   const db = await getDb();
-  return db.select().from(themes).orderBy(desc(themes.createdAt)).all();
+  const row = await db
+    .select({ dueAt: sql<number>`MIN(${cards.dueAt})` })
+    .from(cards)
+    .where(and(eq(cards.ownerId, ownerId), gt(cards.dueAt, now)))
+    .get();
+  return row?.dueAt ? new Date(Number(row.dueAt)) : null;
 }
 
-export async function getTheme(id: number): Promise<Theme | null> {
+export async function listThemes(ownerId: string): Promise<Theme[]> {
   const db = await getDb();
-  return (await db.select().from(themes).where(eq(themes.id, id)).get()) ?? null;
+  return db
+    .select()
+    .from(themes)
+    .where(eq(themes.ownerId, ownerId))
+    .orderBy(desc(themes.createdAt))
+    .all();
 }
 
-export async function getEssay(id: number): Promise<Essay | null> {
+export async function getTheme(ownerId: string, id: number): Promise<Theme | null> {
   const db = await getDb();
-  return (await db.select().from(essays).where(eq(essays.id, id)).get()) ?? null;
+  const row = await db
+    .select()
+    .from(themes)
+    .where(and(eq(themes.id, id), eq(themes.ownerId, ownerId)))
+    .get();
+  return row ?? null;
 }
 
-export async function listEssays(): Promise<Essay[]> {
+export async function getEssay(ownerId: string, id: number): Promise<Essay | null> {
   const db = await getDb();
-  return db.select().from(essays).orderBy(desc(essays.createdAt)).all();
+  const row = await db
+    .select()
+    .from(essays)
+    .where(and(eq(essays.id, id), eq(essays.ownerId, ownerId)))
+    .get();
+  return row ?? null;
+}
+
+export async function listEssays(ownerId: string): Promise<Essay[]> {
+  const db = await getDb();
+  return db
+    .select()
+    .from(essays)
+    .where(eq(essays.ownerId, ownerId))
+    .orderBy(desc(essays.createdAt))
+    .all();
 }
 
 export interface CorpusSourceForThemes {
@@ -211,7 +265,9 @@ export interface CorpusSourceForThemes {
   concepts: { name: string; weight: number }[];
 }
 
-export async function getCorpusForThemes(): Promise<CorpusSourceForThemes[]> {
+export async function getCorpusForThemes(
+  ownerId: string,
+): Promise<CorpusSourceForThemes[]> {
   const db = await getDb();
   const rows = await db
     .select({
@@ -220,7 +276,7 @@ export async function getCorpusForThemes(): Promise<CorpusSourceForThemes[]> {
     })
     .from(sources)
     .innerJoin(processings, eq(processings.sourceId, sources.id))
-    .where(eq(sources.status, "processed"))
+    .where(and(eq(sources.ownerId, ownerId), eq(sources.status, "processed")))
     .all();
 
   return rows.map((r) => ({

@@ -121,6 +121,29 @@ describe("lib/ai calls", () => {
     await expect(outcome).rejects.toThrow(
       `${c.label} returned no parsed output (stop_reason=max_tokens)`,
     );
-    expect(close).toHaveBeenCalledTimes(1);
+    // Tried twice, and each try's client closed.
+    expect(parse).toHaveBeenCalledTimes(2);
+    expect(close).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(CASES)("$name retries once past a bad reply", async (c) => {
+    parse
+      .mockResolvedValueOnce({ parsed_output: null, stop_reason: "end_turn" })
+      .mockResolvedValueOnce({ parsed_output: c.reply });
+
+    const result = await c.call();
+
+    expect(result).toEqual(c.reply);
+    // The retry asks the gateway not to answer from its cache.
+    expect(parse.mock.calls[1][0].metadata).toEqual({ fortune_no_cache: true });
+  });
+
+  it("does not retry a rejected key", async () => {
+    parse.mockRejectedValue(Object.assign(new Error("401"), { status: 401 }));
+
+    const outcome = processSource({ title: "Moats", text: "body text" });
+
+    await expect(outcome).rejects.toThrow("401");
+    expect(parse).toHaveBeenCalledTimes(1);
   });
 });

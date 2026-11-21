@@ -1,44 +1,31 @@
-import { CaptureForm } from "@/components/CaptureForm";
+import { CaptureWorkspace } from "@/components/CaptureWorkspace";
 import { SourceListItem } from "@/components/SourceListItem";
 import { listSources } from "@/lib/services/queries";
+import { requireUser } from "@/lib/auth/user";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const recent = await listSources(5);
+  const user = await requireUser();
+  const recent = await listSources(user.id, 5);
 
   return (
-    <div className="flex flex-col gap-10">
-      <section>
-        <h1 className="font-serif text-3xl tracking-tight mb-2">
-          Capture something you just read
-        </h1>
-        <p className="text-[color:var(--muted)] mb-6 max-w-2xl">
-          Paste a URL, drop in a PDF, or type notes. The agent extracts the content,
-          writes a 100-word reflection in your voice, generates a set of flashcards,
-          tags concepts, and adds it to your corpus.
-        </p>
-        <CaptureForm />
-      </section>
-
-      <section>
-        <div className="flex items-baseline justify-between mb-4">
-          <h2 className="font-serif text-xl">Recent captures</h2>
-          {recent.length > 0 && (
-            <a href="/library" className="text-sm">
-              View library →
-            </a>
-          )}
-        </div>
-        {recent.length === 0 ? (
+    <CaptureWorkspace
+      hasRecent={recent.length > 0}
+      recent={
+        recent.length === 0 ? (
           <div
-            className="border border-dashed border-[color:var(--border)] rounded-md p-8 text-center text-[color:var(--muted)]"
+            className="border-t border-line pt-4 text-ui text-ink-2"
             data-testid="empty-state"
           >
-            Your corpus is empty. Capture your first piece above.
+            <p>Nothing filed yet.</p>
+            <p className="mt-2 text-meta text-ink-3">
+              Your first capture lands here. Its flashcards are ready to review
+              as soon as it is filed.
+            </p>
           </div>
         ) : (
-          <ul className="flex flex-col gap-3" data-testid="recent-sources-list">
+          <ul data-testid="recent-sources-list">
             {recent.map(({ source, processing, cardCount }) => (
               <SourceListItem
                 key={source.id}
@@ -46,11 +33,12 @@ export default async function Home() {
                 whyICared={processing?.whyICared ?? null}
                 conceptsJson={processing?.concepts ?? null}
                 cardCount={cardCount}
+                compact
               />
             ))}
           </ul>
-        )}
-      </section>
-    </div>
+        )
+      }
+    />
   );
 }

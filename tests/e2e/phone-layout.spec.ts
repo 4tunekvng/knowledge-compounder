@@ -1,7 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 
 // At phone width nothing may push the page wider than the screen: a long
-// unbroken title and the status label must both stay inside it.
+// unbroken title and the status label must both stay inside it. The menu is
+// one row along the bottom edge, where a thumb reaches it.
 
 const PHONE = { width: 390, height: 844 };
 const BODY =
@@ -37,18 +38,19 @@ test.describe("phone layout", () => {
 
   test("the status label stays on screen", async ({ page }) => {
     await page.goto("/library");
-    const status = page.getByText("processed", { exact: true }).first();
+    const status = page.getByTestId(/^source-status-/).first();
     const box = await status.boundingBox();
     expect(box!.x + box!.width).toBeLessThanOrEqual(PHONE.width);
   });
 
-  test("the menu is one row under the wordmark", async ({ page }) => {
+  test("the menu is one row along the bottom of the screen", async ({ page }) => {
     await page.goto("/");
     const capture = await page.getByTestId("nav-capture").boundingBox();
     const integrations = await page
       .getByTestId("nav-integrations")
       .boundingBox();
     expect(integrations!.y).toBe(capture!.y);
+    expect(capture!.y + capture!.height).toBe(PHONE.height);
   });
 
   test("the source page does not scroll sideways", async ({ page }) => {
@@ -56,5 +58,64 @@ test.describe("phone layout", () => {
     await page.getByRole("link", { name: LONG_TITLE }).click();
     await expect(page.getByTestId("source-title")).toBeVisible();
     await expectNoSideScroll(page);
+  });
+
+  test("a deck's share link shows in full", async ({ page }) => {
+    await page.goto("/decks");
+    await page.getByTestId("deck-title").fill("Phone deck");
+    await page.locator('input[data-testid^="deck-source-"]').first().check();
+    await page.getByTestId("create-deck").click();
+
+    const link = page
+      .getByTestId("decks-list")
+      .locator("li", { hasText: "Phone deck" })
+      .locator('[data-testid^="deck-link-"]');
+    await expect(link).toHaveText(/\/d\/[a-f0-9]{32}$/);
+    const cut = await link.evaluate((el) => el.scrollWidth > el.clientWidth);
+    expect(cut).toBe(false);
+  });
+});
+
+// From 640px up the screens have room for frames and columns; these lock in
+// the ones that cut rows in half or left holes.
+test.describe("wider screens", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test("the deck picker is never a box that scrolls", async ({ page }) => {
+    await page.goto("/decks");
+    const list = page.getByTestId("deck-source-list");
+    await expect(list).toHaveCSS("overflow-y", "visible");
+  });
+
+  test("flashcards flow down two columns", async ({ page }) => {
+    await page.goto("/library");
+    await page.getByRole("link", { name: LONG_TITLE }).click();
+    const grid = page.getByTestId("cards-section").locator("ul").first();
+    await expect(grid).toHaveCSS("column-count", "2");
+  });
+});
+
+test.describe("the smallest phones", () => {
+  const SMALL = { width: 320, height: 700 };
+  test.use({ viewport: SMALL });
+
+  test("signed-in pages fit 320px with the account in the header", async ({
+    page,
+  }) => {
+    for (const path of ["/", "/review", "/papers"]) {
+      await page.goto(path);
+      await expect(page.getByTestId("sign-out")).toBeVisible();
+      const scrollWidth = await page.evaluate(
+        () => document.documentElement.scrollWidth,
+      );
+      expect(scrollWidth).toBeLessThanOrEqual(SMALL.width);
+    }
+  });
+
+  test("the menu names every tab, even when it shows only icons", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: "Imports" })).toBeVisible();
   });
 });

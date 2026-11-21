@@ -21,10 +21,11 @@ beforeAll(async () => {
   const db = (await getDb()) as unknown as { $client: Database.Database };
   db.$client.exec(`
     WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ${SOURCE_COUNT})
-    INSERT INTO sources (kind, title, raw_content, excerpt, status)
-      SELECT 'text', 'Source ' || i, 'body', 'body', 'processed' FROM n;
-    INSERT INTO cards (source_id, card_type, front, back)
-      SELECT id, 'definition', 'Q' || id, 'A' || id FROM sources;
+    INSERT INTO sources (owner_id, kind, title, raw_content, excerpt, status)
+      SELECT 'owner-1', 'text', 'Source ' || i, 'body', 'body', 'processed'
+      FROM n;
+    INSERT INTO cards (owner_id, source_id, card_type, front, back)
+      SELECT 'owner-1', id, 'definition', 'Q' || id, 'A' || id FROM sources;
   `);
 });
 
@@ -36,6 +37,16 @@ describe("chunkForD1", () => {
 
     expect(slices.map((s) => s.length)).toEqual([100, 100, 1]);
     expect(slices.flat()).toEqual(ids);
+  });
+});
+
+describe("chunkForD1 with other bound values", () => {
+  it("leaves room in each slice for the statement's other values", () => {
+    const ids = Array.from({ length: 100 }, (_, n) => n);
+
+    const slices = chunkForD1(ids, 1);
+
+    expect(slices.map((s) => s.length)).toEqual([99, 1]);
   });
 });
 
@@ -66,8 +77,12 @@ describe("decks over 100 sources", () => {
     );
     const sourceIds = Array.from({ length: SOURCE_COUNT }, (_, n) => SOURCE_COUNT - n);
 
-    const deck = await createDeck({ title: "Big deck", sourceIds });
-    const summaries = await listDecks();
+    const deck = await createDeck({
+      ownerId: "owner-1",
+      title: "Big deck",
+      sourceIds,
+    });
+    const summaries = await listDecks("owner-1");
     const opened = await getDeckByToken(deck.shareToken);
 
     expect(summaries[0]?.cardCount).toBe(SOURCE_COUNT);

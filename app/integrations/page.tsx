@@ -1,23 +1,22 @@
 import { IntegrationsPanel } from "@/components/IntegrationsPanel";
 import { listIntegrationStatus } from "@/lib/services/ingest-orchestrator";
+import { requireUser } from "@/lib/auth/user";
 
 export const dynamic = "force-dynamic";
 
 export default async function IntegrationsPage() {
-  const providers = await listIntegrationStatus();
+  const user = await requireUser();
+  const providers = await listIntegrationStatus(user.id);
   const readwise = providers.find((p) => p.provider === "readwise");
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex max-w-[760px] flex-col gap-12">
       <section>
-        <h1 className="font-serif text-3xl tracking-tight mb-2">
-          Auto-ingest
-        </h1>
-        <p className="text-[color:var(--muted)] max-w-2xl">
-          Connect your reading sources so highlights flow into the corpus
-          automatically. Each new highlight gets the same Claude treatment as
-          a manual capture: 100-word reflection, three flashcards, concept
-          tags, and cross-links.
+        <h1 className="text-title font-medium">Imports</h1>
+        <p className="mt-3 text-ui text-ink-2">
+          Connect Readwise, then bring your highlights into the library with
+          one button. Each one gets the same note, flashcards and main ideas as
+          something you capture by hand.
         </p>
       </section>
 
@@ -30,18 +29,6 @@ export default async function IntegrationsPage() {
           }
         }
       />
-
-      <section className="text-sm text-[color:var(--muted)] max-w-2xl">
-        <h2 className="font-serif text-base text-[color:var(--foreground)] mb-2">
-          Coming soon
-        </h2>
-        <p>
-          Kindle (via send-to-Kindle email parsing) and Zotero (via Web API)
-          implement the same <code>IngestSource</code> interface — they&apos;ll
-          appear here once shipped. The pattern lives in{" "}
-          <code>lib/services/ingest-source.ts</code>.
-        </p>
-      </section>
     </div>
   );
 }

@@ -1,32 +1,41 @@
 import { describe, expect, it, vi } from "vitest";
-import { DRAIN_URL, drainThroughApp } from "@/lib/scheduled";
+import { CRON_HEADER } from "@/lib/auth/gate";
+import { DRAIN_URL, PAPERS_CRON_URL, runCronJobs } from "@/lib/scheduled";
 
 /**
  * The cron handler worker.ts runs. The app's fetch handler is a spy that
- * records the request and answers the way the drain route would.
+ * records each request and answers the way the routes would.
  */
 
-describe("drainThroughApp", () => {
-  it("asks the app to drain, signed with the site secret", async () => {
-    const appFetch = vi.fn().mockResolvedValue(Response.json({ results: [] }));
+type AppFetch = (r: Request, e: unknown, c: unknown) => Promise<Response>;
+
+describe("runCronJobs", () => {
+  it("drains captures, then runs paper work, as cron requests", async () => {
+    const appFetch = vi.fn<AppFetch>(async () => Response.json({ ok: true }));
     vi.spyOn(console, "log").mockImplementation(() => {});
-    const env = { KC_API_SECRET: "s3cret" };
+    const env = {};
 
-    await drainThroughApp(appFetch, env, {});
+    await runCronJobs(appFetch, env, {});
 
-    const [request, passedEnv] = appFetch.mock.calls[0];
-    expect([request.method, request.url]).toEqual(["POST", DRAIN_URL]);
-    expect(request.headers.get("authorization")).toBe("Bearer s3cret");
-    expect(passedEnv).toBe(env);
+    const requests = appFetch.mock.calls.map(([r]) => r);
+    expect(requests.map((r) => [r.method, r.url])).toEqual([
+      ["POST", DRAIN_URL],
+      ["POST", PAPERS_CRON_URL],
+    ]);
+    expect(requests.map((r) => r.headers.get(CRON_HEADER))).toEqual(["1", "1"]);
+    expect(appFetch.mock.calls[0][1]).toBe(env);
   });
 
-  it("fails the cron run when the drain fails", async () => {
+  it("still runs paper work when the drain fails, then fails the run", async () => {
     const appFetch = vi
-      .fn()
-      .mockResolvedValue(new Response("Unauthorized", { status: 401 }));
+      .fn<AppFetch>()
+      .mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }))
+      .mockResolvedValueOnce(Response.json({ ok: true }));
+    vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await expect(drainThroughApp(appFetch, {}, {})).rejects.toThrow(
-      "Drain returned 401: Unauthorized",
+    await expect(runCronJobs(appFetch, {}, {})).rejects.toThrow(
+      "/api/drain returned 401: Unauthorized",
     );
+    expect(appFetch).toHaveBeenCalledTimes(2);
   });
 });

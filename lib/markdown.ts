@@ -103,3 +103,28 @@ function escapeHtml(input: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
+const FOOTNOTE_DEFINITION = /^\s*\[\^\d+\]:/;
+const NOTES_HEADING = /^#{1,6}\s*(footnotes|notes|references|sources)\s*$/i;
+const HEADING = /^#{1,6}\s+(.*)$/;
+
+const plain = (text: string) =>
+  text.toLowerCase().replace(/^draft:\s*/, "").replace(/[^a-z0-9]+/g, " ").trim();
+
+/**
+ * The essay's Markdown as the page shows it. The footnote definitions go:
+ * the page lists the notes itself from the stored citations (one per [^N]),
+ * each naming its capture once. A first heading that only repeats the page
+ * title goes too.
+ */
+export function essayBodyMarkdown(input: string, titles: string[]): string {
+  const repeats = new Set(titles.map(plain));
+  const lines = input
+    .split("\n")
+    .filter((line) => !FOOTNOTE_DEFINITION.test(line))
+    .filter((line) => !NOTES_HEADING.test(line.trim()));
+  const first = lines.findIndex((line) => line.trim() !== "");
+  const heading = first >= 0 ? HEADING.exec(lines[first].trim()) : null;
+  if (heading && repeats.has(plain(heading[1]))) lines.splice(first, 1);
+  return lines.join("\n");
+}

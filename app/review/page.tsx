@@ -1,27 +1,40 @@
 import { ReviewQueue } from "@/components/ReviewQueue";
-import { listDueCards } from "@/lib/services/queries";
+import {
+  countDueCards,
+  listDueCards,
+  nextDueAt,
+} from "@/lib/services/queries";
+import { nextDueIn } from "@/lib/services/review";
+import { requireUser } from "@/lib/auth/user";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReviewPage() {
-  const due = await listDueCards();
+  const user = await requireUser();
+  const now = new Date();
+  const [due, dueTotal, next] = await Promise.all([
+    listDueCards(user.id, now),
+    countDueCards(user.id, now),
+    nextDueAt(user.id, now),
+  ]);
   const cards = due.map(({ card, source }) => ({
     id: card.id,
     cardType: card.cardType,
     front: card.front,
     back: card.back,
     source,
+    // How long each grade would put the card away for, shown on its button.
+    nextIn: nextDueIn(card, now),
   }));
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-serif text-3xl tracking-tight">Review</h1>
-        <p className="text-[color:var(--muted)] mt-1">
-          {cards.length} {cards.length === 1 ? "card" : "cards"} due now
-        </p>
-      </div>
-      <ReviewQueue cards={cards} />
+    <div className="mx-auto flex max-w-[760px] flex-col gap-8">
+      <h1 className="text-title font-medium">Review</h1>
+      <ReviewQueue
+        cards={cards}
+        dueTotal={dueTotal}
+        nextDueIn={next ? next.getTime() - now.getTime() : null}
+      />
     </div>
   );
 }

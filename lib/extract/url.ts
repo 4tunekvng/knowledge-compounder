@@ -1,5 +1,6 @@
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
+import { DERIVED_TITLE_MAX } from "@/lib/format";
 
 export interface ExtractedDoc {
   title: string;
@@ -43,28 +44,38 @@ function isPrivateHost(hostname: string): boolean {
   if (h.startsWith("::ffff:")) return isPrivateHost(h.slice(7));
   // Block all remaining IPv6 addresses (fc00::/7 ULA, fe80:: link-local, etc.)
   if (h.includes(":")) return true;
-  // Integer-encoded IPv4 (e.g. http://2130706433/ == 127.0.0.1).
-  // parseInt("0177", 10) = 177, so octal notation falls through to dotted check.
-  if (/^\d+$/.test(h)) {
-    const asInt = parseInt(h, 10);
-    if (asInt >= 0 && asInt <= 0xffffffff) {
-      return isPrivateHost(
-        `${(asInt >>> 24) & 0xff}.${(asInt >>> 16) & 0xff}.${(asInt >>> 8) & 0xff}.${asInt & 0xff}`
-      );
-    }
-  }
-  // IPv4 patterns
+  return isPrivateIPv4(integerToDotted(h) ?? h);
+}
+
+// Blocked IPv4 ranges as [first octet, lowest second octet, highest second octet].
+const PRIVATE_IPV4_RANGES: ReadonlyArray<readonly [number, number, number]> = [
+  [127, 0, 255], // 127.0.0.0/8 loopback
+  [10, 0, 255], // 10.0.0.0/8 private
+  [192, 168, 168], // 192.168.0.0/16 private
+  [172, 16, 31], // 172.16.0.0/12 private
+  [169, 254, 254], // 169.254.0.0/16 link-local / metadata
+  [0, 0, 255], // 0.0.0.0/8
+];
+
+function isPrivateIPv4(h: string): boolean {
   const parts = h.split(".").map(Number);
-  if (parts.length === 4 && parts.every((n) => !isNaN(n) && n >= 0 && n <= 255)) {
-    const [a, b] = parts;
-    if (a === 127) return true;         // 127.0.0.0/8 loopback
-    if (a === 10) return true;          // 10.0.0.0/8 private
-    if (a === 192 && b === 168) return true; // 192.168.0.0/16 private
-    if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12 private
-    if (a === 169 && b === 254) return true; // 169.254.0.0/16 link-local / metadata
-    if (a === 0) return true;           // 0.0.0.0/8
-  }
-  return false;
+  if (parts.length !== 4 || !parts.every((n) => n >= 0 && n <= 255)) return false;
+  const [a, b] = parts;
+  return PRIVATE_IPV4_RANGES.some(([first, low, high]) =>
+    a === first && b >= low && b <= high,
+  );
+}
+
+/**
+ * Integer-encoded IPv4 (e.g. http://2130706433/ == 127.0.0.1) as dotted form,
+ * or null when `h` is not one. parseInt("0177", 10) = 177, so octal notation
+ * falls through to the dotted check.
+ */
+function integerToDotted(h: string): string | null {
+  if (!/^\d+$/.test(h)) return null;
+  const asInt = parseInt(h, 10);
+  if (asInt > 0xffffffff) return null;
+  return [24, 16, 8, 0].map((shift) => (asInt >>> shift) & 0xff).join(".");
 }
 
 /**
@@ -225,7 +236,7 @@ function deriveTitle(text: string): string {
   if (!text) return "Untitled";
   const firstLine = text.split("\n").find((line) => line.trim().length > 0);
   const candidate = (firstLine ?? text).trim();
-  return candidate.slice(0, 120);
+  return candidate.slice(0, DERIVED_TITLE_MAX);
 }
 
 function makeExcerpt(excerpt: string | null | undefined, text: string): string {

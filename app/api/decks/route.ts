@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { apiUser, unauthorized } from "@/lib/auth/user";
 import { createDeck } from "@/lib/services/decks";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const user = apiUser(request);
+  if (!user) return unauthorized();
   let body: unknown;
   try {
     body = await request.json();
@@ -23,7 +26,12 @@ export async function POST(request: Request) {
     .filter((n) => Number.isInteger(n) && n > 0);
 
   try {
-    const deck = await createDeck({ title, description, sourceIds });
+    const deck = await createDeck({
+      ownerId: user.id,
+      title,
+      description,
+      sourceIds,
+    });
     return NextResponse.json({ deck });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error.";

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import {
   AdditionalCardsResultSchema,
   EssayResultSchema,
@@ -62,5 +63,32 @@ describe("model output schemas", () => {
     );
 
     expect(found).toEqual([]);
+  });
+});
+
+// Every enum and const the model must pick from, in document order.
+function choices(node: unknown): string[] {
+  if (typeof node !== "object" || node === null) return [];
+  const n = node as Node;
+  const own = [n.enum, n.const].filter((v) => v !== undefined);
+  return [
+    ...own.map((v) => JSON.stringify(v)),
+    ...Object.values(n).flatMap(choices),
+  ];
+}
+
+describe("model output schemas sent to the API", () => {
+  // SDK 1.6.0 turned enum and const into a description hint, so the model
+  // could write a value outside the list and messages.parse then threw.
+  it("keep every enum and const as a constraint, not a hint", () => {
+    const schemas = Object.values(MODEL_SCHEMAS);
+    const declared = schemas.flatMap((s) =>
+      choices(z.toJSONSchema(s, { io: "input" })),
+    );
+
+    const sent = schemas.flatMap((s) => choices(zodOutputFormat(s).schema));
+
+    expect(declared.length).toBeGreaterThan(0);
+    expect(sent.sort()).toEqual(declared.sort());
   });
 });

@@ -24,7 +24,8 @@ const securityHeaders = [
       "default-src 'self'",
       scriptSrc,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
+      // Google profile photos for the signed-in account menu.
+      "img-src 'self' data: blob: https://lh3.googleusercontent.com",
       "font-src 'self'",
       "connect-src 'self'",
       "frame-ancestors 'none'",

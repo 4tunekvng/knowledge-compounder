@@ -11,6 +11,7 @@
  * accounts can issue one at https://readwise.io/access_token.
  */
 
+import { safeExternalHref } from "@/lib/safe-href";
 import {
   InvalidTokenError,
   type IngestSource,
@@ -142,7 +143,7 @@ export function highlightToCapture(
     externalId: String(h.id),
     title: book.title,
     text,
-    url: h.url ?? book.source_url ?? undefined,
+    url: safeExternalHref(h.url) ?? safeExternalHref(book.source_url) ?? undefined,
     externalUpdatedAt: updatedAtIso ? new Date(updatedAtIso) : undefined,
   };
 }

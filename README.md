@@ -17,7 +17,7 @@ A focused v0 of the [Knowledge Compounder PRD](./PRD.md): capture reading materi
 
 Connect your reading sources so highlights flow into the corpus automatically. Each new highlight gets the same Claude treatment as a manual capture: 100-word reflection, three flashcards, concept tags, cross-links.
 
-**Shipped: Readwise.** Generate a token at https://readwise.io/access_token, then in the app go to `/integrations`, paste the token, click **Save token**, then **Sync now**. The orchestrator pages the Readwise V2 export endpoint, dedupes against `(source_type, external_id)`, and stores `lastSyncedAt` so the next run is incremental.
+**Shipped: Readwise.** Generate a token at https://readwise.io/access_token, then in the app go to **Imports** (`/integrations`), paste the token, click **Save token**, then **Sync now**. The orchestrator pages the Readwise V2 export endpoint, dedupes against `(source_type, external_id)`, and stores `lastSyncedAt` so the next run is incremental.
 
 **Store first, process later.** Sync only stores each new highlight as a `pending`
 source; it never waits on Claude. A cron trigger on the worker (`worker.ts`, every 5
@@ -26,8 +26,9 @@ and processes them. A claim is a timestamp (`sources.claimed_at`), so two drains
 never take the same row, and a capture whose request died part-way is picked up once
 its claim is 35 minutes old. Only the worker holding a row's current claim writes its
 cards, so a slow request that was taken over writes nothing. After 3 tries a row is
-marked failed, so its page offers Retry. Under `next dev` there is no cron: run `curl
--X POST http://127.0.0.1:3000/api/drain` to process synced highlights.
+marked failed, so its page offers Try again. Under `next dev` there is no cron: run `curl
+-X POST -H "x-kc-cron: 1" http://127.0.0.1:3000/api/drain` to process synced
+highlights (the same with `/api/cron/papers` harvests new papers).
 
 **Extending to more providers.** The integration lives behind an `IngestSource` interface (`lib/services/ingest-source.ts`):
 
@@ -40,7 +41,8 @@ interface IngestSource {
 
 Implement that interface, register it in `lib/services/ingest-orchestrator.ts#getSource()`, add the provider to the `source_type` enum in `lib/db/schema.ts`, and you're done — the orchestrator, dedup, sync UI, and AI pipeline reuse for free. Kindle (send-to-Kindle email parsing) and Zotero (Web API) are the next two.
 
-Token storage is plaintext in the `integration_tokens` table — fine for single-user dev mode, **encrypt at rest before going multi-user**.
+Each person's token is sealed with AES-GCM (`lib/token-box.ts`, key in the
+`KC_TOKEN_KEY` Worker secret) before it is stored in `integration_tokens`.
 
 ## What's deliberately out of scope for v0
 
@@ -95,6 +97,7 @@ app/                      Next.js App Router
     sources/[id]/cards/   POST: generate additional flashcards for a source
     sources/[id]/retry/   POST: retry a failed source
     drain/                POST: process pending sources (called by the cron)
+    cron/papers/          POST: harvest new papers (called by the cron)
     review/               POST: grade a card
     themes/               POST: regenerate themes from current corpus
     essay/                POST: draft an essay from a theme
@@ -108,20 +111,23 @@ lib/
   embeddings/             Voyage REST client + lexical fallback + cosine similarity
   extract/                url.ts (Readability) + pdf.ts (unpdf, Workers-compatible)
   parsers.ts              Pure JSON parsers (DB stores arrays/objects as TEXT)
-  scheduled.ts            Cron handler: asks the app to run the drain
+  papers/                 Paper picks: arXiv + Hugging Face feeds, harvest
+  scheduled.ts            Cron handler: asks the app to run the drain, then papers
   services/
     ingest.ts             Manual + PDF capture pipeline, sync storage, drain
     cards.ts              Generate-more-cards for an existing source
     decks.ts              Create / list / fetch-by-token / delete decks
     ingest-source.ts      IngestSource interface + sanitizeForPrompt helper
-    ingest-orchestrator.ts  Drives sync for one provider, dedupes via (source_type, external_id)
+    ingest-orchestrator.ts  Drives sync for one person and provider, dedupes per person
     integrations/         Per-provider IngestSource impls (readwise.ts; kindle/zotero TBD)
     queries.ts            Read-side: list/get for sources, cards, themes, essays
     themes.ts             Theme clustering + essay drafting
     review.ts             FSRS grading
   sm2/                    Spaced repetition (FSRS-6 implementation; module name kept for compatibility)
   markdown.ts             Tiny dependency-free Markdown renderer
-worker.ts                 Worker entry: OpenNext app + the cron handler
+  auth/                   Sign-in gate (gate.ts) and the signed-in user for pages (user.ts)
+  token-box.ts            Seals integration tokens with AES-GCM before they are stored
+worker.ts                 Worker entry: sign-in gate, OpenNext app, cron handler
 tests/
   unit/                   Vitest — pure functions only
   e2e/                    Playwright — real browser, real DB, fake AI
@@ -135,10 +141,35 @@ CLOUDFLARE_ACCOUNT_ID=<id> npx wrangler d1 migrations apply knowledge-compounder
 CLOUDFLARE_ACCOUNT_ID=<id> npm run cf:deploy       # deploy the worker
 ```
 
+Requires the Cloudflare account that holds the `fortuneking-auth` Worker (the
+`AUTH` service binding) and these Worker secrets: `ANTHROPIC_API_KEY`,
+`ANTHROPIC_BASE_URL`, and `KC_TOKEN_KEY` (32 random bytes, base64:
+`openssl rand -base64 32 | npx wrangler secret put KC_TOKEN_KEY -c wrangler.jsonc`;
+it seals Readwise tokens, so changing it means everyone pastes theirs again).
+
 The deploy also registers the worker's cron trigger (`triggers.crons` in
-`wrangler.jsonc`), which drains pending sources every 5 minutes. To drain by hand
-in production, send `curl -X POST -H "Authorization: Bearer <KC_API_SECRET>"
-https://<your-worker-host>/api/drain`.
+`wrangler.jsonc`), which every 5 minutes drains everyone's pending sources and
+then, as a separate request, harvests new papers when the last harvest is 3 hours
+old or a new reading day has begun. Only the cron can run either: `/api/drain` and
+`/api/cron/papers` answer 404 to any request from outside.
+
+## Sign-in
+
+Everyone signs in with Google through `fortuneking-auth`
+(https://fortuneking.dev/auth), and every row is keyed by their Google account
+id (`owner_id`). `worker.ts` puts `lib/auth/gate.ts` in front of the app: it
+asks the sign-in service who the visitor is, sends signed-out pages to
+`/login` and answers signed-out API calls with 401, refuses posts from other
+sites, and hands the app the user in a header it deletes from every incoming
+request. Share links (`/d/<token>`) stay public. In `next dev` there is no
+gate, so local requests must send that header themselves
+(`playwright.config.ts` shows how).
+
+`GET /api/today` feeds the Today page at https://fortuneking.dev/auth: the
+cards due now (linking to `/review`), today's paper picks, then the newest
+capture while it is being read or if it finished in the last day. It is the
+one route that page may read from another origin; the gate adds those
+headers (`lib/auth/today-cors.ts`).
 
 Production runs on Cloudflare D1 (real backend — nothing is stored in the
 browser). Local dev / preview / e2e use a `DATABASE_PATH` SQLite file via the

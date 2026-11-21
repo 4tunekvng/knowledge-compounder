@@ -34,6 +34,8 @@ export const MAX_ATTEMPTS = 3;
 export const MAX_PDF_BYTES = 10 * 1024 * 1024;
 
 export interface IngestInput {
+  /** Google account id of the person capturing. */
+  ownerId: string;
   raw: string;
 }
 
@@ -46,9 +48,13 @@ export interface IngestResult {
 
 type Db = Awaited<ReturnType<typeof getDb>>;
 
-/** A worker's hold on a source row: the claimed_at value it stamped. */
+/**
+ * A worker's hold on a source row: the claimed_at value it stamped, and the
+ * person the row belongs to, whose processing and cards it writes.
+ */
 interface Claim {
   sourceId: number;
+  ownerId: string;
   at: Date;
 }
 
@@ -81,7 +87,7 @@ async function renewClaim(db: Db, claim: Claim): Promise<Claim | null> {
       ),
     )
     .run();
-  return changedRows(result) === 1 ? { sourceId: claim.sourceId, at } : null;
+  return changedRows(result) === 1 ? { ...claim, at } : null;
 }
 
 /** What became of a row another worker took over. */
@@ -104,7 +110,8 @@ async function currentResult(db: Db, sourceId: number): Promise<IngestResult> {
  * + process.
  */
 export interface ExternalIngestInput {
-  sourceType: "readwise" | "zotero";
+  ownerId: string;
+  sourceType: "readwise" | "zotero" | "arxiv";
   externalId: string;
   title: string;
   text: string;
@@ -123,8 +130,9 @@ async function processAndPersist(
   db: Db,
   claim: Claim,
   prompt: { title: string; text: string },
+  options: { replaceExisting?: boolean } = {},
 ): Promise<IngestResult> {
-  const { sourceId } = claim;
+  const { sourceId, ownerId } = claim;
   let held = claim;
   try {
     const result = await processSource(prompt);
@@ -133,9 +141,15 @@ async function processAndPersist(
     if (!renewed) return currentResult(db, sourceId);
     held = renewed;
 
+    if (options.replaceExisting) {
+      await db.delete(processings).where(eq(processings.sourceId, sourceId)).run();
+      await db.delete(cards).where(eq(cards.sourceId, sourceId)).run();
+    }
+
     await db
       .insert(processings)
       .values({
+        ownerId,
         sourceId,
         whyICared: result.why_i_cared,
         keyTakeaways: JSON.stringify(result.key_takeaways),
@@ -148,6 +162,7 @@ async function processAndPersist(
       await db
         .insert(cards)
         .values({
+          ownerId,
           sourceId,
           cardType: card.type,
           front: card.front,
@@ -164,7 +179,7 @@ async function processAndPersist(
 
     return { sourceId, status: "processed" };
   } catch (err) {
-    return markFailed(db, held, err);
+    return markFailed(db, held, err, options);
   }
 }
 
@@ -182,6 +197,7 @@ async function markFailed(
   db: Db,
   claim: Claim,
   err: unknown,
+  options: { replaceExisting?: boolean } = {},
 ): Promise<IngestResult> {
   const { sourceId } = claim;
   const message = err instanceof Error ? err.message : String(err);
@@ -195,13 +211,20 @@ async function markFailed(
       )
       .run();
     if (changedRows(result) === 0) return currentResult(db, sourceId);
+    if (options.replaceExisting) {
+      await db.delete(processings).where(eq(processings.sourceId, sourceId)).run();
+      await db.delete(cards).where(eq(cards.sourceId, sourceId)).run();
+    }
   } catch (updateErr) {
     console.error(`Failed to mark source ${sourceId} as failed:`, updateErr);
   }
   return { sourceId, status: "failed", error: PROCESSING_FAILED_MESSAGE };
 }
 
-export async function ingest({ raw }: IngestInput): Promise<IngestResult> {
+export async function ingest({
+  ownerId,
+  raw,
+}: IngestInput): Promise<IngestResult> {
   const trimmed = raw.trim();
   if (trimmed.length === 0) {
     throw new Error("Capture is empty.");
@@ -223,6 +246,7 @@ export async function ingest({ raw }: IngestInput): Promise<IngestResult> {
   const inserted = await db
     .insert(sources)
     .values({
+      ownerId,
       kind: isUrl ? "url" : "text",
       title: extracted.title,
       url: isUrl ? trimmed : null,
@@ -241,13 +265,14 @@ export async function ingest({ raw }: IngestInput): Promise<IngestResult> {
   }
   const sourceId = inserted[0].id;
 
-  return processAndPersist(db, { sourceId, at: claimedAt }, {
+  return processAndPersist(db, { sourceId, ownerId, at: claimedAt }, {
     title: sanitizeForPrompt(extracted.title) || "Untitled",
     text: sanitizeForPrompt(extracted.text),
   });
 }
 
 export interface IngestPdfInput {
+  ownerId: string;
   filename: string;
   bytes: Uint8Array;
 }
@@ -259,6 +284,7 @@ export interface IngestPdfInput {
  * written, so they surface as a clean 422 rather than a stuck "pending" source.
  */
 export async function ingestPdf({
+  ownerId,
   filename,
   bytes,
 }: IngestPdfInput): Promise<IngestResult> {
@@ -279,6 +305,7 @@ export async function ingestPdf({
   const inserted = await db
     .insert(sources)
     .values({
+      ownerId,
       kind: "pdf",
       title: extracted.title,
       url: null,
@@ -299,7 +326,7 @@ export async function ingestPdf({
   }
   const sourceId = inserted[0].id;
 
-  return processAndPersist(db, { sourceId, at: claimedAt }, {
+  return processAndPersist(db, { sourceId, ownerId, at: claimedAt }, {
     title: sanitizeForPrompt(extracted.title) || "Untitled",
     text: sanitizeForPrompt(extracted.text),
   });
@@ -312,8 +339,8 @@ export async function ingestPdf({
  * processPendingSources, so a sync of hundreds of highlights is only
  * database writes and cannot leave rows half-processed when its request ends.
  *
- * Returns `{ status: "skipped" }` if `(sourceType, externalId)` already
- * exists, so re-syncing is idempotent.
+ * Returns `{ status: "skipped" }` if this person already has
+ * `(sourceType, externalId)`, so re-syncing is idempotent.
  */
 export type ExternalIngestResult =
   | { sourceId: number; status: "pending" }
@@ -324,14 +351,15 @@ export async function ingestExternal(
 ): Promise<ExternalIngestResult> {
   const db = await getDb();
 
-  // Dedup check — the (source_type, external_id) unique index also enforces
-  // this at the DB level, but doing the lookup first lets us return a clean
-  // "skipped" result rather than a constraint-violation error.
+  // Dedup check — the (owner_id, source_type, external_id) unique index also
+  // enforces this at the DB level, but doing the lookup first lets us return
+  // a clean "skipped" result rather than a constraint-violation error.
   const existing = await db
     .select({ id: sources.id })
     .from(sources)
     .where(
       and(
+        eq(sources.ownerId, input.ownerId),
         eq(sources.sourceType, input.sourceType),
         eq(sources.externalId, input.externalId),
       ),
@@ -349,6 +377,7 @@ export async function ingestExternal(
   const inserted = await db
     .insert(sources)
     .values({
+      ownerId: input.ownerId,
       kind: "text", // body is plain text — same code path as a pasted text capture
       title: input.title.slice(0, 200) || "Untitled",
       url: input.url ?? null,
@@ -383,18 +412,11 @@ async function reprocessStored(
   claim: Claim,
   row: StoredSource,
 ): Promise<IngestResult> {
-  let prompt: { title: string; text: string };
-  try {
-    await db.delete(processings).where(eq(processings.sourceId, row.id)).run();
-    await db.delete(cards).where(eq(cards.sourceId, row.id)).run();
-    prompt = {
-      title: sanitizeForPrompt(row.title) || "Untitled",
-      text: sanitizeForPrompt(row.rawContent),
-    };
-  } catch (err) {
-    return markFailed(db, claim, err);
-  }
-  return processAndPersist(db, claim, prompt);
+  const prompt = {
+    title: sanitizeForPrompt(row.title) || "Untitled",
+    text: sanitizeForPrompt(row.rawContent),
+  };
+  return processAndPersist(db, claim, prompt, { replaceExisting: true });
 }
 
 /** Pending rows nobody is working on: never claimed, or claimed too long ago. */
@@ -430,11 +452,14 @@ async function claimNextPending(
     .where(inArray(sources.id, oldestFree))
     .returning({
       id: sources.id,
+      ownerId: sources.ownerId,
       title: sources.title,
       rawContent: sources.rawContent,
     })
     .all();
-  return row && { claim: { sourceId: row.id, at: now }, row };
+  return (
+    row && { claim: { sourceId: row.id, ownerId: row.ownerId, at: now }, row }
+  );
 }
 
 export const GAVE_UP_MESSAGE = `Gave up after ${MAX_ATTEMPTS} attempts.`;
@@ -442,7 +467,9 @@ export const GAVE_UP_MESSAGE = `Gave up after ${MAX_ATTEMPTS} attempts.`;
 /**
  * The drain: process up to `limit` pending rows, one claim at a time, so a
  * drain that is cut off strands at most the row it was working on. Run by
- * the scheduled worker (worker.ts → POST /api/drain).
+ * the scheduled worker (worker.ts → POST /api/drain). It serves everyone's
+ * rows; each claim carries its row's owner, whose processing and cards it
+ * writes.
  */
 export async function processPendingSources(
   limit: number,
@@ -469,8 +496,12 @@ export async function processPendingSources(
  * Retry button on a failed source page. Re-uses the already-extracted
  * rawContent + title so we don't re-fetch the URL.
  */
-export async function retrySource(sourceId: number): Promise<IngestResult> {
+export async function retrySource(
+  ownerId: string,
+  sourceId: number,
+): Promise<IngestResult> {
   const db = await getDb();
+  const owned = and(eq(sources.id, sourceId), eq(sources.ownerId, ownerId));
   const row = await db
     .select({
       title: sources.title,
@@ -478,7 +509,7 @@ export async function retrySource(sourceId: number): Promise<IngestResult> {
       status: sources.status,
     })
     .from(sources)
-    .where(eq(sources.id, sourceId))
+    .where(owned)
     .get();
 
   if (!row) throw new Error("Source not found.");
@@ -497,7 +528,7 @@ export async function retrySource(sourceId: number): Promise<IngestResult> {
       claimedAt,
       attempts: 1,
     })
-    .where(and(eq(sources.id, sourceId), eq(sources.status, "failed")))
+    .where(and(owned, eq(sources.status, "failed")))
     .run();
 
   // changedRows reads both runtimes' row counts — an undefined `meta` made the
@@ -509,15 +540,16 @@ export async function retrySource(sourceId: number): Promise<IngestResult> {
     const current = await db
       .select({ status: sources.status })
       .from(sources)
-      .where(eq(sources.id, sourceId))
+      .where(owned)
       .get();
     if (!current) throw new Error("Source not found.");
     throw new Error(
       `Source is not in a failed state (current status: ${current.status}). Only failed sources can be retried.`,
     );
   }
-  return reprocessStored(db, { sourceId, at: claimedAt }, {
+  return reprocessStored(db, { sourceId, ownerId, at: claimedAt }, {
     id: sourceId,
-    ...row,
+    title: row.title,
+    rawContent: row.rawContent,
   });
 }

@@ -7,7 +7,7 @@
 	],
 	"workers_dev": true,
 	// worker.ts wraps the OpenNext build (.open-next/worker.js) and adds the
-	// cron handler that drains pending sources.
+	// cron handler that drains pending sources, then harvests new papers.
 	"main": "worker.ts",
 	"compatibility_date": "2025-04-01",
 	"compatibility_flags": [
@@ -18,8 +18,8 @@
 		"binding": "ASSETS",
 		"directory": ".open-next/assets"
 	},
-	// Every 5 minutes: process sources stored but not yet processed (see
-	// worker.ts and app/api/drain/route.ts).
+	// Every 5 minutes: process sources stored but not yet processed, then
+	// harvest papers when due (see lib/scheduled.ts and the two routes).
 	"triggers": {
 		"crons": ["*/5 * * * *"]
 	},
@@ -39,6 +39,9 @@
 			"remote": true
 		}
 	],
+	// Google sign-in (fortuneking-auth). worker.ts asks it who each visitor
+	// is through this binding; see lib/auth/gate.ts.
+	"services": [{ "binding": "AUTH", "service": "fortuneking-auth" }],
 	"vars": {
 		"ANTHROPIC_MODEL": "claude-sonnet-5-5"
 	}

@@ -1,0 +1,113 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/LuMEAZkJeWECQDE6C1iV911WuiQ</id>
+  <title>arXiv Query: search_query=&amp;id_list=2604.06425,2610.17062&amp;start=0&amp;max_results=2</title>
+  <updated>2026-11-19T10:23:14Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=&amp;start=0&amp;max_results=2&amp;id_list=2604.06425,2610.17062" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>2</opensearch:itemsPerPage>
+  <opensearch:totalResults>2</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2610.17062v1</id>
+    <title>Gradient Routing Localizes and Removes Unintended Behaviors in RL</title>
+    <updated>2026-10-12T16:28:28Z</updated>
+    <link href="https://arxiv.org/abs/2610.17062v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2610.17062v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We propose a mitigation to reward hacking in reinforcement learning. Our setup involves a misspecified reward function that gives rise to unintended behavior, and a monitor used to detect unintended behavior. As with frontier AI systems, the monitor makes systematic errors. Consequently, using the monitor for data filtering or to apply a reward penalty fails to prevent the model from learning unintended behavior ("reward hacking"). To address this problem, we introduce GRAFT: Gradient Routing Adapter Fine Tuning. Rather than penalizing or filtering flagged samples during training, GRAFT constrains gradient updates on those samples to a sacrificial set of new parameters. This has two benefits: First, because the monitor is not part of the reward function, the model does not learn to hide misbehavior. Second, ablating the sacrificial parameters reduces or entirely stops the unintended behavior while maintaining improved performance on target tasks. We demonstrate these benefits in RL environments where reward penalties cause models to learn to reward hack in undetected ways, training models ranging from 135M to 8B parameters. Additionally, we show a similar effect at a larger scale by distilling frontier LLM trajectories containing reward hacking into Qwen3-32B, without teaching that model to reward hack. Overall, our work suggests GRAFT may be a promising approach for leveraging imperfect monitors during post-training in settings where true performance is difficult to evaluate.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-10-12T16:28:28Z</published>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Jake Ward</name>
+    </author>
+    <author>
+      <name>Shawn Hu</name>
+    </author>
+    <author>
+      <name>Aria Wong</name>
+    </author>
+    <author>
+      <name>Nathan Hu</name>
+    </author>
+    <author>
+      <name>Bryce Woodworth</name>
+    </author>
+    <author>
+      <name>Alexander Matt Turner</name>
+    </author>
+    <author>
+      <name>Alex Cloud</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2604.06425v2</id>
+    <title>Neural Computers</title>
+    <updated>2026-04-16T21:05:33Z</updated>
+    <link href="https://arxiv.org/abs/2604.06425v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2604.06425v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We propose a new frontier: Neural Computers (NCs) that unify computation, memory, and I/O of traditional computers in a learned runtime state. Our long-term goal is the Completely Neural Computer (CNC): the mature, general-purpose realization of this emerging machine form, with stable execution, explicit reprogramming, and durable capability reuse. As an initial step, we study whether elementary NC primitives can be learned solely from collected I/O traces, without instrumented program state. Concretely, we instantiate NCs as video models that roll out screen frames from instructions, pixels, and user actions (when available) in CLI and GUI settings. We show that NCs can acquire elementary interface primitives, especially I/O alignment and short-horizon control, while routine reuse, controlled updates, and symbolic stability remain challenging. We outline a roadmap toward CNCs, to establish a new computing paradigm beyond today's agents and conventional computers.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-04-07T20:01:05Z</published>
+    <arxiv:comment>Github (data pipeline): https://github.com/metauto-ai/NeuralComputer; Blogpost: https://metauto.ai/neuralcomputer/index_eng.html</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Mingchen Zhuge</name>
+    </author>
+    <author>
+      <name>Changsheng Zhao</name>
+    </author>
+    <author>
+      <name>Haozhe Liu</name>
+    </author>
+    <author>
+      <name>Zijian Zhou</name>
+    </author>
+    <author>
+      <name>Shuming Liu</name>
+    </author>
+    <author>
+      <name>Wenyi Wang</name>
+    </author>
+    <author>
+      <name>Ernie Chang</name>
+    </author>
+    <author>
+      <name>Gael Le Lan</name>
+    </author>
+    <author>
+      <name>Junjie Fei</name>
+    </author>
+    <author>
+      <name>Wenxuan Zhang</name>
+    </author>
+    <author>
+      <name>Yasheng Sun</name>
+    </author>
+    <author>
+      <name>Zhipeng Cai</name>
+    </author>
+    <author>
+      <name>Zechun Liu</name>
+    </author>
+    <author>
+      <name>Yunyang Xiong</name>
+    </author>
+    <author>
+      <name>Yining Yang</name>
+    </author>
+    <author>
+      <name>Yuandong Tian</name>
+    </author>
+    <author>
+      <name>Yangyang Shi</name>
+    </author>
+    <author>
+      <name>Vikas Chandra</name>
+    </author>
+    <author>
+      <name>Jürgen Schmidhuber</name>
+    </author>
+  </entry>
+</feed>

@@ -1,8 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-// The source page is not behind the API secret, so a processing failure's raw
-// text (gateway host, SDK error body) must not reach it; the row keeps it.
+// A processing failure's raw text (gateway host, SDK error body) must not
+// reach the source page, even for the person who owns it; the row keeps it.
 const RAW_ERROR = "401 from https://gateway.internal key=sk-fake-secret";
 
 vi.mock("@/lib/services/queries", () => ({
@@ -21,6 +21,9 @@ vi.mock("@/lib/services/queries", () => ({
   }),
   parseTakeaways: () => [],
   parseConcepts: () => [],
+}));
+vi.mock("@/lib/auth/user", () => ({
+  requireUser: async () => ({ id: "owner-1", email: "", name: "", picture: "" }),
 }));
 vi.mock("@/components/RetrySourceButton", () => ({ RetrySourceButton: () => null }));
 vi.mock("@/components/GenerateCardsButton", () => ({
