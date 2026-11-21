@@ -1,3 +1,5 @@
+> **Moved.** This app is now part of tellar's `src/library` (https://fortuneking.dev/library), and this repository is archived (read-only). Its open issues moved with the code, and the old address forwards to the new one.
+
 # Knowledge Compounder
 
 A focused v0 of the [Knowledge Compounder PRD](./PRD.md): capture reading material, have Claude distill it into "Why I cared" notes + spaced-repetition cards + concept tags, surface emergent themes across the corpus, and draft footnoted essays from those themes.
