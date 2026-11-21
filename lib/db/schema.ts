@@ -130,6 +130,29 @@ export const cards = sqliteTable("cards", {
     .default(sql`(unixepoch() * 1000)`),
 });
 
+// One row per card review. `cards` keeps only the latest state, so this log
+// is the only record of a card's history: a newer scheduler (FSRS-7) replays
+// it, and the FSRS optimizer fits personal weights from it.
+export const reviewLogs = sqliteTable("review_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ownerId: text("owner_id").notNull(),
+  cardId: integer("card_id")
+    .notNull()
+    .references(() => cards.id, { onDelete: "cascade" }),
+  rating: integer("rating").notNull(), // 1=Again 2=Hard 3=Good 4=Easy
+  reviewedAt: integer("reviewed_at", { mode: "timestamp_ms" }).notNull(),
+  stateBefore: integer("state_before").notNull(),
+  stabilityBefore: real("stability_before").notNull(),
+  difficultyBefore: real("difficulty_before").notNull(),
+  lastReviewedAtBefore: integer("last_reviewed_at_before", {
+    mode: "timestamp_ms",
+  }),
+  stateAfter: integer("state_after").notNull(),
+  stabilityAfter: real("stability_after").notNull(),
+  difficultyAfter: real("difficulty_after").notNull(),
+  scheduledDays: real("scheduled_days").notNull(),
+});
+
 export const themes = sqliteTable("themes", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   ownerId: text("owner_id").notNull(),

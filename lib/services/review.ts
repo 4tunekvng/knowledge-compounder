@@ -1,7 +1,7 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { cards, type Card } from "@/lib/db/schema";
+import { cards, reviewLogs, type Card } from "@/lib/db/schema";
 import {
   schedule,
   type CardState,
@@ -60,6 +60,24 @@ export async function gradeCard(ownerId: string, cardId: number, rating: Rating)
       lastReviewedAt: now,
     })
     .where(owned)
+    .run();
+
+  await db
+    .insert(reviewLogs)
+    .values({
+      ownerId,
+      cardId,
+      rating,
+      reviewedAt: now,
+      stateBefore: card.fsrsState,
+      stabilityBefore: card.stability,
+      difficultyBefore: card.difficulty,
+      lastReviewedAtBefore: card.lastReviewedAt,
+      stateAfter: next.state,
+      stabilityAfter: next.stability,
+      difficultyAfter: next.difficulty,
+      scheduledDays: next.scheduledDays,
+    })
     .run();
 
   return next;
